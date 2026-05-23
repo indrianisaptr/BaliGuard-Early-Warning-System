@@ -394,6 +394,11 @@ kurs_change_30d = (kurs_now - kurs_30d_ago) / kurs_30d_ago * 100
 from statsmodels.tsa.seasonal import seasonal_decompose
 result = seasonal_decompose(kunjungan_series, model='multiplicative', period=12)
 residual = result.resid  # komponen yang "tidak normal"
+
+# 4. Bali Share of National Tourism (dari dataset ke-14)
+bali_share_pct    = bali_wisman / indonesia_wisman * 100   # porsi Bali dari total nasional
+bali_share_change = bali_share_pct.diff()                  # laju perubahan share per tahun
+# Penurunan share → Bali kalah bersaing → sinyal krisis potensi jangka menengah
 ```
 
 ### Cara Menjelaskan Feature Engineering ke Dosen
@@ -478,6 +483,17 @@ Isi   : Kurs harian berbagai mata uang termasuk IDR
 Format: CSV (update harian)
 ```
 
+### Dataset 4b — Wisman Bali vs Indonesia Tahunan ⭐⭐
+```
+Nama  : Jumlah Wisatawan Asing ke Indonesia dan Bali 1969–2025
+Sumber: BPS Provinsi Bali
+Link  : https://bali.bps.go.id
+Isi   : Data tahunan jumlah wisman ke Indonesia dan Bali (beserta growth %)
+        → Digunakan untuk fitur bali_share_pct (porsi Bali dari total nasional)
+Format: XLS (banyaknya-wisatawan-mancanegara-ke-bali-dan-indonesia.xls)
+Catatan: Dataset ke-14 — melengkapi analisis daya saing Bali vs nasional
+```
+
 ### Dataset 5 — Hotel Reviews Multi-Aspek ⭐⭐
 ```
 Nama  : Hotel Reviews: Aspects, Sentiments and Topics
@@ -521,7 +537,8 @@ Untuk kelompok kecil / waktu terbatas:
 → Gunakan Dataset 1 (Bali Hotel Reviews, Mendeley) sebagai UTAMA untuk NLP
 → Gunakan Dataset 2 (BPS) untuk time series kunjungan
 → Gunakan Dataset 3 (Kaggle kurs) untuk faktor ekonomi
-→ Cukup 3 dataset ini → sudah multimodal dan layak presentasi!
+→ Gunakan Dataset 4b (BPS Bali vs Indonesia) untuk fitur bali_share_pct
+→ Cukup 4 dataset ini → sudah multimodal dan layak presentasi!
 
 Untuk kelompok ambisius:
 → Tambahkan Dataset 7 (cuaca) dan scrape sedikit tweet
