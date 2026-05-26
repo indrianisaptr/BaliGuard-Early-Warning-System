@@ -1,8 +1,8 @@
 {
   "2020-03": {
     "success": true,
-    "narrative": "**PERINGATAN DARURAT**\n\nLevel krisis pariwisata Bali telah mencapai 83,7/100. Tiga indikator kritis utama adalah: \n1. Jumlah wisman yang turun (167.461, turun dari rata-rata 3 bulan sebelumnya),\n2. Pangsa Bali/Nasional yang menurun (26,4% dengan Z-score -2,26),\n3. Sentimen yang rendah (0,461).\n\nRekomendasi tindakan segera: Lakukan evaluasi dan penyesuaian strategi pemasaran pariwisata untuk meningkatkan jumlah wisman dan memulihkan sentimen.",
-    "tokens": 448,
+    "narrative": "**PERINGATAN DARURAT**\n\nKondisi pariwisata Bali telah mencapai Level KRISIS dengan skor 83,7/100. Tiga indikator kritis adalah: \n1. Wisman turun drastis (167.461, turun dari rata-rata 484.551),\n2. Pangsa Bali/Nasional menurun (26,4% dengan Z-score -2,26), \n3. Sentimen pariwisata rendah (0,461). \nRekomendasi: Lakukan evaluasi dan respons cepat untuk mengatasi krisis pariwisata ini.",
+    "tokens": 434,
     "month": "2020-03",
     "crisis_level": "KRISIS",
     "report_type": "alert",
@@ -10,8 +10,8 @@
   },
   "2020-04": {
     "success": true,
-    "narrative": "**PERINGATAN DARURAT**\n\nLevel krisis pariwisata Bali telah tercapai dengan skor 83,3/100. Tiga indikator kritis utama adalah: \n1. Jumlah wisman yang turun dengan trend negatif, \n2. Pangsa Bali/Nasional yang rendah (26,4%), \n3. Sentimen yang rendah (0,68). \nRekomendasi tindakan segera: Implementasikan strategi pemasaran dan promosi pariwisata untuk meningkatkan jumlah wisman dan memulihkan sentimen.",
-    "tokens": 424,
+    "narrative": "**PERINGATAN DARURAT**\n\nKondisi pariwisata Bali telah mencapai Level KRISIS dengan skor 83,3/100. Tiga indikator kritis yang mempengaruhi kondisi ini adalah:\n1. Jumlah wisman yang menurun (379, trend turun),\n2. Pangsa Bali/Nasional yang rendah (26,4%),\n3. Z-score yang negatif (-2,26).\n\nRekomendasi tindakan segera: Evaluasi dan revisi strategi pemasaran untuk meningkatkan kunjungan wisman dan pangsa pasar.",
+    "tokens": 426,
     "month": "2020-04",
     "crisis_level": "KRISIS",
     "report_type": "alert",
@@ -19,8 +19,8 @@
   },
   "2020-07": {
     "success": true,
-    "narrative": "**PERINGATAN DARURAT**\n\nKondisi pariwisata Bali saat ini berada pada **Level Krisis** dengan skor 74,4/100. Tiga indikator kritis utama adalah: \n1. Wisman turun dengan trend negatif, \n2. Pangsa pasar Bali yang rendah (26,4%), dan \n3. Sentimen yang rendah (0,574). \nRekomendasi tindakan segera: **Lakukan evaluasi dan penyesuaian strategi pemasaran untuk meningkatkan kunjungan wisatawan dan memulihkan sentimen.**",
-    "tokens": 427,
+    "narrative": "**PERINGATAN DARURAT**\n\nKondisi pariwisata Bali saat ini berada pada **Level KRISIS** dengan skor 74,4/100. Tiga indikator kritis utama adalah: \n1. Wisman (turun, rata-rata 3 bulan: 153),\n2. Pangsa Bali/Nasional (26,4% dengan Z-score -1,21), \n3. TPK Hotel (3,1%). \nRekomendasi: **Lakukan evaluasi dan penyesuaian strategi pemasaran serta promosi pariwisata dengan segera** untuk mengatasi krisis ini.",
+    "tokens": 435,
     "month": "2020-07",
     "crisis_level": "KRISIS",
     "report_type": "alert",
@@ -28,8 +28,8 @@
   },
   "2020-05": {
     "success": true,
-    "narrative": "**PERINGATAN DARURAT**\n\nLevel krisis pariwisata Bali mencapai 73.1/100. Tiga indikator kritis adalah: \n1. Wisman turun (36, trend: turun),\n2. Pangsa Bali/Nasional menurun (26.4%),\n3. TPK Hotel rendah (3.1%). \nRekomendasi: Ambil tindakan segera untuk meningkatkan promosi dan mengatasi dampak krisis.",
-    "tokens": 404,
+    "narrative": "**PERINGATAN DARURAT**\n\nLevel krisis pariwisata Bali telah mencapai 73,1/100, memerlukan respons segera. Tiga indikator kritis adalah: \n1. Wisman turun drastis (36, trend turun),\n2. Pangsa pasar Bali menurun (26,4%),\n3. Sentimen rendah (0,562). \nRekomendasi: Lakukan evaluasi dan revisi strategi pemasaran untuk meningkatkan wisatawan dan memulihkan industri pariwisata.",
+    "tokens": 419,
     "month": "2020-05",
     "crisis_level": "KRISIS",
     "report_type": "alert",
@@ -37,8 +37,8 @@
   },
   "2020-02": {
     "success": true,
-    "narrative": "**PERINGATAN DARURAT**: Level KRISIS terdeteksi pada pariwisata Bali. Indikator kritis: \n1. Wisman turun (364,639, turun dari avg 3bln: 528,980), \n2. Pangsa Bali/Nasional menurun (26.4% dengan Z-score -2.22), \n3. TPK Hotel rendah (43.3%). \nRekomendasi: Lakukan evaluasi dan penyesuaian strategi pemasaran pariwisata segera untuk mengatasi krisis ini.",
-    "tokens": 427,
+    "narrative": "**PERINGATAN DARURAT**\n\nLevel krisis pariwisata Bali telah mencapai 70,5/100, menandakan situasi kritis yang membutuhkan respons segera. Tiga indikator kritis adalah: \n1. Wisman turun (364,639, trend turun),\n2. Pangsa Bali/Nasional rendah (26,4%),\n3. TPK Hotel rendah (43,3%). \nRekomendasi: Lakukan evaluasi dan penyesuaian strategi pemasaran pariwisata untuk meningkatkan jumlah wisman dan mengatasi krisis ini.",
+    "tokens": 437,
     "month": "2020-02",
     "crisis_level": "KRISIS",
     "report_type": "alert",
@@ -46,8 +46,8 @@
   },
   "2015-11": {
     "success": true,
-    "narrative": "**Laporan Bulanan Pariwisata Bali - November 2015**\n\n**1. Ringkasan Eksekutif**\nSektor pariwisata Bali saat ini berada dalam kondisi SIAGA dengan Crisis Score sebesar 66,5/100, menunjukkan tekanan signifikan pada sektor ini. Prediksi kami menunjukkan bahwa kondisi ini akan terus berlanjut dengan confidence sebesar 71,2%. \n\n**2. Analisis Indikator**\nIndikator wisman menunjukkan penurunan dengan jumlah 270.935 wisman, lebih rendah dari rata-rata tiga bulan sebelumnya yang mencapai 354.043. Pangsa Bali dalam pariwisata nasional juga menurun menjadi 38,5% dengan Z-score sebesar -1,59. Tingkat hunian kamar hotel (TPK) mencapai 55,5%, sementara nilai tukar USD/IDR berada di Rp 13.676.\n\n**3. Faktor Pendorong**\nFaktor pendorong kondisi SIAGA ini antara lain penurunan jumlah wisman yang signifikan, yang turut mempengaruhi pangsa Bali dalam pariwisata nasional. Selain itu, inflasi yang mencapai 4,89% dan sentimen yang relatif rendah sebesar 0,121 juga berkontribusi pada tekanan yang dialami sektor pariwisata.\n\n**4. Rekomendasi**\nBerikut beberapa rekomendasi untuk stakeholder:\n* Mengembangkan strategi pemasaran yang lebih agresif untuk meningkatkan jumlah wisman, terutama dari negara-negara yang memiliki potensi besar.\n* Mengoptimalkan pengelolaan hotel dan akomodasi untuk meningkatkan TPK dan mempertahankan kualitas pelayanan.\n* Mengawasi dan mengelola inflasi serta sentimen masyarakat untuk meminimalkan dampak negatif pada sektor pariwisata.",
-    "tokens": 796,
+    "narrative": "**Laporan Bulanan Pariwisata Bali — November 2015**\n\n1. **Ringkasan Eksekutif**: Sektor pariwisata Bali saat ini berada pada Level SIAGA dengan Crisis Score sebesar 66,5/100, menunjukkan tekanan signifikan pada sektor ini. Dengan prediksi RF pada level SIAGA sebesar 71,2%, kita perlu waspada terhadap potensi penurunan lebih lanjut.\n\n2. **Analisis Indikator**: Data menunjukkan bahwa jumlah wisman (wisatawan mancanegara) di Bali mencapai 270.935, turun dibandingkan rata-rata tiga bulan sebelumnya yang mencapai 354.043. Pangsa pasar Bali secara nasional juga menurun dengan persentase sebesar 38,5%, dan Z-score sebesar -1,59 menunjukkan bahwa penurunan ini cukup signifikan. Tingkat hunian kamar hotel (TPK) sebesar 55,5% dan nilai tukar USD/IDR sebesar Rp 13.676 juga perlu diawasi.\n\n3. **Faktor Pendorong**: Penurunan jumlah wisman dan pangsa pasar Bali secara nasional diduga dipengaruhi oleh inflasi sebesar 4,89% dan sentimen yang relatif rendah sebesar 0,121. Faktor-faktor ini berpotensi menurunkan minat wisatawan untuk berkunjung ke Bali, sehingga mempengaruhi sektor pariwisata secara keseluruhan.\n\n4. **Rekomendasi**:\n- **Optimalkan Promosi**: Perlu dilakukan strategi promosi yang efektif untuk meningkatkan minat wisatawan dan mempertahankan pangsa pasar Bali.\n- **Pengembangan Produk Wisata**: Mengembangkan produk wisata yang lebih beragam dan menarik untuk meningkatkan daya tarik wisatawan.\n- **Pengawasan dan Pemantauan**: Mengawasi dan memantau secara ketat indikator-indikator pariwisata seperti inflasi, sentimen, dan nilai tukar untuk memprediksi potensi krisis dan mengambil tindakan yang tepat.",
+    "tokens": 858,
     "month": "2015-11",
     "crisis_level": "SIAGA",
     "report_type": "monthly",
@@ -55,8 +55,8 @@
   },
   "2020-08": {
     "success": true,
-    "narrative": "**Laporan Bulanan Pariwisata Bali - Agustus 2020**\n\n**1. Ringkasan Eksekutif**\nSektor pariwisata Bali saat ini berada dalam kondisi SIAGA dengan Crisis Score sebesar 66,1/100, menunjukkan tekanan signifikan pada sektor ini. Prediksi RF juga menunjukkan kemungkinan besar kondisi SIAGA akan berlanjut dengan confidence sebesar 87,0%.\n\n**2. Analisis Indikator**\nData menunjukkan bahwa anomali telah terdeteksi, dengan probabilitas krisis sebesar 10,9% dan probabilitas siaga sebesar 87,0%. Jumlah wisman juga menurun, dengan trend turun dan rata-rata 3 bulan sebesar 32. Pangsa Bali dalam pariwisata nasional juga menurun menjadi 26,4%, dengan z-score sebesar -1,03.\n\n**3. Faktor Pendorong**\nFaktor pendorong kondisi SIAGA ini antara lain penurunan jumlah wisman sebesar 12, yang menunjukkan penurunan minat wisatawan untuk mengunjungi Bali. Selain itu, inflasi sebesar 1,36% dan sentimen sebesar 0,42 juga dapat mempengaruhi kondisi pariwisata Bali.\n\n**4. Rekomendasi**\nBerikut beberapa rekomendasi untuk stakeholder:\n* Mengembangkan strategi pemasaran yang lebih efektif untuk meningkatkan minat wisatawan mengunjungi Bali, dengan target peningkatan jumlah wisman sebesar 20% dalam 3 bulan ke depan.\n* Mengambil langkah-langkah untuk mengendalikan inflasi dan meningkatkan sentimen, seperti meningkatkan kualitas layanan dan meningkatkan kerja sama dengan penyedia jasa wisata.\n* Meningkatkan pangsa Bali dalam pariwisata nasional dengan mengembangkan paket wisata yang lebih menarik dan meningkatkan promosi pariwisata Bali, dengan target meningkatkan pangsa sebesar 5% dalam 6 bulan ke depan.",
-    "tokens": 826,
+    "narrative": "**Laporan Bulanan Pariwisata Bali - Agustus 2020**\n\n**1. Ringkasan Eksekutif**\nSektor pariwisata Bali saat ini berada dalam kondisi SIAGA dengan Crisis Score sebesar 66,1/100, menunjukkan tekanan signifikan pada industri pariwisata. Prediksi kami menunjukkan bahwa kondisi SIAGA ini akan berlanjut dengan confidence sebesar 87,0%.\n\n**2. Analisis Indikator**\nData menunjukkan bahwa jumlah wisman di Bali hanya 12, turun dari rata-rata tiga bulan sebelumnya yang mencapai 32. Pangsa pasar Bali dalam pariwisata nasional juga menurun menjadi 26,4% dengan Z-score sebesar -1,03. Selain itu, inflasi yang relatif rendah sebesar 1,36% dan sentimen yang positif sebesar 0,42 dapat menjadi indikator yang positif, namun masih belum cukup untuk mengatasi tekanan pada sektor pariwisata.\n\n**3. Faktor Pendorong**\nKondisi SIAGA ini dipengaruhi oleh beberapa faktor, termasuk penurunan jumlah wisman yang signifikan dan tekanan pada industri hotel dengan TPK hanya 3,1%. Faktor lainnya adalah nilai tukar USD/IDR yang mencapai Rp 14,649, yang dapat mempengaruhi kemampuan daya beli wisatawan asing.\n\n**4. Rekomendasi**\nBerikut beberapa rekomendasi untuk stakeholder:\n* Mengembangkan strategi pemasaran yang lebih efektif untuk meningkatkan jumlah wisman dan meningkatkan pangsa pasar Bali dalam pariwisata nasional.\n* Mengoptimalkan penggunaan sumber daya dan meningkatkan efisiensi operasional industri hotel untuk meningkatkan TPK.\n* Memonitor nilai tukar USD/IDR dan mengembangkan strategi untuk mengatasi dampak negatifnya terhadap pariwisata Bali.",
+    "tokens": 803,
     "month": "2020-08",
     "crisis_level": "SIAGA",
     "report_type": "monthly",
@@ -64,8 +64,8 @@
   },
   "2021-03": {
     "success": true,
-    "narrative": "**Laporan Bulanan Pariwisata Bali - Maret 2021**\n\n**Ringkasan Eksekutif**\nSektor pariwisata Bali masih berada dalam kondisi SIAGA dengan Crisis Score sebesar 65,2/100, menunjukkan tekanan signifikan pada sektor ini. Prediksi RF juga menunjukkan kemungkinan besar bahwa kondisi ini akan terus berlanjut dengan confidence sebesar 83,2%.\n\n**Analisis Indikator**\nData menunjukkan bahwa anomali terjadi dengan peluang krisis sebesar 14,9% dan peluang siaga sebesar 83,2%. Jumlah wisman (wisatawan mancanegara) juga menurun dengan trend turun dan rata-rata 3 bulan sebesar 57. Sementara itu, inflasi relatif rendah sebesar 1,37% dan sentimen juga relatif positif sebesar 0,52.\n\n**Faktor Pendorong**\nFaktor pendorong kondisi SIAGA ini antara lain penurunan jumlah wisman yang signifikan, yaitu sebesar 3, yang menunjukkan penurunan minat wisatawan mancanegara untuk berkunjung ke Bali. Selain itu, pangsa Bali dalam pariwisata nasional juga relatif rendah, yaitu sebesar 0,0%, yang menunjukkan bahwa Bali belum optimal dalam memanfaatkan potensi pariwisata.\n\n**Rekomendasi**\nBerikut beberapa rekomendasi untuk stakeholder:\n1. **Meningkatkan promosi pariwisata**: untuk meningkatkan kesadaran dan minat wisatawan mancanegara untuk berkunjung ke Bali.\n2. **Mengembangkan paket wisata**: untuk meningkatkan daya tarik wisatawan dan meningkatkan pangsa Bali dalam pariwisata nasional.\n3. **Mengoptimalkan kerja sama dengan stakeholder**: untuk meningkatkan efisiensi dan efektivitas pengelolaan pariwisata di Bali, serta meningkatkan kualitas layanan dan fasilitas wisata.",
-    "tokens": 823,
+    "narrative": "**Laporan Bulanan Pariwisata Bali - Maret 2021**\n\n**1. Ringkasan Eksekutif**\nSektor pariwisata Bali masih mengalami tekanan signifikan dengan Crisis Score sebesar 65,2/100, yang menempatkan kondisi pada Level SIAGA. Prediksi RF juga menunjukkan kemungkinan besar (83,2%) bahwa kondisi pariwisata akan tetap pada Level SIAGA.\n\n**2. Analisis Indikator**\nData menunjukkan bahwa anomali telah terjadi, dengan probabilitas krisis sebesar 14,9% dan probabilitas siaga sebesar 83,2%. Jumlah wisman (turis asing) juga menurun, dengan rata-rata 3 bulan sebesar 57. Selain itu, pangsa Bali dalam pariwisata nasional masih rendah, dengan persentase 0,0% dan Z-score sebesar -0,59.\n\n**3. Faktor Pendorong**\nKondisi pariwisata yang masih mengalami tekanan signifikan ini dipengaruhi oleh beberapa faktor, antara lain penurunan jumlah wisman dan rendahnya pangsa Bali dalam pariwisata nasional. Selain itu, inflasi sebesar 1,37% dan sentimen sebesar 0,52 juga dapat mempengaruhi kondisi pariwisata.\n\n**4. Rekomendasi**\nBerikut beberapa rekomendasi untuk stakeholder:\n* Mengembangkan strategi pemasaran yang efektif untuk meningkatkan jumlah wisman dan pangsa Bali dalam pariwisata nasional.\n* Meningkatkan kualitas layanan dan fasilitas pariwisata untuk meningkatkan kepuasan wisatawan dan meningkatkan sentimen.\n* Mengawasi dan mengelola inflasi untuk menjaga stabilitas ekonomi dan meningkatkan daya saing pariwisata Bali.",
+    "tokens": 780,
     "month": "2021-03",
     "crisis_level": "SIAGA",
     "report_type": "monthly",
@@ -73,8 +73,8 @@
   },
   "2020-09": {
     "success": true,
-    "narrative": "**Laporan Bulanan Pariwisata Bali - September 2020**\n\n**1. Ringkasan Eksekutif**\nSektor pariwisata Bali masih mengalami tekanan signifikan dengan Crisis Score sebesar 64,4/100, yang berada pada Level SIAGA. Prediksi RF juga menunjukkan kemungkinan besar (85,9%) bahwa kondisi pariwisata Bali akan tetap berada pada Level SIAGA.\n\n**2. Analisis Indikator**\nData menunjukkan bahwa jumlah wisman di Bali hanya 8, dengan tren yang menurun dari rata-rata 24 wisman selama 3 bulan terakhir. Pangsa pasar pariwisata Bali juga menurun dengan pangsa pasar nasional sebesar 26,4% dan Z-score -0,87. Selain itu, inflasi sebesar 1,42% dan sentimen sebesar 0,434 juga menunjukkan kondisi yang tidak stabil.\n\n**3. Faktor Pendorong**\nKondisi pariwisata Bali yang masih berada pada Level SIAGA dipengaruhi oleh beberapa faktor, termasuk penurunan jumlah wisman dan pangsa pasar nasional. Faktor lain seperti inflasi dan sentimen juga berperan dalam menentukan kondisi pariwisata Bali. Selain itu, nilai tukar USD/IDR sebesar Rp 14.785 juga dapat mempengaruhi kemampuan daya beli wisman.\n\n**4. Rekomendasi**\nBerikut beberapa rekomendasi untuk stakeholder:\n* Mengembangkan strategi pemasaran yang lebih efektif untuk meningkatkan jumlah wisman di Bali.\n* Meningkatkan kualitas layanan dan fasilitas pariwisata untuk meningkatkan kepuasan wisman dan meningkatkan pangsa pasar nasional.\n* Mengawasi dan mengelola inflasi dan sentimen untuk mempertahankan kondisi pariwisata yang stabil dan meningkatkan kepercayaan wisman.",
-    "tokens": 790,
+    "narrative": "**Laporan Bulanan Pariwisata Bali - September 2020**\n\n**Ringkasan Eksekutif**\nSektor pariwisata Bali saat ini berada dalam kondisi SIAGA dengan Crisis Score sebesar 64,4/100, menunjukkan tekanan signifikan pada industri pariwisata. Dengan prediksi RF yang juga menunjukkan SIAGA dengan confidence sebesar 85,9%, kita perlu waspada terhadap potensi penurunan lebih lanjut. Hal ini diperkuat dengan tren wisatawan mancanegara (wisman) yang turun, dengan rata-rata 3 bulan terakhir sebesar 24.\n\n**Analisis Indikator**\nAngka-angka dalam laporan menunjukkan bahwa sektor pariwisata Bali mengalami tekanan. Dengan pangsa pasar Bali terhadap nasional sebesar 26,4% dan Z-score sebesar -0,87, menunjukkan bahwa Bali masih menjadi destinasi yang populer namun dengan penurunan yang signifikan. Tingkat pengisi kamar hotel (TPK) sebesar 4,5% juga menunjukkan bahwa industri hospitality mengalami penurunan. Sementara itu, inflasi sebesar 1,42% dan sentimen sebesar 0,434 menunjukkan bahwa kondisi ekonomi dan persepsi masyarakat masih dalam tahap yang relatif stabil.\n\n**Faktor Pendorong**\nFaktor pendorong utama kondisi SIAGA ini adalah penurunan jumlah wisatawan mancanegara yang datang ke Bali, dengan tren yang menurun dan rata-rata 3 bulan terakhir sebesar 24. Faktor lainnya adalah tingkat pengisi kamar hotel yang rendah, menunjukkan bahwa industri hospitality juga terkena dampak. Kondisi ini diperparah dengan histori 3 bulan terakhir yang menunjukkan perubahan kondisi dari SIAGA ke KRISIS dan kembali ke SIAGA, menandakan volatilitas yang tinggi dalam sektor pariwisata.\n\n**Rekomendasi**\nBerikut beberapa rekomendasi untuk stakeholder:\n1. **Pengembangan Strategi Pemasaran**: Mengembangkan strategi pemasaran yang efektif untuk meningkatkan jumlah wisatawan mancanegara yang datang ke Bali, dengan fokus pada promosi destinasi dan pengalaman unik yang ditawarkan.\n2. **Dukungan Industri Hospitality**: Memberikan dukungan kepada industri hospitality melalui program-program insentif dan pelatihan untuk meningkatkan kualitas layanan dan meningkatkan tingkat pengisi kamar hotel.\n3. **Pengelolaan Krisis**: Mengembangkan rencana pengelolaan krisis yang efektif untuk menghadapi potensi penurunan lebih lanjut dalam sektor pariwisata, dengan fokus pada mitigasi dampak dan pemulihan cepat.",
+    "tokens": 1006,
     "month": "2020-09",
     "crisis_level": "SIAGA",
     "report_type": "monthly",
@@ -82,11 +82,27 @@
   },
   "2021-07": {
     "success": true,
-    "narrative": "**Laporan Bulanan Pariwisata Bali - Juli 2021**\n\n**Ringkasan Eksekutif**\nSektor pariwisata Bali masih mengalami tekanan signifikan dengan Crisis Score sebesar 61,8/100, yang menempatkan kondisi pada Level SIAGA. Prediksi RF juga menunjukkan kemungkinan besar bahwa kondisi akan tetap pada Level SIAGA dengan confidence sebesar 83,2%.\n\n**Analisis Indikator**\nData menunjukkan bahwa Crisis Score sebesar 61,8/100 menandakan adanya tekanan signifikan pada sektor pariwisata Bali. Angka ini juga didukung oleh prediksi RF yang menunjukkan kemungkinan besar kondisi akan tetap pada Level SIAGA. Selain itu, anomali yang terdeteksi juga menunjukkan bahwa ada kemungkinan krisis sebesar 15,0%, namun kemungkinan siaga masih lebih tinggi yaitu sebesar 83,2%.\n\n**Faktor Pendorong**\nFaktor pendorong kondisi pariwisata Bali yang masih mengalami tekanan signifikan adalah jumlah wisman yang sangat rendah, yaitu 0, dengan trend yang menurun. Hal ini juga didukung oleh pangsa Bali/nasional yang sangat rendah, yaitu 0,0%. Selain itu, inflasi sebesar 1,52% dan sentimen sebesar 0,648 juga menjadi faktor pendorong kondisi pariwisata Bali.\n\n**Rekomendasi**\nBerikut beberapa rekomendasi untuk stakeholder:\n1. Mengambil langkah-langkah untuk meningkatkan jumlah wisman dengan mengembangkan promosi dan paket wisata yang menarik.\n2. Meningkatkan kualitas layanan dan fasilitas pariwisata untuk meningkatkan kepuasan wisatawan dan meningkatkan pangsa Bali/nasional.\n3. Mengawasi dan mengontrol inflasi untuk menjaga stabilitas ekonomi dan meningkatkan daya beli wisatawan, sehingga dapat meningkatkan sentimen dan mendukung pemulihan sektor pariwisata Bali.",
-    "tokens": 831,
+    "narrative": "**Laporan Bulanan Pariwisata Bali - Juli 2021**\n\n**1. Ringkasan Eksekutif**\nSektor pariwisata Bali masih menghadapi tekanan signifikan dengan Crisis Score mencapai 61,8/100, yang menempatkan kondisi pada Level SIAGA. Prediksi RF juga menunjukkan kemungkinan kondisi SIAGA sebesar 83,2%, menandakan bahwa sektor pariwisata masih perlu waspada dan meningkatkan kesiapsiagaan.\n\n**2. Analisis Indikator**\nData menunjukkan bahwa jumlah wisman di Bali mencapai 0, menurun dari rata-rata 3 bulan sebelumnya yang berjumlah 6. Pangsa Bali dalam pariwisata nasional juga masih 0,0%, dengan Z-score -0,63 yang menandakan bahwa performa pariwisata Bali masih di bawah rata-rata nasional. Selain itu, inflasi sebesar 1,52% dan sentimen sebesar 0,648 juga perlu diperhatikan dalam konteks pemulihan pariwisata.\n\n**3. Faktor Pendorong**\nKondisi SIAGA yang berkelanjutan ini dipengaruhi oleh beberapa faktor, termasuk penurunan jumlah wisman dan pangsa pariwisata Bali yang masih rendah. Faktor ekonomi seperti inflasi dan nilai tukar USD/IDR (Rp 14,491) juga berperan dalam menentukan kondisi pariwisata. TPK Hotel yang mencapai 4,8% menunjukkan bahwa kapasitas akomodasi masih belum sepenuhnya dimanfaatkan.\n\n**4. Rekomendasi**\nBerikut beberapa rekomendasi untuk stakeholder:\n- Meningkatkan promosi dan kampanye untuk menarik wisman dan meningkatkan pangsa pariwisata Bali.\n- Mengembangkan strategi untuk meningkatkan okupansi hotel dan meningkatkan TPK Hotel.\n- Memantau dan mengelola faktor-faktor ekonomi seperti inflasi dan nilai tukar untuk meminimalkan dampak negatif terhadap sektor pariwisata.",
+    "tokens": 838,
     "month": "2021-07",
     "crisis_level": "SIAGA",
     "report_type": "monthly",
     "crisis_score": 61.8
+  },
+  "2024-12": {
+    "success": true,
+    "narrative": "Kondisi pariwisata Bali pada bulan Desember 2024 menunjukkan skor krisis 35,8 dengan level WASPADA, didukung oleh prediksi RF yang juga menunjukkan level WASPADA dengan tingkat kepercayaan 85,1%. Jumlah wisman mencapai 551.100 dengan tren yang meningkat, sementara pangsa pasar Bali dan tingkat hunian kamar hotel (TPK) mencapai 45,6% dan 61,9% respectively.",
+    "tokens": 398,
+    "month": "2024-12",
+    "crisis_level": "WASPADA"
+  },
+  "2026-01": {
+    "success": true,
+    "narrative": "**Kondisi Pariwisata Bali Januari 2026**\n\nPariwisata Bali masih dalam level WASPADA dengan skor krisis 40,7/100 dan prediksi RF WASPADA dengan kepercayaan 70,0%. Jumlah wisman meningkat dengan 551.100 orang, meningkat 3,1% dibandingkan dengan rata-rata 3 bulan terakhir.",
+    "tokens": 375,
+    "month": "2026-01",
+    "crisis_level": "WASPADA",
+    "report_type": "summary",
+    "crisis_score": 40.7
   }
 }

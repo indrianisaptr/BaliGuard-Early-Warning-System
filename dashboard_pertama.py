@@ -426,63 +426,17 @@ usd_avg  = sf(row_data.get('usd_idr_avg',0))
 inflasi  = sf(row_data.get('inflasi_processed',0))
 bali_shr = sf(row_data.get('bali_share_pct',0))
 
-# ── MoM Delta (Why Now?) ─────────────────────────────
-_sorted_months = sorted(predictions['month'].unique())
-_sel_idx       = _sorted_months.index(sel) if sel in _sorted_months else -1
-_prev_month    = _sorted_months[_sel_idx - 1] if _sel_idx > 0 else None
-_prev_row      = get_row(_prev_month) if _prev_month else None
-
-def _delta_txt(curr, prev_val, fmt="+.1f", suffix="", invert=False):
-    """Return coloured delta HTML. invert=True means up is bad (score, usd)."""
-    if prev_val is None or prev_val == 0:
-        return "<span style='color:#475569;font-size:10px'>— vs bln lalu</span>"
-    d    = curr - prev_val
-    pct  = (d / abs(prev_val) * 100) if prev_val != 0 else 0
-    good = (d < 0) if invert else (d > 0)
-    col  = "#4ade80" if good else ("#f87171" if (d < 0 if not invert else d > 0) else "#94a3b8")
-    sign = "▲" if d > 0 else ("▼" if d < 0 else "→")
-    if suffix == "%":
-        txt = f"{sign} {abs(d):.1f}pp vs bln lalu"
-    elif suffix == "pct_change":
-        txt = f"{sign} {abs(pct):.1f}% vs bln lalu"
-    else:
-        txt = f"{sign} {abs(d):{fmt}} vs bln lalu"
-    return f"<span style='color:{col};font-size:10px;font-weight:700'>{txt}</span>"
-
-_p_score  = sf(_prev_row.get('crisis_score_100',0))       if _prev_row is not None else None
-_p_wisman = sf(_prev_row.get('wisman',0))                  if _prev_row is not None else None
-_p_tpk    = sf(_prev_row.get('tpk_bintang',0))             if _prev_row is not None else None
-_p_sent   = sf(_prev_row.get('avg_sentiment_monthly',0))   if _prev_row is not None else None
-_p_usd    = sf(_prev_row.get('usd_idr_avg',0))             if _prev_row is not None else None
-
-_d_score  = _delta_txt(score,  _p_score,  fmt=".1f",  invert=True)
-_d_wisman = _delta_txt(wisman, _p_wisman, suffix="pct_change")
-_d_tpk    = _delta_txt(tpk,    _p_tpk,   suffix="%")
-_d_sent   = _delta_txt(sent,   _p_sent,  fmt="+.3f")
-_d_usd    = _delta_txt(usd_avg,_p_usd,   suffix="pct_change", invert=True)
-
-# Build KPI card with delta sub
-def kpi_html_delta(label, value, sub_static, delta_html, level=None):
-    cls = f"kpi-card kpi-{level}" if level else "kpi-card"
-    return (f'<div class="{cls}"><div class="kpi-label">{label}</div>'
-            f'<div class="kpi-value">{value}</div>'
-            f'<div class="kpi-sub">{sub_static}</div>'
-            f'<div style="margin-top:5px">{delta_html}</div></div>')
-
 c1,c2,c3,c4,c5,c6 = st.columns(6)
-with c1: st.markdown(kpi_html_delta("LEVEL KRISIS", f"{EMOJI_MAP.get(level,'')} {level}",
-                     f"RF: {rf_pred}", f"<span style='color:#475569;font-size:10px'>{_prev_month or '—'}</span>", level),
-                     unsafe_allow_html=True)
-with c2: st.markdown(kpi_html_delta("CRISIS SCORE",   f"{score:.1f}",
-                     f"dari 100 · conf {conf:.0f}%", _d_score),  unsafe_allow_html=True)
-with c3: st.markdown(kpi_html_delta("WISMAN",         f"{wisman:,}",
-                     "orang bulan ini",               _d_wisman), unsafe_allow_html=True)
-with c4: st.markdown(kpi_html_delta("TPK BINTANG",    f"{tpk:.1f}%",
-                     "hunian hotel",                  _d_tpk),    unsafe_allow_html=True)
-with c5: st.markdown(kpi_html_delta("SENTIMEN",       f"{sent:+.3f}",
-                     "avg ulasan",                    _d_sent),   unsafe_allow_html=True)
-with c6: st.markdown(kpi_html_delta("USD/IDR",        f"Rp {usd_avg:,.0f}",
-                     "kurs rata-rata",                _d_usd),    unsafe_allow_html=True)
+cards = [
+    (c1,"LEVEL KRISIS",   f"{EMOJI_MAP.get(level,'')} {level}", f"RF: {rf_pred}", level),
+    (c2,"CRISIS SCORE",   f"{score:.1f}",                        f"dari 100 · conf {conf:.0f}%", None),
+    (c3,"WISMAN",         f"{wisman:,}",                         "orang bulan ini",   None),
+    (c4,"TPK BINTANG",    f"{tpk:.1f}%",                         "hunian hotel",      None),
+    (c5,"ANOMALI (IF)",   "⚠️ Ya" if is_anom else "✅ Normal",  "Isolation Forest",  None),
+    (c6,"SENTIMEN",       f"{sent:+.3f}",                        "avg ulasan",        None),
+]
+for col, lbl, val, sub, lv in cards:
+    with col: st.markdown(kpi_html(lbl, val, sub, lv), unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ── Alert Banner ─────────────────────────────────────
@@ -551,35 +505,6 @@ with tab1:
             annotation_font_size=10, row=r, col=1)
         fig.add_vline(x=sel_dt, line_dash='dot', line_color='#60a5fa',
                       line_width=1.2, row=r, col=1)
-
-    # ── Event annotations (real-world context) ───────────
-    EVENTS = [
-        # (date_str, label, color, symbol)
-        ('2002-10-12', 'Bom Bali I',       '#ef4444', 'circle'),
-        ('2005-10-01', 'Bom Bali II',      '#f97316', 'circle'),
-        ('2017-11-01', 'Erupsi Agung',     '#fb923c', 'diamond'),
-        ('2018-08-05', 'Gempa Lombok',     '#f59e0b', 'diamond'),
-        ('2020-03-19', 'Lockdown COVID',   '#ef4444', 'x'),
-        ('2021-10-14', 'Bali Dibuka PPLN', '#22c55e', 'triangle-up'),
-        ('2022-11-15', 'KTT G20 Bali',    '#a78bfa', 'star'),
-        ('2023-02-01', 'Bebas Visa 20 N.', '#60a5fa', 'triangle-up'),
-    ]
-    for ev_date, ev_label, ev_col, ev_sym in EVENTS:
-        try:
-            _ev_dt = pd.to_datetime(ev_date)
-            if _ev_dt < months_dt.min() or _ev_dt > months_dt.max() + pd.DateOffset(months=3):
-                continue
-            fig.add_vline(x=_ev_dt, line_dash='dot', line_color=ev_col,
-                          line_width=0.8, opacity=0.55, row=1, col=1)
-            fig.add_annotation(
-                x=_ev_dt, y=97, text=ev_label,
-                showarrow=False, font=dict(size=8, color=ev_col),
-                textangle=-55, xanchor='left',
-                bgcolor='rgba(5,13,26,0.7)', borderpad=2,
-                row=1, col=1
-            )
-        except Exception:
-            pass
 
     fig.update_layout(height=580, showlegend=True,
         legend=dict(orientation='h', yanchor='bottom', y=1.01, xanchor='right', x=1,
@@ -1408,30 +1333,10 @@ with tab5:
                     _ctx['wisman_trend']  = 'naik' if _ctx['wisman'] > _avg3 else 'turun'
                     _ctx['avg_wisman_3m'] = round(_avg3, 0)
                     _ctx['prev_levels']   = [r.get('crisis_level','N/A') for r in _history[-3:]]
-                    # MoM delta untuk konteks kausal
-                    _prev_r = _history[-1] if _history else {}
-                    def _d(a, b, key): 
-                        pv = float(_prev_r.get(key,0)); cv = float(a.get(key,0) if isinstance(a,dict) else a)
-                        return round(cv - pv, 3) if pv != 0 else 0
-                    _prev_w = float(_prev_r.get('wisman', 1))
-                    _ctx['wisman_delta_pct'] = round((_ctx['wisman'] - _prev_w) / max(1,_prev_w) * 100, 1)
-                    _ctx['score_delta']      = round(_ctx['crisis_score'] - float(_prev_r.get('crisis_score_100', _ctx['crisis_score'])), 1)
-                    _ctx['sent_delta']       = round(_ctx['sentiment'] - float(_prev_r.get('avg_sentiment_monthly', _ctx['sentiment'])), 3)
-                    _ctx['tpk_delta']        = round(_ctx['tpk_bintang'] - float(_prev_r.get('tpk_bintang', _ctx['tpk_bintang'])), 1)
-                    _ctx['usd_delta_pct']    = round((float(_prev_r.get('usd_idr_avg',0)) and
-                                               (_ctx['usd_idr'] - float(_prev_r.get('usd_idr_avg',0))) /
-                                               float(_prev_r.get('usd_idr_avg',1)) * 100) or 0, 1)
-                    _ctx['prev_level']       = _prev_r.get('crisis_level', 'N/A')
                 else:
-                    _ctx['wisman_trend']     = 'tidak tersedia'
-                    _ctx['avg_wisman_3m']    = 0
-                    _ctx['prev_levels']      = []
-                    _ctx['wisman_delta_pct'] = 0
-                    _ctx['score_delta']      = 0
-                    _ctx['sent_delta']       = 0
-                    _ctx['tpk_delta']        = 0
-                    _ctx['usd_delta_pct']    = 0
-                    _ctx['prev_level']       = 'N/A'
+                    _ctx['wisman_trend'] = 'tidak tersedia'
+                    _ctx['avg_wisman_3m'] = 0
+                    _ctx['prev_levels']   = []
 
                 LEVEL_DESC = {
                     'AMAN':'kondisi pariwisata normal','WASPADA':'ada sinyal awal yang perlu dipantau',
@@ -1440,75 +1345,32 @@ with tab5:
                 }
                 _lv_text = LEVEL_DESC.get(_ctx['crisis_level'], _ctx['crisis_level'])
                 _prev    = ' -> '.join(_ctx['prev_levels']) if _ctx['prev_levels'] else 'N/A'
-
-                # Deteksi kontradiksi (sentimen vs wisman)
-                _contradiction = ""
-                if _ctx['wisman_delta_pct'] < -5 and _ctx['sent_delta'] > 0.05:
-                    _contradiction = "KONTRADIKSI: Wisman turun tapi sentimen naik — kemungkinan tekanan dari faktor akses/ekonomi bukan kepuasan."
-                elif _ctx['wisman_delta_pct'] > 5 and _ctx['sent_delta'] < -0.05:
-                    _contradiction = "KONTRADIKSI: Wisman naik tapi sentimen turun — perlu investigasi kualitas layanan atau pengalaman wisata."
-                elif _ctx['score_delta'] > 5 and _ctx['sent_delta'] > 0.1:
-                    _contradiction = "KONTRADIKSI: Crisis score memburuk tapi sentimen publik positif — tekanan mungkin struktural, bukan persepsi."
-
                 _data_block = (
                     f"DATA PARIWISATA BALI - {_ctx['month']}\n"
                     f"Crisis Score: {_ctx['crisis_score']}/100 -> Level {_ctx['crisis_level']} ({_lv_text})\n"
-                    f"  Perubahan score vs bulan lalu: {_ctx['score_delta']:+.1f} poin | Level sebelumnya: {_ctx['prev_level']}\n"
-                    f"Prediksi RF: {_ctx['rf_predicted']} (confidence: {_ctx['rf_confidence']}%) | "
-                    f"Anomali IF: {'Ya' if _ctx['is_anomaly'] else 'Tidak'}\n"
-                    f"P(Krisis): {_ctx['prob_krisis']}% | P(Siaga): {_ctx['prob_siaga']}%\n"
-                    f"Wisman: {_ctx['wisman']:,.0f} ({_ctx['wisman_delta_pct']:+.1f}% MoM, trend: {_ctx['wisman_trend']}, avg 3bln: {int(_ctx['avg_wisman_3m']):,.0f})\n"
-                    f"TPK Hotel: {_ctx['tpk_bintang']}% ({_ctx['tpk_delta']:+.1f}pp MoM)\n"
-                    f"USD/IDR: Rp {int(_ctx['usd_idr']):,} ({_ctx['usd_delta_pct']:+.1f}% MoM)\n"
-                    f"Inflasi: {_ctx['inflasi']}% | Sentimen: {_ctx['sentiment']} ({_ctx['sent_delta']:+.3f} MoM)\n"
+                    f"Prediksi RF: {_ctx['rf_predicted']} (confidence: {_ctx['rf_confidence']}%)\n"
+                    f"Anomali: {'Ya' if _ctx['is_anomaly'] else 'Tidak'} | P(Krisis): {_ctx['prob_krisis']}% | P(Siaga): {_ctx['prob_siaga']}%\n"
+                    f"Wisman: {_ctx['wisman']:,.0f} (trend: {_ctx['wisman_trend']}, avg 3bln: {int(_ctx['avg_wisman_3m']):,.0f})\n"
                     f"Pangsa Bali: {_ctx['bali_share']}% | Z-score: {_ctx['wisman_zscore']}\n"
-                    f"Histori level: {_prev}\n"
-                    + (f"⚠️ {_contradiction}\n" if _contradiction else "")
+                    f"TPK Hotel: {_ctx['tpk_bintang']}% | USD/IDR: Rp {int(_ctx['usd_idr']):,}\n"
+                    f"Inflasi: {_ctx['inflasi']}% | Sentimen: {_ctx['sentiment']}\n"
+                    f"Histori: {_prev}\n"
                 )
-
                 if report_type == 'summary':
-                    _prompt = (
-                        "Kamu adalah analis senior BaliGuard — sistem early warning pariwisata Bali.\n"
-                        + _data_block +
-                        f"\nTugas: Buat ringkasan analitis kondisi pariwisata Bali bulan {_ctx['month']} "
-                        "dalam 2-3 kalimat Bahasa Indonesia yang TAJAM dan KAUSAL — bukan hanya deskriptif.\n"
-                        "Panduan:\n"
-                        "- Jelaskan MENGAPA kondisi ini terjadi, bukan hanya APA kondisinya\n"
-                        "- Sebutkan perubahan MoM yang paling signifikan sebagai pemicu\n"
-                        "- Jika ada kontradiksi antar indikator, soroti itu\n"
-                        "- Hindari kalimat seperti 'data menunjukkan' — langsung ke analisis\n"
-                        "Format: cocok untuk KPI card eksekutif, padat, berbasis data."
-                    )
+                    _prompt = ("Kamu adalah analis BaliGuard (early warning pariwisata Bali).\n"
+                               + _data_block + f"Buat ringkasan kondisi pariwisata Bali bulan {_ctx['month']} "
+                               "dalam 2-3 kalimat Bahasa Indonesia. Tajam, berbasis data, cocok untuk KPI card.")
                 elif report_type == 'alert':
-                    _prompt = (
-                        "Kamu adalah sistem BaliGuard. Kondisi kritis terdeteksi.\n"
-                        + _data_block +
-                        "\nBuat PERINGATAN DARURAT (max 130 kata) Bahasa Indonesia dengan struktur:\n"
-                        "STATUS: [level + score + perubahan dari bulan lalu]\n"
-                        "PEMICU UTAMA: [3 indikator kritis dengan perubahan MoM-nya]\n"
-                        "KONTEKS: [apakah ini anomali? konsisten atau tiba-tiba?]\n"
-                        "TINDAKAN: [1 rekomendasi segera yang spesifik dan actionable]\n"
-                        "Gaya: tegas, langsung, tidak bertele-tele."
-                    )
+                    _prompt = ("Kamu adalah sistem BaliGuard. Kondisi kritis terdeteksi.\n"
+                               + _data_block + "Buat PERINGATAN DARURAT (max 120 kata) Bahasa Indonesia: "
+                               "status level, top 3 indikator kritis, 1 rekomendasi tindakan segera.")
                 else:
-                    _prompt = (
-                        "Kamu adalah analis senior BaliGuard.\n"
-                        + _data_block +
-                        "\nBuat laporan bulanan analitis Bahasa Indonesia dengan struktur:\n\n"
-                        "1. RINGKASAN EKSEKUTIF (2-3 kalimat)\n"
-                        "   - Status bulan ini vs bulan lalu (naik/turun berapa poin)\n"
-                        "   - Apakah ini perubahan mendadak atau tren berkelanjutan?\n\n"
-                        "2. ANALISIS INDIKATOR (3-4 kalimat)\n"
-                        "   - Fokus pada indikator yang BERUBAH paling signifikan bulan ini\n"
-                        "   - Jelaskan angka dengan konteks: '+8% wisman itu normal atau luar biasa?'\n"
-                        "   - Soroti jika ada kontradiksi antar indikator\n\n"
-                        "3. ANALISIS KAUSAL — MENGAPA INI TERJADI? (2-3 kalimat)\n"
-                        "   - Identifikasi kemungkinan penyebab utama, bukan sekadar deskripsi\n"
-                        "   - Jika ada anomali IF, analisis apa yang mungkin memicunya\n"
-                        "   - Apakah tekanan berasal dari faktor internal (layanan) atau eksternal (ekonomi, akses)?\n\n"
-                        "4. REKOMENDASI PRIORITAS (3 poin konkret dengan urgensi jelas)\n"
-                        "   - Tiap poin: [Prioritas] Tindakan spesifik → target indikator yang diperbaiki"
-                    )
+                    _prompt = ("Kamu adalah analis BaliGuard.\n" + _data_block +
+                               "Buat laporan bulanan Bahasa Indonesia:\n"
+                               "1. Ringkasan Eksekutif (2-3 kalimat)\n"
+                               "2. Analisis Indikator (3-4 kalimat)\n"
+                               "3. Faktor Pendorong (2-3 kalimat)\n"
+                               "4. Rekomendasi (3 poin konkret)")
 
                 _client   = _Groq(api_key=groq_key)
                 _response = _client.chat.completions.create(

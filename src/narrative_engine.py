@@ -82,7 +82,7 @@ def generate(pred_row: dict, report_type: str = 'summary',
         ctx      = build_context(pred_row, history_rows)
         client   = Groq(api_key=api_key)
         response = client.chat.completions.create(
-            model       = 'llama3-70b-8192',
+            model       = 'llama-3.3-70b-versatile',
             messages    = [{'role': 'user', 'content': build_prompt(ctx, report_type)}],
             temperature = 0.7,
             max_tokens  = 1024
