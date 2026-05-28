@@ -62,9 +62,23 @@ html, body, [class*="css"] {
 
 /* ── Section Title ── */
 .section-title {
-  font-family: 'DM Serif Display'; font-size:17px; color:#e2e8f0;
-  padding:6px 0 14px; font-style:italic;
+  font-family: 'DM Serif Display'; font-size:16px; font-weight:700;
+  padding:4px 0 12px; font-style:normal; letter-spacing:-.01em;
+  display:block; margin-top:0;
 }
+/* ── Section title color variants with left-border accent ── */
+.sec-blue   { color:#60a5fa !important; border-left:3px solid #3b82f6; padding-left:10px !important; margin-top:4px; }
+.sec-orange { color:#fb923c !important; border-left:3px solid #f97316; padding-left:10px !important; margin-top:4px; }
+.sec-green  { color:#4ade80 !important; border-left:3px solid #22c55e; padding-left:10px !important; margin-top:4px; }
+.sec-purple { color:#c084fc !important; border-left:3px solid #a855f7; padding-left:10px !important; margin-top:4px; }
+.sec-amber  { color:#fcd34d !important; border-left:3px solid #f59e0b; padding-left:10px !important; margin-top:4px; }
+.sec-red    { color:#f87171 !important; border-left:3px solid #ef4444; padding-left:10px !important; margin-top:4px; }
+.sec-teal   { color:#2dd4bf !important; border-left:3px solid #14b8a6; padding-left:10px !important; margin-top:4px; }
+.sec-sky    { color:#38bdf8 !important; border-left:3px solid #0ea5e9; padding-left:10px !important; margin-top:4px; }
+/* ── Section spacing wrapper ── */
+.sec-gap-sm  { margin-top:16px; }
+.sec-gap-md  { margin-top:24px; }
+.sec-gap-lg  { margin-top:32px; }
 
 /* ── Narrative Box ── */
 .narrative-box {
@@ -260,6 +274,57 @@ def simulate_score(row, wisman_delta, usd_delta, sent_delta):
     cs2 = float(np.clip(cs - sent_delta*0.2, 0, 1))
     return round((0.45*ct2 + 0.30*ce2 + 0.25*cs2)*100, 1)
 
+def compute_delta_context(row_data, pred_df, sel_month):
+    """Hitung score_delta, dominant_factor, anomaly_explanation, recovery_pct."""
+    score  = sf(row_data.get('crisis_score_100', 0))
+    zscore = sf(row_data.get('wisman_zscore', 0))
+    wisman_val = int(sf(row_data.get('wisman', 0)))
+
+    # Score delta vs bulan lalu
+    sorted_months = sorted(pred_df['month'].unique())
+    idx_list = [i for i, m in enumerate(sorted_months) if m == sel_month]
+    delta, trend = 0.0, 'STABIL'
+    if idx_list and idx_list[0] > 0:
+        prev_m     = sorted_months[idx_list[0] - 1]
+        prev_score = sf(pred_df[pred_df['month'] == prev_m]['crisis_score_100'].values[0]
+                        if len(pred_df[pred_df['month'] == prev_m]) > 0 else score)
+        delta = round(score - prev_score, 1)
+        trend = 'MENINGKAT' if delta > 2 else ('MENURUN' if delta < -2 else 'STABIL')
+
+    # Dominant factor (heuristic dari nilai komponen)
+    factors = {
+        'Kunjungan Wisatawan': abs(zscore),
+        'Sentimen Negatif':    sf(row_data.get('pct_negative_monthly', 0)) / 100.0,
+        'Tekanan Kurs':        sf(row_data.get('usd_volatility_3m', 0)) / 1000.0,
+    }
+    dominant = max(factors, key=factors.get)
+
+    # Anomaly explanation berdasarkan z-score
+    if zscore <= -3:
+        anom_exp = f'Z-score {zscore:.2f} — kunjungan {abs(zscore):.1f}× std di bawah rata-rata 12 bln. Kejadian sangat ekstrem (<0.1%).'
+    elif zscore <= -2:
+        anom_exp = f'Z-score {zscore:.2f} — anomali signifikan, jauh di bawah baseline historis.'
+    elif zscore >= 2:
+        anom_exp = f'Z-score {zscore:.2f} — kunjungan di atas normal, potensi peak season atau event besar.'
+    else:
+        anom_exp = f'Z-score {zscore:.2f} — kunjungan dalam rentang normal (±2 std).'
+
+    # Recovery % vs baseline pre-COVID 2017-2019
+    pre_covid = pred_df[
+        pd.to_datetime(pred_df['month'].astype(str)).dt.year.isin([2017, 2018, 2019])
+    ]['wisman'] if 'wisman' in pred_df.columns else pd.Series(dtype=float)
+    precovid_mean = float(pre_covid.mean()) if len(pre_covid) > 0 else 0.0
+    recovery_pct  = round(wisman_val / precovid_mean * 100, 1) if precovid_mean > 0 else 0.0
+
+    return {
+        'score_delta':   delta,
+        'score_trend':   trend,
+        'dominant':      dominant,
+        'anomaly_exp':   anom_exp,
+        'recovery_pct':  recovery_pct,
+        'precovid_mean': round(precovid_mean, 0),
+    }
+
 # ══════════════════════════════════════════════════════
 # PRE-COMPUTE FORECAST  (dari bulan nyata saat ini)
 # ══════════════════════════════════════════════════════
@@ -432,6 +497,9 @@ _sel_idx       = _sorted_months.index(sel) if sel in _sorted_months else -1
 _prev_month    = _sorted_months[_sel_idx - 1] if _sel_idx > 0 else None
 _prev_row      = get_row(_prev_month) if _prev_month else None
 
+# ── Delta Context (recovery, dominant factor, anomaly explanation) ──
+delta_ctx = compute_delta_context(dict(row_data), predictions, sel)
+
 def _delta_txt(curr, prev_val, fmt="+.1f", suffix="", invert=False):
     """Return coloured delta HTML. invert=True means up is bad (score, usd)."""
     if prev_val is None or prev_val == 0:
@@ -493,7 +561,10 @@ ALERTS = {
     'KRISIS':  "🚨 <b>KRISIS TERDETEKSI.</b> Aktifkan protokol penanganan krisis pariwisata segera."
 }
 st.markdown(alert_html(level, f"Status Pariwisata Bali — {sel}",
-            ALERTS.get(level,"")), unsafe_allow_html=True)
+            ALERTS.get(level,"") +
+            f" &nbsp;·&nbsp; Faktor dominan: <b>{delta_ctx['dominant']}</b>"
+            f" &nbsp;·&nbsp; Delta score: <b>{delta_ctx['score_delta']:+.1f} poin</b> ({delta_ctx['score_trend']})"),
+            unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════
@@ -510,7 +581,7 @@ with tab1:
 
     fig = make_subplots(rows=3, cols=1,
         subplot_titles=('Crisis Score & Level Krisis','Kunjungan Wisatawan Mancanegara','Kurs USD/IDR'),
-        vertical_spacing=0.08, row_heights=[0.48,0.28,0.24])
+        vertical_spacing=0.14, row_heights=[0.46,0.28,0.26])
 
     # Row 1: Crisis Score
     fig.add_trace(go.Scatter(x=months_dt, y=predictions['crisis_score_100'],
@@ -581,12 +652,12 @@ with tab1:
         except Exception:
             pass
 
-    fig.update_layout(height=580, showlegend=True,
+    fig.update_layout(height=680, showlegend=True,
         legend=dict(orientation='h', yanchor='bottom', y=1.01, xanchor='right', x=1,
                     bgcolor='rgba(5,13,26,0.8)', bordercolor='rgba(255,255,255,0.1)',
                     borderwidth=1, font=dict(size=11,color='#cbd5e1')),
         plot_bgcolor='rgba(5,13,26,0.5)', paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=0,r=80,t=50,b=0), font=dict(family='DM Sans',size=11,color='#94a3b8'))
+        margin=dict(l=0,r=80,t=50,b=10), font=dict(family='DM Sans',size=11,color='#94a3b8'))
     for r in [1,2,3]:
         fig.update_xaxes(gridcolor='rgba(255,255,255,0.04)', row=r, col=1)
         fig.update_yaxes(gridcolor='rgba(255,255,255,0.04)', row=r, col=1)
@@ -602,7 +673,7 @@ with tab1:
 with tab2:
     cl, cr = st.columns(2)
     with cl:
-        st.markdown('<div class="section-title">Komponen Crisis Score</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title sec-blue">📊 Komponen Crisis Score</div>', unsafe_allow_html=True)
         mr_rows = master[master['month']==sel]
         if len(mr_rows)>0:
             mr = mr_rows.iloc[0]
@@ -628,25 +699,29 @@ with tab2:
         else:
             st.info("Data bulan ini tidak ada di master dataset.")
 
-        st.markdown('<div class="section-title">Indikator Detail</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title sec-purple sec-gap-md">📋 Indikator Detail</div>', unsafe_allow_html=True)
         indicators = [
-            ("Wisman",           f"{wisman:,} orang"),
-            ("TPK Hotel Bintang",f"{tpk:.1f}%"),
-            ("Kurs USD/IDR",     f"Rp {usd_avg:,.0f}"),
-            ("Inflasi Bali",     f"{inflasi:.2f}%"),
-            ("Sentimen Avg",     f"{sent:+.3f}"),
-            ("Bali Share",       f"{bali_shr:.1f}%"),
-            ("Z-score Wisman",   f"{sf(row_data.get('wisman_zscore',0)):.2f}"),
-            ("Anomali IF",       "⚠️ Terdeteksi" if is_anom else "✅ Normal"),
-            ("RF Prediksi",      rf_pred),
-            ("RF Confidence",    f"{conf:.0f}%"),
+            ("Wisman",                f"{wisman:,} orang"),
+            ("Recovery vs 2017–2019", f"{delta_ctx['recovery_pct']:.1f}%"),
+            ("TPK Hotel Bintang",     f"{tpk:.1f}%"),
+            ("Kurs USD/IDR",          f"Rp {usd_avg:,.0f}"),
+            ("Inflasi Bali",          f"{inflasi:.2f}%"),
+            ("Sentimen Avg",          f"{sent:+.3f}"),
+            ("Bali Share",            f"{bali_shr:.1f}%"),
+            ("Z-score Wisman",        f"{sf(row_data.get('wisman_zscore',0)):.2f}"),
+            ("Penjelasan Anomali",    delta_ctx['anomaly_exp']),
+            ("Anomali IF",            "⚠️ Terdeteksi" if is_anom else "✅ Normal"),
+            ("RF Prediksi",           rf_pred),
+            ("RF Confidence",         f"{conf:.0f}%"),
+            ("Delta Score",           f"{delta_ctx['score_delta']:+.1f} ({delta_ctx['score_trend']})"),
+            ("Faktor Dominan",        delta_ctx['dominant']),
         ]
         for k,v in indicators:
             st.markdown(f'<div class="risk-row"><span class="risk-name">{k}</span>'
                         f'<span class="risk-val">{v}</span></div>', unsafe_allow_html=True)
 
     with cr:
-        st.markdown('<div class="section-title">Probabilitas Prediksi Random Forest</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title sec-orange">🎯 Probabilitas Prediksi Random Forest</div>', unsafe_allow_html=True)
         prob_labels = ['AMAN','WASPADA','SIAGA','KRISIS']
         prob_vals   = [sf(row_data.get(f'prob_{l.lower()}',0))*100 for l in prob_labels]
         fig_p = go.Figure(go.Bar(
@@ -664,7 +739,7 @@ with tab2:
             font=dict(family='DM Sans',size=11,color='#94a3b8'))
         st.plotly_chart(fig_p, use_container_width=True)
 
-        st.markdown('<div class="section-title">Feature Importance — Random Forest</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title sec-green sec-gap-md">🌲 Feature Importance — Random Forest</div>', unsafe_allow_html=True)
         try:
             fi_available = [f for f in FEATURES if f in master.columns]
             fi = pd.DataFrame({'Fitur': fi_available[:len(rf_model.feature_importances_)],
@@ -690,7 +765,7 @@ with tab2:
 with tab3:
     cs1, cs2 = st.columns([2,1])
     with cs1:
-        st.markdown('<div class="section-title">Tren Sentimen Wisatawan Bulanan</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title sec-green">💚 Tren Sentimen Wisatawan Bulanan</div>', unsafe_allow_html=True)
         if 'avg_sentiment_monthly' in master.columns:
             m_dt = pd.to_datetime(master['month'].astype(str))
             fig_s = go.Figure()
@@ -712,7 +787,7 @@ with tab3:
                 font=dict(family='DM Sans',size=11,color='#94a3b8'))
             st.plotly_chart(fig_s, use_container_width=True)
 
-        st.markdown('<div class="section-title">Sentimen 6 Bulan Terakhir</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title sec-green sec-gap-md">📊 Sentimen 6 Bulan Terakhir</div>', unsafe_allow_html=True)
         if 'avg_sentiment_monthly' in predictions.columns:
             last6 = predictions.tail(6)[['month','avg_sentiment_monthly']].copy()
             colors_bar = ['#4ade80' if v>0.1 else ('#f87171' if v<-0.1 else '#fbbf24')
@@ -734,7 +809,7 @@ with tab3:
             st.plotly_chart(fig_6, use_container_width=True)
 
     with cs2:
-        st.markdown('<div class="section-title">Gauge Sentimen</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title sec-teal">🎛️ Gauge Sentimen</div>', unsafe_allow_html=True)
         fig_g = go.Figure(go.Indicator(
             mode="gauge+number+delta", value=sent,
             delta={'reference':0,'valueformat':'.3f'},
@@ -820,7 +895,7 @@ with tab4:
     st.markdown("<br>", unsafe_allow_html=True)
     cp_l, cp_r = st.columns(2)
     with cp_l:
-        st.markdown(f'<div class="section-title">Proyeksi {_proj_n} Bulan — mulai {_proj_month_name} {_proj_year}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="section-title sec-orange">🔮 Proyeksi {_proj_n} Bulan — mulai {_proj_month_name} {_proj_year}</div>', unsafe_allow_html=True)
         for _idx_fc, fc in enumerate(fc_list_tab):
             lv   = fc['level']
             conf = fc['confidence']
@@ -871,7 +946,7 @@ with tab4:
         """, unsafe_allow_html=True)
 
         # Trend chart
-        st.markdown('<br><div class="section-title">Tren + Proyeksi</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title sec-blue sec-gap-md">📈 Tren + Proyeksi</div>', unsafe_allow_html=True)
         last12    = predictions.tail(12)
         l12_dt    = pd.to_datetime(last12['month'].astype(str))
         fc_dt     = pd.to_datetime([f['month'] for f in fc_list_tab])
@@ -904,7 +979,7 @@ with tab4:
             legend=dict(orientation='h', y=1.01, x=0, bgcolor='rgba(0,0,0,0)', font=dict(size=11, color='#94a3b8')),
             font=dict(family='DM Sans', size=11, color='#94a3b8'))
         st.plotly_chart(fig_fc, use_container_width=True)
-        st.markdown('<div class="section-title">Simulator Skenario Risiko</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title sec-red">🎮 Simulator Skenario Risiko</div>', unsafe_allow_html=True)
         st.markdown("""
         <div style='background:rgba(3,105,161,0.10);border-radius:8px;padding:10px 14px;
                     font-size:12px;color:#7dd3fc;margin-bottom:14px;border:1px solid rgba(3,105,161,0.15)'>
@@ -950,13 +1025,13 @@ with tab4:
             ("Risiko Sentimen Negatif", "Tinggi" if s_d<-0.3 else ("Sedang" if s_d<0 else "Rendah"),
              "#f87171" if s_d<-0.3 else ("#fbbf24" if s_d<0 else "#4ade80")),
         ]
-        st.markdown('<div class="section-title">Breakdown Risiko</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title sec-amber sec-gap-md">⚠️ Breakdown Risiko</div>', unsafe_allow_html=True)
         for nm,st_txt,c in risk_items:
             st.markdown(f'<div class="risk-row"><span class="risk-name">{nm}</span>'
                         f'<span style="color:{c};font-weight:700;font-size:12px;'
                         f'font-family:\'JetBrains Mono\'">{st_txt}</span></div>', unsafe_allow_html=True)
 
-        st.markdown(f'<br><div class="section-title">Rekomendasi — Level {sim_lv}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="section-title sec-green sec-gap-md">✅ Rekomendasi — Level {sim_lv}</div>', unsafe_allow_html=True)
         for i,rec in enumerate(ADVICE_MAP.get(sim_lv,[]),1):
             st.markdown(f"""
             <div style='background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 14px;
@@ -966,8 +1041,45 @@ with tab4:
             </div>
             """, unsafe_allow_html=True)
 
+        # Recovery rate vs pre-COVID baseline
+        st.markdown('<div class="section-title sec-sky sec-gap-md">📉 Recovery Rate vs Baseline 2017–2019</div>', unsafe_allow_html=True)
+        _precovid_mean = delta_ctx['precovid_mean']
+        if _precovid_mean > 0 and 'wisman' in predictions.columns:
+            rec_df = predictions.copy()
+            rec_df['recovery_pct'] = (rec_df['wisman'] / _precovid_mean * 100).round(1)
+            fig_rec = go.Figure()
+            fig_rec.add_hline(y=100, line_dash='dot', line_color='#4ade80', line_width=1.5,
+                              annotation_text='Baseline 100%', annotation_position='right',
+                              annotation_font_color='#4ade80', annotation_font_size=10)
+            fig_rec.add_trace(go.Scatter(
+                x=pd.to_datetime(rec_df['month'].astype(str)), y=rec_df['recovery_pct'],
+                mode='lines', fill='tozeroy',
+                fillcolor='rgba(96,165,250,0.06)', line=dict(color='#60a5fa', width=2),
+                hovertemplate='%{x|%b %Y}<br>Recovery: %{y:.1f}%<extra></extra>'
+            ))
+            fig_rec.add_vrect(x0='2020-03-01', x1='2021-12-01',
+                fillcolor='rgba(239,68,68,0.06)', line_width=0,
+                annotation_text='COVID', annotation_font_color='#ef4444')
+            fig_rec.add_vline(x=sel_dt, line_dash='dot', line_color='#60a5fa', line_width=1.2)
+            fig_rec.update_layout(
+                yaxis=dict(title='Recovery (%)', gridcolor='rgba(255,255,255,0.04)', color='#64748b'),
+                xaxis=dict(gridcolor='rgba(255,255,255,0.04)', color='#64748b'),
+                plot_bgcolor='rgba(5,13,26,0.5)', paper_bgcolor='rgba(0,0,0,0)',
+                height=210, margin=dict(l=0, r=80, t=10, b=0),
+                font=dict(family='DM Sans', size=11, color='#94a3b8'))
+            st.plotly_chart(fig_rec, use_container_width=True)
+            _rcol = '#4ade80' if delta_ctx['recovery_pct'] >= 90 else ('#fbbf24' if delta_ctx['recovery_pct'] >= 60 else '#f87171')
+            st.markdown(
+                f"<div style='background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 16px;"
+                f"font-size:12px;color:#94a3b8;margin-top:4px'>"
+                f"📊 Recovery <b style='color:#e2e8f0'>{sel}</b>: "
+                f"<span style='color:{_rcol};font-weight:700;font-size:16px'>{delta_ctx['recovery_pct']:.1f}%</span>"
+                f" dari baseline pre-COVID ({int(_precovid_mean):,} wisman/bln)</div>",
+                unsafe_allow_html=True
+            )
+
         # Risk scatter — use master (has wisman_growth_mom + crisis_level)
-        st.markdown('<br><div class="section-title">Peta Risiko Historis</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title sec-purple sec-gap-md">🗺️ Peta Risiko Historis</div>', unsafe_allow_html=True)
         scatter_src = master if 'wisman_growth_mom' in master.columns else predictions
         if 'wisman_growth_mom' in scatter_src.columns and 'crisis_level' in scatter_src.columns:
             fig_r = go.Figure()
