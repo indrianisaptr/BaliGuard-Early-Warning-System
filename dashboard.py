@@ -830,7 +830,7 @@ with tab1:
                          linecolor='rgba(255,255,255,0.1)', row=r, col=1)
         fig.update_yaxes(gridcolor='rgba(255,255,255,0.06)', showline=True,
                          linecolor='rgba(255,255,255,0.1)', row=r, col=1)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     c_a,c_b,c_c,c_d = st.columns(4)
     with c_a: st.metric("Bulan Level AMAN",    f"{(predictions['crisis_level']=='AMAN').mean()*100:.1f}%")
@@ -864,7 +864,7 @@ with tab2:
                 plot_bgcolor='rgba(5,13,26,0.5)', paper_bgcolor='rgba(0,0,0,0)',
                 height=260, margin=dict(l=0,r=0,t=10,b=0),
                 font=dict(family='DM Sans',size=11,color='#94a3b8'))
-            st.plotly_chart(fig_c, use_container_width=True)
+            st.plotly_chart(fig_c, width="stretch")
         else:
             st.info("Data bulan ini tidak ada di master dataset.")
 
@@ -906,7 +906,7 @@ with tab2:
             plot_bgcolor='rgba(5,13,26,0.5)', paper_bgcolor='rgba(0,0,0,0)',
             height=230, margin=dict(l=0,r=60,t=10,b=0),
             font=dict(family='DM Sans',size=11,color='#94a3b8'))
-        st.plotly_chart(fig_p, use_container_width=True)
+        st.plotly_chart(fig_p, width="stretch")
 
         st.markdown('<div class="section-title sec-green sec-gap-md">🌲 Feature Importance — Random Forest</div>', unsafe_allow_html=True)
         try:
@@ -926,7 +926,7 @@ with tab2:
                 xaxis=dict(range=[0,fi['Importance'].max()*1.4],gridcolor='rgba(255,255,255,0.05)',color='#64748b'),
                 yaxis=dict(color='#94a3b8'),
                 font=dict(family='DM Sans',size=10,color='#94a3b8'))
-            st.plotly_chart(fig_fi, use_container_width=True)
+            st.plotly_chart(fig_fi, width="stretch")
         except Exception:
             st.info("Feature importance tidak tersedia.")
 
@@ -954,7 +954,7 @@ with tab3:
                 plot_bgcolor='rgba(5,13,26,0.5)', paper_bgcolor='rgba(0,0,0,0)',
                 height=290, margin=dict(l=0,r=0,t=10,b=0),
                 font=dict(family='DM Sans',size=11,color='#94a3b8'))
-            st.plotly_chart(fig_s, use_container_width=True)
+            st.plotly_chart(fig_s, width="stretch")
 
         st.markdown('<div class="section-title sec-green sec-gap-md">📊 Sentimen 6 Bulan Terakhir</div>', unsafe_allow_html=True)
         if 'avg_sentiment_monthly' in predictions.columns:
@@ -975,7 +975,7 @@ with tab3:
                 yaxis=dict(gridcolor='rgba(255,255,255,0.04)',color='#64748b'),
                 xaxis=dict(color='#64748b'),
                 font=dict(family='DM Sans',size=11,color='#94a3b8'))
-            st.plotly_chart(fig_6, use_container_width=True)
+            st.plotly_chart(fig_6, width="stretch")
 
     with cs2:
         st.markdown('<div class="section-title sec-teal">🎛️ Gauge Sentimen</div>', unsafe_allow_html=True)
@@ -995,7 +995,7 @@ with tab3:
             }))
         fig_g.update_layout(height=210, margin=dict(l=20,r=20,t=40,b=10),
                              paper_bgcolor='rgba(0,0,0,0)',font=dict(family='DM Sans',color='#94a3b8'))
-        st.plotly_chart(fig_g, use_container_width=True)
+        st.plotly_chart(fig_g, width="stretch")
 
         # pct_negative_monthly is in master, not predictions — look it up correctly
         mr_pct_rows = master[master['month']==sel]
@@ -1146,7 +1146,7 @@ with tab4:
             legend=dict(orientation='h', y=1.02, x=0, bgcolor='rgba(0,0,0,0)',
                         font=dict(size=11, color='#94a3b8')),
             font=dict(family='DM Sans', size=11, color='#94a3b8'))
-        st.plotly_chart(fig_fc, use_container_width=True)
+        st.plotly_chart(fig_fc, width="stretch")
 
         # ── Recovery Rate ─────────────────────────────────
         st.markdown('<div class="section-title">📉 Recovery Rate vs Baseline 2017–2019</div>',
@@ -1173,7 +1173,7 @@ with tab4:
                 plot_bgcolor='rgba(8,16,32,0.6)', paper_bgcolor='rgba(0,0,0,0)',
                 height=195, margin=dict(l=0, r=80, t=8, b=0),
                 font=dict(family='DM Sans', size=11, color='#94a3b8'))
-            st.plotly_chart(fig_rec, use_container_width=True)
+            st.plotly_chart(fig_rec, width="stretch")
             _rcol = '#10b981' if delta_ctx['recovery_pct'] >= 90 else \
                     ('#f59e0b' if delta_ctx['recovery_pct'] >= 60 else '#ef4444')
             st.markdown(
@@ -1287,7 +1287,7 @@ with tab4:
                 legend=dict(orientation='h', y=1.02, x=0, bgcolor='rgba(0,0,0,0)',
                             font=dict(size=10, color='#94a3b8')),
                 font=dict(family='DM Sans', size=11, color='#94a3b8'))
-            st.plotly_chart(fig_r, use_container_width=True)
+            st.plotly_chart(fig_r, width="stretch")
 
 # ─── TAB 5: NARASI AI ─────────────────────────────────
 with tab5:
@@ -1411,7 +1411,7 @@ with tab5:
                     "</div>",
                     unsafe_allow_html=True
                 )
-                if st.button(_card['title'], key="rt_" + _key, use_container_width=True):
+                if st.button(_card['title'], key="rt_" + _key, width="stretch"):
                     st.session_state['report_type_sel'] = _key
                     st.rerun()
 
@@ -1485,7 +1485,7 @@ with tab5:
                     "</div>",
                     unsafe_allow_html=True
                 )
-                if st.button(_mcard['label'], key="model_" + _mkey, use_container_width=True):
+                if st.button(_mcard['label'], key="model_" + _mkey, width="stretch"):
                     st.session_state['selected_model_key'] = _mkey
                     st.rerun()
 
@@ -1626,7 +1626,7 @@ with tab5:
             """, unsafe_allow_html=True)
 
         gen_btn = st.button("🚀 Generate Narasi AI", type="primary",
-                            use_container_width=True, disabled=not bool(groq_key))
+                            width="stretch", disabled=not bool(groq_key))
 
     # ── Divider ──────────────────────────────────────────
     st.markdown("<div style='border-top:1px solid rgba(255,255,255,0.06);margin:20px 0'></div>",
@@ -1897,7 +1897,7 @@ with st.expander("📋 Tabel Data Prediksi Lengkap", expanded=False):
             except Exception:
                 pass
 
-    st.dataframe(df_show, use_container_width=True, height=420,
+    st.dataframe(df_show, width="stretch", height=420,
                  hide_index=True,
                  column_config={
                      'month': st.column_config.TextColumn('Bulan', width='small'),

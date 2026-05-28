@@ -60,18 +60,31 @@ def level_from_score(s: float) -> str:
 # ════════════════════════════════════════════════════════════
 
 def fetch_usd_idr_monthly(start_date: str, end_date: str = None) -> pd.DataFrame:
-    """
-    Ambil data kurs USD/IDR dari API live.
-    Fallback: Frankfurter → Open ER → file cache lokal.
-
-    Returns DataFrame: [month (str YYYY-MM), usd_idr_avg (float)]
-    """
     if end_date is None:
         end_date = datetime.now().strftime('%Y-%m-%d')
 
+    curr_month  = datetime.now().strftime('%Y-%m')
+    start_month = start_date[:7]
+    is_current  = (start_month == curr_month)
+
     print(f"  📡 Fetching USD/IDR: {start_date} → {end_date}")
 
-    # ── Option 1: Frankfurter (gratis, no key) ────────────────
+    # ── Bulan berjalan: pakai ExchangeRate-API dulu (real-time) ──
+    if is_current:
+        try:
+            # open.er-api.com — gratis, no key, pakai 'rates' bukan 'conversion_rates'
+            url  = "https://open.er-api.com/v6/latest/USD"
+            req  = urllib.request.Request(url, headers={"User-Agent": "BaliGuard/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                data = json.loads(r.read())
+            rate   = float(data['rates']['IDR'])    # ← 'rates', bukan 'conversion_rates'
+            result = pd.DataFrame([{'month': curr_month, 'usd_idr_avg': rate}])
+            print(f"  ✅ ExchangeRate-API (real-time): {rate:,.0f}")
+            return result
+        except Exception as e:
+            print(f"  ⚠️  ExchangeRate-API gagal: {e}, fallback ke Frankfurter")
+
+    # ── Historis (atau fallback): Frankfurter ────────────────────
     try:
         url = (f"https://api.frankfurter.app/{start_date}..{end_date}"
                f"?from=USD&to=IDR")
@@ -91,51 +104,33 @@ def fetch_usd_idr_monthly(start_date: str, end_date: str = None) -> pd.DataFrame
     except Exception as e:
         print(f"  ⚠️  Frankfurter gagal: {e}")
 
-    # ── Option 2: Open Exchange Rates (free tier, no key) ─────
-    try:
-        # Open ER API free: hanya latest, tapi kita bisa iterasi per bulan
-        url  = "https://open.er-api.com/v6/latest/USD"
-        req  = urllib.request.Request(url, headers={"User-Agent": "BaliGuard/1.0"})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.loads(r.read())
-        rate = float(data['rates']['IDR'])
-        now_m = datetime.now().strftime('%Y-%m')
-        result = pd.DataFrame([{'month': now_m, 'usd_idr_avg': rate}])
-        print(f"  ✅ Open ER (latest only): {rate:,.0f}")
-        return result
-    except Exception as e:
-        print(f"  ⚠️  Open ER gagal: {e}")
-
     # ── Fallback: cache lokal ─────────────────────────────────
     cache_path = DATA_PRO / 'usd_idr_cache.csv'
     if cache_path.exists():
         print(f"  ⚠️  Menggunakan cache lokal: {cache_path}")
         return pd.read_csv(cache_path)
 
-    print("  ❌ Semua sumber USD/IDR gagal. Skip update kurs.")
+    print("  ❌ Semua sumber USD/IDR gagal.")
     return pd.DataFrame(columns=['month', 'usd_idr_avg'])
 
 
 def update_usd_idr() -> pd.DataFrame:
-    """Load existing USD data, fetch terbaru, append, simpan."""
-    usd_path = DATA_PRO / 'monthly_usd.csv'
+    usd_path   = DATA_PRO / 'monthly_usd.csv'
+    curr_month = datetime.now().strftime('%Y-%m')
+    today      = datetime.now()
+    end_date   = f"{today.year}-{today.month:02d}-{today.day:02d}"
 
     if usd_path.exists():
-        existing = pd.read_csv(usd_path)
-        existing['month'] = existing['month'].astype(str).str[:7]   # YYYY-MM
+        existing   = pd.read_csv(usd_path)
+        existing['month'] = existing['month'].astype(str).str[:7]
         last_month = existing['month'].max()
-        # Mulai fetch dari bulan setelah data terakhir
-        next_start = (pd.Period(last_month, freq='M') + 1).strftime('%Y-%m-01')
+        if last_month >= curr_month:
+            next_start = f"{curr_month}-01"   # refresh bulan berjalan
+        else:
+            next_start = (pd.Period(last_month, freq='M') + 1).strftime('%Y-%m-01')
     else:
         existing   = pd.DataFrame(columns=['month', 'usd_idr_avg'])
         next_start = '2009-01-01'
-
-    today    = datetime.now()
-    end_date = f"{today.year}-{today.month:02d}-{today.day:02d}"
-
-    if next_start[:7] > end_date[:7]:
-        print("  ℹ️  USD/IDR sudah up-to-date.")
-        return existing
 
     new_data = fetch_usd_idr_monthly(next_start, end_date)
 
@@ -146,7 +141,6 @@ def update_usd_idr() -> pd.DataFrame:
     combined = combined.drop_duplicates(subset='month', keep='last')
     combined = combined.sort_values('month').reset_index(drop=True)
 
-    # Simpan cache dan file utama
     combined.to_csv(usd_path, index=False)
     combined.to_csv(DATA_PRO / 'usd_idr_cache.csv', index=False)
     print(f"  ✅ USD/IDR updated: {len(combined)} bulan, terakhir {combined['month'].max()}")
