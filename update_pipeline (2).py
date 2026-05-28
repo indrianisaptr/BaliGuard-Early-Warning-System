@@ -380,12 +380,7 @@ def compute_crisis_score(df: pd.DataFrame) -> pd.DataFrame:
 # 5. RUN MODEL PREDICTIONS
 # ════════════════════════════════════════════════════════════
 
-# ════════════════════════════════════════════════════════════
-# 5. RUN MODEL PREDICTIONS
-# ════════════════════════════════════════════════════════════
-
-# Fitur base (13) — urutan wajib sama dengan saat training
-FEATURES_BASE = [
+FEATURES = [
     'wisman_growth_mom', 'wisman_growth_yoy', 'wisman_zscore',
     'usd_idr_avg', 'usd_volatility_3m', 'usd_change_mom',
     'tpk_bintang', 'tpk_change_mom',
@@ -394,62 +389,18 @@ FEATURES_BASE = [
     'month_num', 'is_peak_season',
 ]
 
-# Fitur extended (tambahan yang umum dipakai saat training dengan 17 fitur)
-# Disisipkan sesuai urutan yang lazim di notebook sklearn pipeline
-FEATURES_EXTENDED = FEATURES_BASE + [
-    'wisman_ma3',
-    'wisman_trend_3m',
-    'bali_share_change',
-    'sentiment_trend_3m',
-    'usd_trend_3m',
-    'tpk_lag_1',
-    'tpk_ma3',
-]
-
-
-def _build_feature_matrix(df_model: pd.DataFrame,
-                           feat_cols: list,
-                           expected_n: int) -> tuple:
-    """
-    Bangun X dengan shape (n_samples, expected_n).
-    - Ganti inf → NaN, lalu impute median per kolom.
-    - Return (X, feat_cols_used).
-    """
-    # Pastikan hanya pakai kolom yang ada, sesuai urutan
-    available = [f for f in feat_cols if f in df_model.columns]
-    if len(available) < expected_n:
-        return None, available   # tidak cukup fitur
-
-    # Ambil tepat expected_n kolom pertama (pertahankan urutan)
-    cols_used = available[:expected_n]
-    X = df_model[cols_used].values.astype(float)
-
-    # Bersihkan inf/NaN
-    X = np.where(np.isinf(X), np.nan, X)
-    col_medians = np.nanmedian(X, axis=0)
-    nan_mask = np.isnan(X)
-    if nan_mask.any():
-        bad = [(cols_used[i], int(nan_mask[:, i].sum()))
-               for i in range(len(cols_used)) if nan_mask[:, i].any()]
-        if bad:
-            print(f"  ⚠️  NaN/inf diimputasi: {bad}")
-        X[nan_mask] = np.take(col_medians, np.where(nan_mask)[1])
-
-    return X, cols_used
-
-
 def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
     """
     Load scaler + model dari disk, run prediction pada seluruh dataset.
-    Auto-detect jumlah fitur yang diexpect model (base=13 atau extended=17+).
-    Kalau model tidak ditemukan atau fitur tidak cocok → rule-based fallback.
+    Kalau model belum ada → skip dan gunakan rule-based dari crisis_score.
     """
     scaler_path = MDL_DIR / 'scaler.pkl'
     rf_path     = MDL_DIR / 'model_random_forest.pkl'
     iso_path    = MDL_DIR / 'model_isolation_forest.pkl'
     le_path     = MDL_DIR / 'label_encoder.pkl'
 
-    def _rule_based(df):
+    if not all(p.exists() for p in [scaler_path, rf_path, iso_path, le_path]):
+        print("  ⚠️  Model files tidak ditemukan. Menggunakan rule-based predictions.")
         df['rf_predicted_level'] = df['crisis_level']
         df['rf_confidence']      = 0.70
         df['iso_anomaly']        = df.get('is_anomaly', 0)
@@ -459,87 +410,58 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
         df['prob_aman']          = 0.1
         return df
 
-    if not all(p.exists() for p in [scaler_path, rf_path, iso_path, le_path]):
-        print("  ⚠️  Model files tidak ditemukan. Menggunakan rule-based predictions.")
-        return _rule_based(df)
-
     scaler   = joblib.load(scaler_path)
     rf_model = joblib.load(rf_path)
     iso      = joblib.load(iso_path)
     le       = joblib.load(le_path)
 
-    expected_n = scaler.n_features_in_
-    print(f"  ℹ️  Model expects {expected_n} features "
-          f"(scaler={scaler.n_features_in_}, iso={iso.n_features_in_}, "
-          f"rf={rf_model.n_features_in_})")
+    # Subset dengan fitur lengkap
+    feat_cols = [f for f in FEATURES if f in df.columns]
+    df_model  = df[feat_cols + ['month', 'crisis_level']].dropna().copy()
 
-    # Pilih feature list yang sesuai dengan expected_n
-    if expected_n <= len(FEATURES_BASE):
-        feat_list = FEATURES_BASE
-    else:
-        feat_list = FEATURES_EXTENDED
-
-    # Baris yang punya semua fitur wajib (min base)
-    base_cols = [f for f in FEATURES_BASE if f in df.columns]
-    df_model  = df[base_cols + ['month', 'crisis_level']].dropna(subset=base_cols).copy()
-
-    # Gabungkan kolom extended yang mungkin ada di df asli
-    for extra_col in FEATURES_EXTENDED:
-        if extra_col not in df_model.columns and extra_col in df.columns:
-            df_model = df_model.join(df.set_index('month')[[extra_col]], on='month', how='left')
-
-    X, cols_used = _build_feature_matrix(df_model, feat_list, expected_n)
-
-    if X is None:
-        print(f"  ⚠️  Fitur tidak cukup ({len(cols_used)}/{expected_n}). "
-              "Menggunakan rule-based predictions.")
-        return _rule_based(df)
-
-    print(f"  ✅ Feature matrix: {X.shape} — {cols_used}")
-
-    # Scale
+    X = df_model[feat_cols].values
     try:
         X_scaled = scaler.transform(X)
-    except ValueError as e:
-        print(f"  ⚠️  scaler.transform gagal ({e}). Refitting scaler pada data ini.")
+    except Exception:
         X_scaled = scaler.fit_transform(X)
 
     # Isolation Forest
-    try:
-        iso_pred = iso.predict(X_scaled)
-        df_model['iso_anomaly'] = (iso_pred == -1).astype(int)
-    except Exception as e:
-        print(f"  ⚠️  IsolationForest predict gagal: {e}")
-        df_model['iso_anomaly'] = 0
+    iso_pred = iso.predict(X_scaled)
+    df_model['iso_anomaly'] = (iso_pred == -1).astype(int)
 
     # Random Forest
-    try:
-        rf_pred  = rf_model.predict(X_scaled)
-        rf_proba = rf_model.predict_proba(X_scaled)
-        df_model['rf_predicted_level'] = le.inverse_transform(rf_pred)
-        df_model['rf_confidence']      = rf_proba.max(axis=1)
-        classes = list(le.classes_)
-        for cls in ['KRISIS', 'SIAGA', 'WASPADA', 'AMAN']:
-            col = f'prob_{cls.lower()}'
-            df_model[col] = rf_proba[:, classes.index(cls)] if cls in classes else 0.0
-    except Exception as e:
-        print(f"  ⚠️  RandomForest predict gagal: {e}. Fallback rule-based.")
-        return _rule_based(df)
+    rf_pred  = rf_model.predict(X_scaled)
+    rf_proba = rf_model.predict_proba(X_scaled)
+
+    df_model['rf_predicted_level'] = le.inverse_transform(rf_pred)
+    df_model['rf_confidence']      = rf_proba.max(axis=1)
+
+    # Probabilitas per kelas
+    classes = list(le.classes_)
+    for cls in ['KRISIS', 'SIAGA', 'WASPADA', 'AMAN']:
+        col = f'prob_{cls.lower()}'
+        if cls in classes:
+            df_model[col] = rf_proba[:, classes.index(cls)]
+        else:
+            df_model[col] = 0.0
 
     # Merge back ke df utama
     pred_cols = ['month', 'iso_anomaly', 'rf_predicted_level', 'rf_confidence',
                  'prob_krisis', 'prob_siaga', 'prob_waspada', 'prob_aman']
     df = df.merge(df_model[pred_cols], on='month', how='left', suffixes=('', '_new'))
+
+    # Update existing columns
     for col in pred_cols[1:]:
         if col + '_new' in df.columns:
             df[col] = df[col + '_new'].fillna(df.get(col, 0))
             df.drop(columns=[col + '_new'], inplace=True)
 
+    # Fill missing (baris yang tidak punya fitur lengkap)
     df['rf_predicted_level'] = df.get('rf_predicted_level', df['crisis_level']).fillna(df['crisis_level'])
     df['rf_confidence']      = df.get('rf_confidence', 0.7).fillna(0.7)
     df['iso_anomaly']        = df.get('iso_anomaly', 0).fillna(0).astype(int)
 
-    print(f"  ✅ Model predictions selesai: {len(df_model)} baris diprediksi")
+    print(f"  ✅ Model predictions: {len(df_model)} baris diprediksi")
     return df
 
 

@@ -30,9 +30,6 @@ html, body, [class*="css"] {
 .block-container { padding: 1rem 2rem 2rem; }
 [data-testid="stSidebar"] { background: #0a1628 !important; border-right: 1px solid rgba(255,255,255,0.06); }
 [data-testid="stSidebar"] * { color: #cbd5e1 !important; }
-[data-testid="stSidebar"] .stMarkdown p,
-[data-testid="stSidebar"] label { font-size: 12.5px !important; line-height: 1.75 !important; }
-[data-testid="stSidebar"] b { color: #e2e8f0 !important; }
 
 /* ── KPI Cards ── */
 .kpi-card {
@@ -123,13 +120,8 @@ html, body, [class*="css"] {
   border-radius: 8px 8px 0 0; padding: 8px 18px;
   font-weight: 600; font-size: 13px; color: #64748b !important;
   background: transparent !important;
-  border-bottom: 2px solid transparent !important;
 }
-.stTabs [aria-selected="true"] {
-  color: #f1f5f9 !important;
-  background: rgba(255,255,255,0.06) !important;
-  border-bottom: 2px solid #3b82f6 !important;
-}
+.stTabs [aria-selected="true"] { color: #f1f5f9 !important; background: rgba(255,255,255,0.06) !important; }
 
 /* ── Badge ── */
 .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
@@ -753,33 +745,33 @@ with tab1:
     # Row 1: Crisis Score
     fig.add_trace(go.Scatter(x=months_dt, y=predictions['crisis_score_100'],
         mode='lines', name='Crisis Score',
-        line=dict(color='#cbd5e1', width=2),
-        fill='tozeroy', fillcolor='rgba(148,163,184,0.06)'), row=1, col=1)
+        line=dict(color='#94a3b8',width=1.5),
+        fill='tozeroy', fillcolor='rgba(148,163,184,0.05)'), row=1, col=1)
     for lv, col in COLOR_MAP.items():
         mask = predictions['crisis_level']==lv
         if mask.sum()>0:
             fig.add_trace(go.Scatter(
                 x=months_dt[mask], y=predictions.loc[mask,'crisis_score_100'],
                 mode='markers', name=lv,
-                marker=dict(color=col,size=7,line=dict(width=1.2,color='#050d1a')),
+                marker=dict(color=col,size=6,line=dict(width=1,color='#050d1a')),
                 hovertemplate=f'<b>{lv}</b><br>%{{x|%b %Y}}<br>Score: %{{y:.1f}}<extra></extra>'
             ), row=1, col=1)
     for thr,lbl,col in [(70,'KRISIS','#ef4444'),(50,'SIAGA','#f97316'),(30,'WASPADA','#f59e0b')]:
-        fig.add_hline(y=thr, line_dash='dot', line_color=col, line_width=1, opacity=0.7,
+        fig.add_hline(y=thr, line_dash='dot', line_color=col, line_width=0.8, opacity=0.6,
                       annotation_text=lbl, annotation_position='right',
                       annotation_font_size=9, annotation_font_color=col, row=1, col=1)
 
     # Row 2: Wisman
     fig.add_trace(go.Scatter(x=months_dt, y=predictions['wisman'],
         mode='lines', name='Wisman', showlegend=False,
-        line=dict(color='#7dd3fc', width=2),
-        fill='tozeroy', fillcolor='rgba(96,165,250,0.09)'), row=2, col=1)
+        line=dict(color='#60a5fa',width=1.5),
+        fill='tozeroy', fillcolor='rgba(96,165,250,0.07)'), row=2, col=1)
 
     # Row 3: USD/IDR
     if 'usd_idr_avg' in predictions.columns:
         fig.add_trace(go.Scatter(x=months_dt, y=predictions['usd_idr_avg'],
             mode='lines', name='USD/IDR', showlegend=False,
-            line=dict(color='#fbbf24', width=2)), row=3, col=1)
+            line=dict(color='#f59e0b',width=1.5)), row=3, col=1)
 
     for r in [1,2,3]:
         fig.add_vrect(x0='2020-03-01', x1='2021-12-01',
@@ -819,17 +811,15 @@ with tab1:
         except Exception:
             pass
 
-    fig.update_layout(height=640, showlegend=True,
+    fig.update_layout(height=680, showlegend=True,
         legend=dict(orientation='h', yanchor='bottom', y=1.01, xanchor='right', x=1,
-                    bgcolor='rgba(5,13,26,0.85)', bordercolor='rgba(255,255,255,0.12)',
-                    borderwidth=1, font=dict(size=11,color='#e2e8f0')),
-        plot_bgcolor='rgba(5,13,26,0.7)', paper_bgcolor='rgba(0,0,0,0)',
+                    bgcolor='rgba(5,13,26,0.8)', bordercolor='rgba(255,255,255,0.1)',
+                    borderwidth=1, font=dict(size=11,color='#cbd5e1')),
+        plot_bgcolor='rgba(5,13,26,0.5)', paper_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=0,r=80,t=50,b=10), font=dict(family='DM Sans',size=11,color='#94a3b8'))
     for r in [1,2,3]:
-        fig.update_xaxes(gridcolor='rgba(255,255,255,0.06)', showline=True,
-                         linecolor='rgba(255,255,255,0.1)', row=r, col=1)
-        fig.update_yaxes(gridcolor='rgba(255,255,255,0.06)', showline=True,
-                         linecolor='rgba(255,255,255,0.1)', row=r, col=1)
+        fig.update_xaxes(gridcolor='rgba(255,255,255,0.04)', row=r, col=1)
+        fig.update_yaxes(gridcolor='rgba(255,255,255,0.04)', row=r, col=1)
     st.plotly_chart(fig, use_container_width=True)
 
     c_a,c_b,c_c,c_d = st.columns(4)
@@ -1020,38 +1010,40 @@ with tab3:
 
 # ─── TAB 4: PREDIKSI & PROYEKSI ──────────────────────
 with tab4:
-    # ── Engine info bar ──────────────────────────────────
-    st.markdown(
-        "<div style='background:rgba(14,33,81,0.6);border-radius:10px;padding:10px 18px;"
-        "margin-bottom:12px;border:1px solid rgba(59,130,246,0.15);"
-        "display:flex;align-items:center;gap:12px'>"
-        "<span style='font-size:9px;font-weight:700;color:#3b82f6;text-transform:uppercase;"
-        "letter-spacing:.12em'>PREDICTION ENGINE</span>"
-        "<span style='font-size:12px;color:#475569'>"
-        "Random Forest + Isolation Forest + Trend Ekstrapolasi · pola historis 2009–2024</span>"
-        "</div>",
-        unsafe_allow_html=True)
+    st.markdown("""
+    <div style='background:linear-gradient(90deg,rgba(14,33,81,0.9),rgba(20,40,80,0.5));
+                border-radius:12px;padding:16px 22px;margin-bottom:20px;
+                border:1px solid rgba(255,255,255,0.07)'>
+        <div style='font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;
+                    letter-spacing:.1em;margin-bottom:4px'>PREDICTION ENGINE</div>
+        <div style='font-size:13px;color:#94a3b8;line-height:1.7'>
+            Menggunakan <b style='color:#e2e8f0'>Random Forest + Isolation Forest + Trend Ekstrapolasi</b>
+            untuk memproyeksikan kondisi pariwisata Bali ke depan berdasarkan pola historis 2009–2024.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # ── Selector ─────────────────────────────────────────
-    _sc1, _sc2, _sc3 = st.columns([1, 1, 2])
+    # ── Selector bulan/tahun awal proyeksi ──────────────
+    st.markdown("""
+    <div style='font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;
+                letter-spacing:.1em;margin-bottom:8px'>📅 MULAI PROYEKSI DARI</div>
+    """, unsafe_allow_html=True)
+    _sel_col1, _sel_col2, _sel_col3 = st.columns([1, 1, 2])
     _now = datetime.now()
     _MONTH_NAMES = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
-    with _sc1:
-        st.caption("📅 Tahun Mulai")
-        _year_opts      = list(range(int(predictions['month'].iloc[-1][:4]), _now.year + 3))
+    with _sel_col1:
+        _year_opts = list(range(int(predictions['month'].iloc[-1][:4]), _now.year + 3))
         _default_yr_idx = _year_opts.index(_now.year) if _now.year in _year_opts else 0
-        _proj_year      = st.selectbox("Tahun", _year_opts, index=_default_yr_idx,
-                                        key="proj_year", label_visibility="collapsed")
-    with _sc2:
-        st.caption("🗓️ Bulan Mulai")
-        _proj_month_name = st.selectbox("Bulan", _MONTH_NAMES, index=_now.month-1,
-                                         key="proj_month", label_visibility="collapsed")
+        _proj_year = st.selectbox("Tahun", _year_opts, index=_default_yr_idx, key="proj_year")
+    with _sel_col2:
+        _default_mo_idx = _now.month - 1
+        _proj_month_name = st.selectbox("Bulan", _MONTH_NAMES, index=_default_mo_idx, key="proj_month")
         _proj_month_num  = _MONTH_NAMES.index(_proj_month_name) + 1
-    with _sc3:
-        st.caption("📊 Jumlah Bulan Proyeksi")
-        _proj_n = st.slider("Jumlah Bulan", 3, 12, 6, 1, key="proj_n",
-                             label_visibility="collapsed")
+    with _sel_col3:
+        _proj_n = st.slider("Jumlah Bulan Proyeksi", 3, 12, 6, 1, key="proj_n")
 
+    # from_month = 1 bulan sebelum bulan pertama yang ingin ditampilkan
+    _from_month_str = f"{_proj_year}-{_proj_month_num - 1 if _proj_month_num > 1 else 12:02d}"
     if _proj_month_num == 1:
         _from_month_str = f"{_proj_year - 1}-12"
     else:
@@ -1059,234 +1051,218 @@ with tab4:
 
     fc_list_tab, fc_trend_tab = forecast_months(predictions, n=_proj_n, from_month=_from_month_str)
 
-    st.markdown("<div style='margin:8px 0 12px'></div>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    cp_l, cp_r = st.columns(2)
+    with cp_l:
+        st.markdown(f'<div class="section-title sec-orange">🔮 Proyeksi {_proj_n} Bulan — mulai {_proj_month_name} {_proj_year}</div>', unsafe_allow_html=True)
+        for _idx_fc, fc in enumerate(fc_list_tab):
+            lv   = fc['level']
+            conf = fc['confidence']
+            # Confidence bar width
+            _bar_w = int(conf)
+            _bar_col = COLOR_MAP.get(lv, '#3b82f6')
+            _dot_col = COLOR_MAP.get(lv, '#3b82f6')
+            _fade = "0.4" if _idx_fc > 0 else "1"
+            st.markdown(f"""
+            <div style='background:linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01));
+                        border:1px solid rgba(255,255,255,0.07);border-left:3px solid {_dot_col};
+                        border-radius:12px;padding:14px 18px;margin-bottom:8px;
+                        opacity:{_fade if _idx_fc>2 else "1"}'>
+                <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>
+                    <div>
+                        <div style='font-family:"JetBrains Mono";font-size:10px;color:#475569;margin-bottom:3px'>
+                            {fc['month']}
+                        </div>
+                        <div style='display:flex;align-items:center;gap:10px'>
+                            <span style='font-family:"DM Serif Display";font-size:18px;color:{_dot_col}'>
+                                {EMOJI_MAP.get(lv,"")} {lv}
+                            </span>
+                            <span style='font-family:"JetBrains Mono";font-size:11px;color:#64748b'>
+                                {fc['score']}/100
+                            </span>
+                        </div>
+                    </div>
+                    <div style='text-align:right'>
+                        <div style='font-family:"JetBrains Mono";font-size:18px;
+                                    color:#93c5fd;font-weight:700'>{conf:.0f}%</div>
+                        <div style='font-size:9px;color:#475569;text-transform:uppercase;
+                                    letter-spacing:.06em'>confidence</div>
+                    </div>
+                </div>
+                <div style='height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden'>
+                    <div style='height:100%;width:{_bar_w}%;background:{_bar_col};
+                                border-radius:2px;transition:width .4s'></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    # ════════════════════════════════════════════════════
-    # 2-COLUMN LAYOUT  LEFT 58%  |  RIGHT 42%
-    # ════════════════════════════════════════════════════
-    t4_left, t4_right = st.columns([58, 42])
+        st.markdown("""
+        <div style='background:rgba(245,158,11,0.08);border-radius:8px;padding:10px 14px;
+                    font-size:11px;color:#fbbf24;border:1px solid rgba(245,158,11,0.15);margin-top:8px'>
+            ⚠️ Proyeksi didasarkan pada tren historis. Faktor eksternal (bencana, pandemi, krisis
+            geopolitik) tidak tercakup. Confidence menurun seiring jarak proyeksi.
+        </div>
+        """, unsafe_allow_html=True)
 
-    # ══ LEFT ═════════════════════════════════════════════
-    with t4_left:
-
-        # ── Horizontal forecast timeline ─────────────────
-        st.markdown(
-            "<div class='section-title'>"
-            "🔮 Proyeksi " + str(_proj_n) + " Bulan — " +
-            _proj_month_name + " " + str(_proj_year) + "</div>",
-            unsafe_allow_html=True)
-
-        _rows_of_3 = [fc_list_tab[i:i+3] for i in range(0, len(fc_list_tab), 3)]
-        for _r_idx, _row_fc in enumerate(_rows_of_3):
-            _row_html = "<div style='display:grid;grid-template-columns:repeat({n},1fr);gap:8px;margin-bottom:8px'>".format(n=len(_row_fc))
-            for _fi, _fc in enumerate(_row_fc):
-                _lv   = _fc['level']
-                _clr  = COLOR_MAP.get(_lv, '#3b82f6')
-                _gi   = _r_idx * 3 + _fi
-                _op   = "0.55" if _gi > 2 else "1"
-                _cw   = int(_fc['confidence'])
-                _row_html += (
-                    "<div style='background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);"
-                    "border-top:2px solid {clr};border-radius:12px;padding:12px 14px;"
-                    "text-align:center;opacity:{op}'>"
-                    "<div style='font-family:\"JetBrains Mono\";font-size:9px;color:#475569;"
-                    "margin-bottom:5px;letter-spacing:.05em'>{mo}</div>"
-                    "<div style='font-size:16px;margin-bottom:3px'>{em}</div>"
-                    "<div style='font-size:12px;font-weight:700;color:{clr};margin-bottom:2px'>{lv}</div>"
-                    "<div style='font-family:\"JetBrains Mono\";font-size:10px;color:#475569;margin-bottom:7px'>{sc}/100</div>"
-                    "<div style='height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-bottom:4px'>"
-                    "<div style='height:100%;width:{cw}%;background:{clr};border-radius:2px'></div></div>"
-                    "<div style='font-family:\"JetBrains Mono\";font-size:12px;font-weight:700;color:#7dd3fc'>{cf:.0f}%</div>"
-                    "<div style='font-size:9px;color:#334155;letter-spacing:.05em'>confidence</div>"
-                    "</div>"
-                ).format(clr=_clr, op=_op, mo=_fc['month'],
-                         em=EMOJI_MAP.get(_lv,''), lv=_lv, sc=_fc['score'],
-                         cw=_cw, cf=_fc['confidence'])
-            _row_html += "</div>"
-            st.markdown(_row_html, unsafe_allow_html=True)
-
-        st.markdown(
-            "<div style='background:rgba(245,158,11,0.05);border-radius:8px;padding:7px 11px;"
-            "font-size:11px;color:#78350f;border:1px solid rgba(245,158,11,0.1);margin-bottom:12px'>"
-            "⚠️ Proyeksi berdasarkan tren historis. Confidence menurun seiring jarak proyeksi.</div>",
-            unsafe_allow_html=True)
-
-        # ── Trend + Proyeksi chart ────────────────────────
-        st.markdown('<div class="section-title">📈 Tren + Proyeksi</div>', unsafe_allow_html=True)
+        # Trend chart
+        st.markdown('<div class="section-title sec-blue sec-gap-md">📈 Tren + Proyeksi</div>', unsafe_allow_html=True)
         last12    = predictions.tail(12)
         l12_dt    = pd.to_datetime(last12['month'].astype(str))
         fc_dt     = pd.to_datetime([f['month'] for f in fc_list_tab])
         fc_scores = [f['score'] for f in fc_list_tab]
-        fc_lo     = [max(0,  s - 8) for s in fc_scores]
-        fc_hi     = [min(100, s + 8) for s in fc_scores]
+        fc_up     = [min(100, s + 8) for s in fc_scores]
+        fc_lo     = [max(0,   s - 8) for s in fc_scores]
+
         fig_fc = go.Figure()
         fig_fc.add_trace(go.Scatter(x=l12_dt, y=last12['crisis_score_100'],
             mode='lines+markers', name='Historis',
-            line=dict(color='#7dd3fc', width=2), marker=dict(size=4, color='#7dd3fc')))
-        fig_fc.add_trace(go.Scatter(
-            x=list(fc_dt) + list(reversed(list(fc_dt))),
-            y=fc_hi + list(reversed(fc_lo)),
-            fill='toself', fillcolor='rgba(245,158,11,0.08)',
-            line=dict(width=0), showlegend=True, name='Interval ±8',
-            hoverinfo='skip'))
+            line=dict(color='#60a5fa', width=2), marker=dict(size=5, color='#60a5fa')))
         fig_fc.add_trace(go.Scatter(x=fc_dt, y=fc_scores,
             mode='lines+markers', name='Proyeksi',
-            line=dict(color='#f59e0b', width=2, dash='dash'),
-            marker=dict(size=7, symbol='diamond', color='#f59e0b')))
-        for thr,lbl,col in [(70,'KRISIS','#ef4444'),(50,'SIAGA','#f97316'),(30,'WASPADA','#f59e0b')]:
+            line=dict(color='#f97316', width=2, dash='dash'),
+            marker=dict(size=8, symbol='diamond', color='#f97316')))
+        fig_fc.add_trace(go.Scatter(
+            x=list(fc_dt) + list(fc_dt[::-1]),
+            y=fc_up + fc_lo[::-1],
+            fill='toself', fillcolor='rgba(249,115,22,0.08)',
+            line=dict(width=0), name='Interval ±8'))
+        for thr, lbl, col in [(70,'KRISIS','#ef4444'), (50,'SIAGA','#f97316'), (30,'WASPADA','#f59e0b')]:
             fig_fc.add_hline(y=thr, line_dash='dot', line_color=col, line_width=0.7, opacity=0.5,
                              annotation_text=lbl, annotation_position='right',
                              annotation_font_size=9, annotation_font_color=col)
         fig_fc.update_layout(
-            yaxis=dict(range=[0,100], title='Crisis Score',
-                       gridcolor='rgba(255,255,255,0.05)', color='#475569'),
-            xaxis=dict(gridcolor='rgba(255,255,255,0.05)', color='#475569'),
-            plot_bgcolor='rgba(8,16,32,0.6)', paper_bgcolor='rgba(0,0,0,0)',
-            height=235, margin=dict(l=0, r=72, t=8, b=0),
-            legend=dict(orientation='h', y=1.02, x=0, bgcolor='rgba(0,0,0,0)',
-                        font=dict(size=11, color='#94a3b8')),
+            yaxis=dict(range=[0,100], title='Crisis Score', gridcolor='rgba(255,255,255,0.04)', color='#64748b'),
+            xaxis=dict(gridcolor='rgba(255,255,255,0.04)', color='#64748b'),
+            plot_bgcolor='rgba(5,13,26,0.5)', paper_bgcolor='rgba(0,0,0,0)',
+            height=270, margin=dict(l=0, r=70, t=10, b=0),
+            legend=dict(orientation='h', y=1.01, x=0, bgcolor='rgba(0,0,0,0)', font=dict(size=11, color='#94a3b8')),
             font=dict(family='DM Sans', size=11, color='#94a3b8'))
         st.plotly_chart(fig_fc, use_container_width=True)
+        st.markdown('<div class="section-title sec-red">🎮 Simulator Skenario Risiko</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div style='background:rgba(3,105,161,0.10);border-radius:8px;padding:10px 14px;
+                    font-size:12px;color:#7dd3fc;margin-bottom:14px;border:1px solid rgba(3,105,161,0.15)'>
+            Geser slider untuk mensimulasikan dampak perubahan indikator terhadap Crisis Score secara real-time.
+        </div>
+        """, unsafe_allow_html=True)
 
-        # ── Recovery Rate ─────────────────────────────────
-        st.markdown('<div class="section-title">📉 Recovery Rate vs Baseline 2017–2019</div>',
-                    unsafe_allow_html=True)
+        w_d = st.slider("📉 Perubahan Wisman (%)", -80, 50, 0, 5)
+        u_d = st.slider("💱 Perubahan Kurs USD/IDR (%)", -10, 30, 0, 1)
+        s_d = st.slider("💬 Perubahan Sentimen", -1.0, 1.0, 0.0, 0.1)
+
+        sim_sc = simulate_score(dict(row_data), w_d, u_d, s_d)
+        sim_lv = level_from_score(sim_sc)
+        delta  = sim_sc - score
+        d_col  = "#f87171" if delta > 0 else "#4ade80"
+
+        st.markdown(f"""
+        <div style='background:linear-gradient(135deg,#0c1a3a,#162550);
+                    border:1px solid rgba(255,255,255,0.1);
+                    border-radius:14px;padding:24px;margin:14px 0;text-align:center'>
+            <div style='font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;
+                        letter-spacing:.1em;margin-bottom:10px'>HASIL SIMULASI</div>
+            <div style='font-family:"JetBrains Mono";font-size:42px;font-weight:700;color:#f1f5f9'>
+                {sim_sc}
+            </div>
+            <div style='font-size:12px;color:#475569;margin-bottom:12px'>Crisis Score / 100</div>
+            <div style='background:rgba(255,255,255,0.08);border-radius:8px;padding:8px 16px;
+                        display:inline-block;font-family:"DM Serif Display";
+                        font-size:18px;color:{COLOR_MAP.get(sim_lv,"#fff")}'>
+                {EMOJI_MAP.get(sim_lv,"")} {sim_lv}
+            </div>
+            <div style='margin-top:12px;font-family:"JetBrains Mono";font-size:12px;color:#64748b'>
+                dari {score:.1f} → <span style='color:{d_col};font-weight:700'>{delta:+.1f} poin</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        risk_items = [
+            ("Risiko Penurunan Wisman", "Tinggi" if w_d<-20 else ("Sedang" if w_d<0 else "Rendah"),
+             "#f87171" if w_d<-20 else ("#fbbf24" if w_d<0 else "#4ade80")),
+            ("Risiko Tekanan Kurs",     "Tinggi" if u_d>10  else ("Sedang" if u_d>3  else "Rendah"),
+             "#f87171" if u_d>10  else ("#fbbf24" if u_d>3  else "#4ade80")),
+            ("Risiko Sentimen Negatif", "Tinggi" if s_d<-0.3 else ("Sedang" if s_d<0 else "Rendah"),
+             "#f87171" if s_d<-0.3 else ("#fbbf24" if s_d<0 else "#4ade80")),
+        ]
+        st.markdown('<div class="section-title sec-amber sec-gap-md">⚠️ Breakdown Risiko</div>', unsafe_allow_html=True)
+        for nm,st_txt,c in risk_items:
+            st.markdown(f'<div class="risk-row"><span class="risk-name">{nm}</span>'
+                        f'<span style="color:{c};font-weight:700;font-size:12px;'
+                        f'font-family:\'JetBrains Mono\'">{st_txt}</span></div>', unsafe_allow_html=True)
+
+        st.markdown(f'<div class="section-title sec-green sec-gap-md">✅ Rekomendasi — Level {sim_lv}</div>', unsafe_allow_html=True)
+        for i,rec in enumerate(ADVICE_MAP.get(sim_lv,[]),1):
+            st.markdown(f"""
+            <div style='background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 14px;
+                        margin-bottom:8px;border-left:2px solid {COLOR_MAP.get(sim_lv,"#3b82f6")};
+                        font-size:13px;color:#94a3b8;line-height:1.6'>
+                <span style='font-weight:700;color:{COLOR_MAP.get(sim_lv,"#3b82f6")}'>{i}.</span> {rec}
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Recovery rate vs pre-COVID baseline
+        st.markdown('<div class="section-title sec-sky sec-gap-md">📉 Recovery Rate vs Baseline 2017–2019</div>', unsafe_allow_html=True)
         _precovid_mean = delta_ctx['precovid_mean']
         if _precovid_mean > 0 and 'wisman' in predictions.columns:
             rec_df = predictions.copy()
             rec_df['recovery_pct'] = (rec_df['wisman'] / _precovid_mean * 100).round(1)
             fig_rec = go.Figure()
-            fig_rec.add_hline(y=100, line_dash='dot', line_color='#10b981', line_width=1.5,
+            fig_rec.add_hline(y=100, line_dash='dot', line_color='#4ade80', line_width=1.5,
                               annotation_text='Baseline 100%', annotation_position='right',
-                              annotation_font_color='#10b981', annotation_font_size=10)
+                              annotation_font_color='#4ade80', annotation_font_size=10)
             fig_rec.add_trace(go.Scatter(
                 x=pd.to_datetime(rec_df['month'].astype(str)), y=rec_df['recovery_pct'],
                 mode='lines', fill='tozeroy',
-                fillcolor='rgba(59,130,246,0.06)', line=dict(color='#3b82f6', width=2)))
+                fillcolor='rgba(96,165,250,0.06)', line=dict(color='#60a5fa', width=2),
+                hovertemplate='%{x|%b %Y}<br>Recovery: %{y:.1f}%<extra></extra>'
+            ))
             fig_rec.add_vrect(x0='2020-03-01', x1='2021-12-01',
-                fillcolor='rgba(239,68,68,0.05)', line_width=0,
+                fillcolor='rgba(239,68,68,0.06)', line_width=0,
                 annotation_text='COVID', annotation_font_color='#ef4444')
-            fig_rec.add_vline(x=sel_dt, line_dash='dot', line_color='#7dd3fc', line_width=1.2)
+            fig_rec.add_vline(x=sel_dt, line_dash='dot', line_color='#60a5fa', line_width=1.2)
             fig_rec.update_layout(
-                yaxis=dict(title='Recovery (%)', gridcolor='rgba(255,255,255,0.05)', color='#475569'),
-                xaxis=dict(gridcolor='rgba(255,255,255,0.05)', color='#475569'),
-                plot_bgcolor='rgba(8,16,32,0.6)', paper_bgcolor='rgba(0,0,0,0)',
-                height=195, margin=dict(l=0, r=80, t=8, b=0),
+                yaxis=dict(title='Recovery (%)', gridcolor='rgba(255,255,255,0.04)', color='#64748b'),
+                xaxis=dict(gridcolor='rgba(255,255,255,0.04)', color='#64748b'),
+                plot_bgcolor='rgba(5,13,26,0.5)', paper_bgcolor='rgba(0,0,0,0)',
+                height=210, margin=dict(l=0, r=80, t=10, b=0),
                 font=dict(family='DM Sans', size=11, color='#94a3b8'))
             st.plotly_chart(fig_rec, use_container_width=True)
-            _rcol = '#10b981' if delta_ctx['recovery_pct'] >= 90 else \
-                    ('#f59e0b' if delta_ctx['recovery_pct'] >= 60 else '#ef4444')
+            _rcol = '#4ade80' if delta_ctx['recovery_pct'] >= 90 else ('#fbbf24' if delta_ctx['recovery_pct'] >= 60 else '#f87171')
             st.markdown(
-                "<div style='background:rgba(255,255,255,0.02);border-radius:8px;"
-                "padding:7px 12px;font-size:12px;color:#475569'>"
-                "Recovery <b style='color:#e2e8f0'>{mo}</b>: "
-                "<span style='color:{rc};font-weight:700;font-size:14px'>{rv:.1f}%</span>"
-                " dari baseline ({bsl:,} wisman/bln)</div>".format(
-                    mo=sel, rc=_rcol,
-                    rv=delta_ctx['recovery_pct'], bsl=int(_precovid_mean)),
-                unsafe_allow_html=True)
+                f"<div style='background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 16px;"
+                f"font-size:12px;color:#94a3b8;margin-top:4px'>"
+                f"📊 Recovery <b style='color:#e2e8f0'>{sel}</b>: "
+                f"<span style='color:{_rcol};font-weight:700;font-size:16px'>{delta_ctx['recovery_pct']:.1f}%</span>"
+                f" dari baseline pre-COVID ({int(_precovid_mean):,} wisman/bln)</div>",
+                unsafe_allow_html=True
+            )
 
-    # ══ RIGHT ════════════════════════════════════════════
-    with t4_right:
-
-        # ── Risk Simulator ────────────────────────────────
-        st.markdown('<div class="section-title">🎮 Simulator Skenario Risiko</div>',
-                    unsafe_allow_html=True)
-        st.markdown(
-            "<div style='background:rgba(59,130,246,0.06);border-radius:8px;padding:7px 11px;"
-            "font-size:11px;color:#7dd3fc;margin-bottom:10px;border:1px solid rgba(59,130,246,0.12)'>"
-            "Geser slider untuk simulasi dampak perubahan indikator secara real-time.</div>",
-            unsafe_allow_html=True)
-
-        w_d = st.slider("📉 Wisman (%)", -80, 50, 0, 5, key="sim_w")
-        u_d = st.slider("💱 USD/IDR (%)", -10, 30, 0, 1, key="sim_u")
-        s_d = st.slider("💬 Sentimen", -1.0, 1.0, 0.0, 0.1, key="sim_s")
-
-        sim_sc = simulate_score(dict(row_data), w_d, u_d, s_d)
-        sim_lv = level_from_score(sim_sc)
-        _sdelta = sim_sc - score
-        _sdcol  = "#ef4444" if _sdelta > 0 else "#10b981"
-        _sclr   = COLOR_MAP.get(sim_lv, '#fff')
-
-        st.markdown(
-            "<div style='background:linear-gradient(135deg,rgba(12,26,58,0.95),rgba(22,37,80,0.95));"
-            "border:1px solid rgba(255,255,255,0.07);border-radius:12px;"
-            "padding:16px;margin:8px 0;text-align:center'>"
-            "<div style='font-size:9px;font-weight:700;color:#1e3a5f;text-transform:uppercase;"
-            "letter-spacing:.12em;margin-bottom:6px'>HASIL SIMULASI</div>"
-            "<div style='font-family:\"JetBrains Mono\";font-size:42px;font-weight:700;"
-            "color:#f1f5f9;line-height:1'>{sc}</div>"
-            "<div style='font-size:10px;color:#334155;margin-bottom:8px'>Crisis Score / 100</div>"
-            "<div style='background:rgba(255,255,255,0.06);border-radius:8px;"
-            "padding:6px 14px;display:inline-block;"
-            "font-family:\"DM Serif Display\";font-size:16px;color:{clr}'>"
-            "{em} {lv}</div>"
-            "<div style='margin-top:8px;font-family:\"JetBrains Mono\";font-size:12px;color:#334155'>"
-            "dari {base:.1f} → <span style='color:{dc};font-weight:700'>{d:+.1f} poin</span>"
-            "</div></div>".format(
-                sc=sim_sc, clr=_sclr, em=EMOJI_MAP.get(sim_lv,''), lv=sim_lv,
-                base=score, dc=_sdcol, d=_sdelta),
-            unsafe_allow_html=True)
-
-        # ── Breakdown Risiko ──────────────────────────────
-        st.markdown('<div class="section-title">⚠️ Breakdown Risiko</div>', unsafe_allow_html=True)
-        for nm, st_txt, c in [
-            ("Penurunan Wisman",
-             "Tinggi" if w_d<-20 else ("Sedang" if w_d<0 else "Rendah"),
-             "#ef4444" if w_d<-20 else ("#f59e0b" if w_d<0 else "#10b981")),
-            ("Tekanan Kurs USD",
-             "Tinggi" if u_d>10  else ("Sedang" if u_d>3  else "Rendah"),
-             "#ef4444" if u_d>10  else ("#f59e0b" if u_d>3  else "#10b981")),
-            ("Sentimen Negatif",
-             "Tinggi" if s_d<-0.3 else ("Sedang" if s_d<0 else "Rendah"),
-             "#ef4444" if s_d<-0.3 else ("#f59e0b" if s_d<0 else "#10b981")),
-        ]:
-            st.markdown(
-                "<div class='risk-row'><span class='risk-name'>{nm}</span>"
-                "<span style='color:{c};font-weight:700;font-size:11px;"
-                "font-family:\"JetBrains Mono\"'>{st}</span></div>".format(nm=nm, c=c, st=st_txt),
-                unsafe_allow_html=True)
-
-        # ── Rekomendasi ───────────────────────────────────
-        _rclr_btn = COLOR_MAP.get(sim_lv, '#3b82f6')
-        st.markdown(
-            "<div class='section-title'>✅ Rekomendasi — Level {lv}</div>".format(lv=sim_lv),
-            unsafe_allow_html=True)
-        for i, rec in enumerate(ADVICE_MAP.get(sim_lv, []), 1):
-            st.markdown(
-                "<div style='background:rgba(255,255,255,0.02);border-radius:8px;"
-                "padding:8px 11px;margin-bottom:5px;border-left:2px solid {clr};"
-                "font-size:12px;color:#94a3b8;line-height:1.6'>"
-                "<span style='font-weight:700;color:{clr}'>{i}.</span> {rec}"
-                "</div>".format(clr=_rclr_btn, i=i, rec=rec),
-                unsafe_allow_html=True)
-
-        # ── Risk Scatter ──────────────────────────────────
-        st.markdown('<div class="section-title">🗺️ Peta Risiko Historis</div>', unsafe_allow_html=True)
-        _sc_src = master if 'wisman_growth_mom' in master.columns else predictions
-        if 'wisman_growth_mom' in _sc_src.columns and 'crisis_level' in _sc_src.columns:
+        # Risk scatter — use master (has wisman_growth_mom + crisis_level)
+        st.markdown('<div class="section-title sec-purple sec-gap-md">🗺️ Peta Risiko Historis</div>', unsafe_allow_html=True)
+        scatter_src = master if 'wisman_growth_mom' in master.columns else predictions
+        if 'wisman_growth_mom' in scatter_src.columns and 'crisis_level' in scatter_src.columns:
             fig_r = go.Figure()
-            for _lv_sc in ['AMAN','WASPADA','SIAGA','KRISIS']:
-                _mask = _sc_src['crisis_level'] == _lv_sc
-                if _mask.sum() > 0:
+            for lv in ['AMAN','WASPADA','SIAGA','KRISIS']:
+                mask = scatter_src['crisis_level']==lv
+                if mask.sum()>0:
                     fig_r.add_trace(go.Scatter(
-                        x=_sc_src.loc[_mask,'wisman_growth_mom']*100,
-                        y=_sc_src.loc[_mask,'avg_sentiment_monthly'],
-                        mode='markers', name=_lv_sc,
-                        marker=dict(color=COLOR_MAP[_lv_sc], size=5, opacity=0.75,
-                                    line=dict(width=0.4, color='rgba(0,0,0,0.3)'))))
-            fig_r.add_hline(y=0, line_dash='dash', line_color='rgba(255,255,255,0.08)', line_width=1)
-            fig_r.add_vline(x=0, line_dash='dash', line_color='rgba(255,255,255,0.08)', line_width=1)
+                        x=scatter_src.loc[mask,'wisman_growth_mom']*100,
+                        y=scatter_src.loc[mask,'avg_sentiment_monthly'],
+                        mode='markers', name=lv,
+                        marker=dict(color=COLOR_MAP[lv],size=6,opacity=0.8,
+                                    line=dict(width=0.5,color='rgba(0,0,0,0.3)')),
+                        hovertemplate=f'<b>{lv}</b><br>Growth: %{{x:.1f}}%<br>Sentimen: %{{y:.3f}}<extra></extra>'
+                    ))
+            fig_r.add_hline(y=0,line_dash='dash',line_color='rgba(255,255,255,0.1)',line_width=1)
+            fig_r.add_vline(x=0,line_dash='dash',line_color='rgba(255,255,255,0.1)',line_width=1)
             fig_r.update_layout(
-                xaxis=dict(title='Wisman Growth MoM (%)',
-                           gridcolor='rgba(255,255,255,0.05)', color='#475569'),
-                yaxis=dict(title='Avg Sentimen',
-                           gridcolor='rgba(255,255,255,0.05)', color='#475569'),
-                plot_bgcolor='rgba(8,16,32,0.6)', paper_bgcolor='rgba(0,0,0,0)',
-                height=225, margin=dict(l=0, r=0, t=8, b=0),
-                legend=dict(orientation='h', y=1.02, x=0, bgcolor='rgba(0,0,0,0)',
-                            font=dict(size=10, color='#94a3b8')),
-                font=dict(family='DM Sans', size=11, color='#94a3b8'))
+                xaxis=dict(title='Wisman Growth MoM (%)',gridcolor='rgba(255,255,255,0.04)',color='#64748b'),
+                yaxis=dict(title='Avg Sentimen',gridcolor='rgba(255,255,255,0.04)',color='#64748b'),
+                plot_bgcolor='rgba(5,13,26,0.5)', paper_bgcolor='rgba(0,0,0,0)',
+                height=250, margin=dict(l=0,r=0,t=10,b=0),
+                legend=dict(orientation='h',y=1.01,x=0,bgcolor='rgba(0,0,0,0)',
+                            font=dict(size=10,color='#94a3b8')),
+                font=dict(family='DM Sans',size=11,color='#94a3b8'))
             st.plotly_chart(fig_r, use_container_width=True)
 
 # ─── TAB 5: NARASI AI ─────────────────────────────────

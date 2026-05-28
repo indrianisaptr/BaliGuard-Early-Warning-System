@@ -88,5 +88,14 @@
     "crisis_level": "SIAGA",
     "report_type": "monthly",
     "crisis_score": 61.8
+  },
+  "2026-01": {
+    "success": true,
+    "narrative": "**RINGKASAN EKSEKUTIF**\n\nBulan ini, Crisis Score turun 3,1 poin menjadi 10,2/100, tetapi masih dalam level aman. Perubahan ini tidak terlalu signifikan dan dapat dianggap sebagai tren berkelanjutan, karena 3 bulan terakhir Crisis Score tetap dalam level aman.\n\n**ANALISIS INDIKATOR**\n\nBulan ini, indikator wisman meningkat sebesar 0,0% MoM, dengan trend naik dan avg 3bln sebesar 527,970. Ini dapat dianggap sebagai tren normal, karena tidak ada perubahan signifikan dalam beberapa bulan terakhir. Namun, perlu diingat bahwa angka ini masih lebih rendah daripada target wisman yang diharapkan. Selain itu, indikator TPK Hotel juga tidak mengalami perubahan, tetapi masih berada di level yang sangat tinggi, yaitu 61,9%. Kontradiksi antar indikator tidak terlalu signifikan dalam bulan ini.\n\n**ANALISIS KAUSAL**\n\nKemungkinan penyebab utama perubahan Crisis Score ini adalah karena adanya anomali IF, yaitu prediksi RF yang menunjukkan level aman dengan confidence 70,0%. Anomali ini mungkin disebabkan oleh faktor eksternal, seperti perubahan ekonomi atau akses. Namun, perlu diingat bahwa anomali ini masih dalam level yang relatif kecil, yaitu 3,6%.\n\n**REKOMENDASI PRIORITAS**\n\n1. **Prioritas Tinggi**: Lakukan analisis lebih lanjut tentang anomali IF dan prediksi RF untuk memastikan bahwa perubahan ini tidak berdampak pada pariwisata Bali.\n2. **Prioritas Sedang**: Perluasan promosi wisman untuk meningkatkan jumlah wisman dan mencapai target wisman yang diharapkan.\n3. **Prioritas Rendah**: Perbaikan infrastruktur dan layanan untuk meningkatkan kualitas pengalaman wisman dan mempertahankan level TPK Hotel yang tinggi.",
+    "tokens": 1056,
+    "month": "2026-01",
+    "crisis_level": "AMAN",
+    "report_type": "monthly",
+    "crisis_score": 10.2
   }
 }
