@@ -4,7 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-import joblib, json, os, sys
+import joblib, json, os, sys, urllib.request
 from datetime import datetime
 
 st.set_page_config(
@@ -220,9 +220,17 @@ def sf(val, d=0.0):
     try: return float(val)
     except: return d
 
+_last_data_month = predictions['month'].iloc[-1]
+
 def get_row(m):
-    r = predictions[predictions['month']==m]
-    return r.iloc[0] if len(r) else predictions.iloc[-1]
+    r = predictions[predictions['month'] == m]
+    if len(r):
+        return r.iloc[0]
+    # Bulan di luar dataset → proyeksi
+    if str(m) > _last_data_month:
+        return pd.Series(project_future_row(predictions, str(m)))
+    return predictions.iloc[-1]
+
 
 def kpi_html(label, value, sub="", level=None):
     cls = f"kpi-card kpi-{level}" if level else "kpi-card"
@@ -240,6 +248,104 @@ def level_from_score(s):
     if s >= 50: return 'SIAGA'
     if s >= 30: return 'WASPADA'
     return 'AMAN'
+
+# ── Live USD/IDR ──────────────────────────────────────────────
+@st.cache_data(ttl=3600)
+def fetch_live_usd_idr() -> float | None:
+    """Ambil kurs USD/IDR live dari Frankfurter → Open ER. Cache 1 jam."""
+    sources = [
+        ("https://api.frankfurter.app/latest?from=USD&to=IDR",
+         lambda d: float(d["rates"]["IDR"])),
+        ("https://open.er-api.com/v6/latest/USD",
+         lambda d: float(d["rates"]["IDR"])),
+    ]
+    for url, parser in sources:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "BaliGuard/1.0"})
+            with urllib.request.urlopen(req, timeout=5) as r:
+                data = json.loads(r.read())
+            rate = parser(data)
+            if rate and rate > 5000:
+                return round(rate, 0)
+        except Exception:
+            continue
+    return None
+
+def get_current_usd_idr(predictions: pd.DataFrame, month: str) -> tuple[float, bool]:
+    """
+    Return (usd_rate, is_live).
+    Untuk bulan sekarang/masa depan → coba live rate.
+    Untuk bulan historis → dari dataset.
+    """
+    now_month = datetime.now().strftime('%Y-%m')
+    last_data = predictions['month'].iloc[-1]
+
+    if month >= last_data:
+        live = fetch_live_usd_idr()
+        if live:
+            return live, True
+    val = float(predictions[predictions['month'] == month]['usd_idr_avg'].iloc[0]) \
+          if month in predictions['month'].values else 0.0
+    return val, False
+
+def project_future_row(predictions: pd.DataFrame, target_month: str) -> dict:
+    """Proyeksi data untuk bulan di luar dataset."""
+    last   = dict(predictions.iloc[-1])
+    lm     = predictions['month'].iloc[-1]
+    n      = int((pd.Period(target_month, freq='M') - pd.Period(lm, freq='M')).n)
+    tail12 = predictions.tail(12)
+
+    # Crisis score trend
+    score_trend = float(np.polyfit(range(len(tail12)), tail12['crisis_score_100'].values, 1)[0])
+    proj_score  = float(np.clip(float(last['crisis_score_100']) + score_trend * n, 0, 100))
+
+    # Wisman: tren + seasonal
+    if len(predictions) >= 24:
+        month_key   = target_month[5:7]
+        monthly_avg = predictions.groupby(predictions['month'].str[5:7])['wisman'].mean()
+        seasonal    = float(monthly_avg.get(month_key, monthly_avg.mean())) / max(monthly_avg.mean(), 1)
+        w_trend     = float(np.polyfit(range(len(tail12)), tail12['wisman'].values, 1)[0])
+        proj_wisman = max(0, int((float(last['wisman']) + w_trend * n) * seasonal))
+    else:
+        proj_wisman = int(last.get('wisman', 0))
+
+    # TPK trend
+    tpk_trend = float(np.polyfit(range(len(tail12)), tail12['tpk_bintang'].values, 1)[0])
+    proj_tpk  = float(np.clip(float(last['tpk_bintang']) + tpk_trend * n, 0, 100))
+
+    # Sentimen mean-revert
+    proj_sent = float(last.get('avg_sentiment_monthly', 0.5)) * (0.95 ** n) + 0.5 * (1 - 0.95 ** n)
+
+    # USD/IDR: coba live, fallback trend
+    live_rate = fetch_live_usd_idr()
+    if live_rate:
+        usd_trend = float(np.polyfit(range(len(tail12)), tail12['usd_idr_avg'].values, 1)[0])
+        proj_usd  = live_rate + usd_trend * max(0, n - 1)
+    else:
+        usd_trend = float(np.polyfit(range(len(tail12)), tail12['usd_idr_avg'].values, 1)[0])
+        proj_usd  = float(last.get('usd_idr_avg', 15500)) + usd_trend * n
+
+    proj = dict(last)
+    proj.update({
+        'month'                 : target_month,
+        'crisis_score_100'      : proj_score,
+        'crisis_level'          : level_from_score(proj_score),
+        'rf_predicted_level'    : level_from_score(proj_score),
+        'rf_confidence'         : max(0.35, float(last.get('rf_confidence', 0.70)) - 0.05 * n),
+        'iso_anomaly'           : 0,
+        'wisman'                : proj_wisman,
+        'tpk_bintang'           : proj_tpk,
+        'avg_sentiment_monthly' : proj_sent,
+        'usd_idr_avg'           : proj_usd,
+        'inflasi_processed'     : float(last.get('inflasi_processed', 3.0)),
+        'bali_share_pct'        : float(last.get('bali_share_pct', 40.0)),
+        'wisman_zscore'         : 0.0,
+        'prob_krisis'           : proj_score / 200,
+        'prob_siaga'            : 0.3,
+        '_is_projected'         : True,
+        '_proj_confidence'      : max(35, 85 - (n - 1) * 8),
+    })
+    return proj
 
 def forecast_months(pred_df, n=6, from_month=None):
     """Proyeksi n bulan ke depan dari titik yang dipilih (default: data terakhir)."""
@@ -346,8 +452,24 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     st.divider()
 
-    avail = sorted(predictions['month'].unique(), reverse=True)
-    sel   = st.selectbox("📅 Periode Analisis", avail, help="Pilih bulan untuk analisis detail")
+    avail_hist = sorted(predictions['month'].unique(), reverse=True)
+    _last_data = predictions['month'].iloc[-1]
+    _now_month = datetime.now().strftime('%Y-%m')
+    # Tambahkan bulan masa depan sampai 2 tahun ke depan
+    _future = []
+    _p = pd.Period(_last_data, freq='M')
+    for i in range(1, 25):
+        _p2 = _p + i
+        _future.append(str(_p2))
+    avail = avail_hist + list(reversed([m for m in _future if m > _last_data]))
+    # Format label: tambah tag [PROYEKSI] untuk masa depan
+    def _month_label(m):
+        if m > _last_data:
+            return f"{m}  🔮"
+        return m
+    sel = st.selectbox("📅 Periode Analisis", avail,
+                       format_func=_month_label,
+                       help="Bulan dengan 🔮 = proyeksi (belum ada data BPS)")
     sel_dt = pd.to_datetime(sel)
 
     st.divider()
@@ -478,7 +600,9 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── KPI Strip ────────────────────────────────────────
-row_data = get_row(sel)
+row_data    = get_row(sel)
+_is_proj    = bool(row_data.get('_is_projected', False))
+_proj_conf  = int(row_data.get('_proj_confidence', 85)) if _is_proj else None
 level    = str(row_data.get('crisis_level','WASPADA'))
 score    = sf(row_data.get('crisis_score_100',0))
 wisman   = int(sf(row_data.get('wisman',0)))
@@ -487,21 +611,34 @@ conf     = sf(row_data.get('rf_confidence',0))*100
 is_anom  = int(sf(row_data.get('iso_anomaly',0)))
 rf_pred  = str(row_data.get('rf_predicted_level','N/A'))
 sent     = sf(row_data.get('avg_sentiment_monthly',0))
-usd_avg  = sf(row_data.get('usd_idr_avg',0))
 inflasi  = sf(row_data.get('inflasi_processed',0))
 bali_shr = sf(row_data.get('bali_share_pct',0))
 
-# ── MoM Delta (Why Now?) ─────────────────────────────
+# USD/IDR: coba live rate jika bulan dipilih >= last data
+_usd_from_row = sf(row_data.get('usd_idr_avg', 0))
+_live_rate    = fetch_live_usd_idr()
+_now_m        = datetime.now().strftime('%Y-%m')
+if sel >= _last_data_month and _live_rate:
+    usd_avg     = _live_rate
+    _usd_is_live = True
+else:
+    usd_avg      = _usd_from_row
+    _usd_is_live = False
+
+# ── MoM Delta ─────────────────────────────────────────
 _sorted_months = sorted(predictions['month'].unique())
 _sel_idx       = _sorted_months.index(sel) if sel in _sorted_months else -1
 _prev_month    = _sorted_months[_sel_idx - 1] if _sel_idx > 0 else None
 _prev_row      = get_row(_prev_month) if _prev_month else None
 
-# ── Delta Context (recovery, dominant factor, anomaly explanation) ──
-delta_ctx = compute_delta_context(dict(row_data), predictions, sel)
+# ── Delta Context ────────────────────────────────────
+if not _is_proj:
+    delta_ctx = compute_delta_context(dict(row_data), predictions, sel)
+else:
+    delta_ctx = {'score_delta':0,'score_trend':'→','dominant':'wisman',
+                 'anomaly_exp':'Data proyeksi','recovery_pct':0,'precovid_mean':0}
 
 def _delta_txt(curr, prev_val, fmt="+.1f", suffix="", invert=False):
-    """Return coloured delta HTML. invert=True means up is bad (score, usd)."""
     if prev_val is None or prev_val == 0:
         return "<span style='color:#475569;font-size:10px'>— vs bln lalu</span>"
     d    = curr - prev_val
@@ -517,19 +654,29 @@ def _delta_txt(curr, prev_val, fmt="+.1f", suffix="", invert=False):
         txt = f"{sign} {abs(d):{fmt}} vs bln lalu"
     return f"<span style='color:{col};font-size:10px;font-weight:700'>{txt}</span>"
 
-_p_score  = sf(_prev_row.get('crisis_score_100',0))       if _prev_row is not None else None
-_p_wisman = sf(_prev_row.get('wisman',0))                  if _prev_row is not None else None
-_p_tpk    = sf(_prev_row.get('tpk_bintang',0))             if _prev_row is not None else None
-_p_sent   = sf(_prev_row.get('avg_sentiment_monthly',0))   if _prev_row is not None else None
-_p_usd    = sf(_prev_row.get('usd_idr_avg',0))             if _prev_row is not None else None
+_p_score  = sf(_prev_row.get('crisis_score_100',0))     if _prev_row is not None else None
+_p_wisman = sf(_prev_row.get('wisman',0))               if _prev_row is not None else None
+_p_tpk    = sf(_prev_row.get('tpk_bintang',0))          if _prev_row is not None else None
+_p_sent   = sf(_prev_row.get('avg_sentiment_monthly',0))if _prev_row is not None else None
+_p_usd    = sf(_prev_row.get('usd_idr_avg',0))          if _prev_row is not None else None
 
-_d_score  = _delta_txt(score,  _p_score,  fmt=".1f",  invert=True)
+_d_score  = _delta_txt(score,  _p_score,  fmt=".1f", invert=True)
 _d_wisman = _delta_txt(wisman, _p_wisman, suffix="pct_change")
 _d_tpk    = _delta_txt(tpk,    _p_tpk,   suffix="%")
 _d_sent   = _delta_txt(sent,   _p_sent,  fmt="+.3f")
 _d_usd    = _delta_txt(usd_avg,_p_usd,   suffix="pct_change", invert=True)
 
-# Build KPI card with delta sub
+# Badge proyeksi / live
+_proj_badge = (f"<span style='font-size:9px;background:rgba(167,139,250,0.15);"
+               f"color:#a78bfa;padding:2px 7px;border-radius:8px;"
+               f"border:1px solid rgba(167,139,250,0.3)'>🔮 PROYEKSI ~{_proj_conf}%</span> "
+               if _is_proj else "")
+_live_badge = (f"<span style='font-size:9px;background:rgba(74,222,128,0.12);"
+               f"color:#4ade80;padding:2px 7px;border-radius:8px;"
+               f"border:1px solid rgba(74,222,128,0.25)'>⚡ LIVE</span>"
+               if _usd_is_live else "kurs rata-rata")
+
+# KPI card builder
 def kpi_html_delta(label, value, sub_static, delta_html, level=None):
     cls = f"kpi-card kpi-{level}" if level else "kpi-card"
     return (f'<div class="{cls}"><div class="kpi-label">{label}</div>'
@@ -538,19 +685,31 @@ def kpi_html_delta(label, value, sub_static, delta_html, level=None):
             f'<div style="margin-top:5px">{delta_html}</div></div>')
 
 c1,c2,c3,c4,c5,c6 = st.columns(6)
-with c1: st.markdown(kpi_html_delta("LEVEL KRISIS", f"{EMOJI_MAP.get(level,'')} {level}",
-                     f"RF: {rf_pred}", f"<span style='color:#475569;font-size:10px'>{_prev_month or '—'}</span>", level),
-                     unsafe_allow_html=True)
-with c2: st.markdown(kpi_html_delta("CRISIS SCORE",   f"{score:.1f}",
-                     f"dari 100 · conf {conf:.0f}%", _d_score),  unsafe_allow_html=True)
-with c3: st.markdown(kpi_html_delta("WISMAN",         f"{wisman:,}",
-                     "orang bulan ini",               _d_wisman), unsafe_allow_html=True)
-with c4: st.markdown(kpi_html_delta("TPK BINTANG",    f"{tpk:.1f}%",
-                     "hunian hotel",                  _d_tpk),    unsafe_allow_html=True)
-with c5: st.markdown(kpi_html_delta("SENTIMEN",       f"{sent:+.3f}",
-                     "avg ulasan",                    _d_sent),   unsafe_allow_html=True)
-with c6: st.markdown(kpi_html_delta("USD/IDR",        f"Rp {usd_avg:,.0f}",
-                     "kurs rata-rata",                _d_usd),    unsafe_allow_html=True)
+with c1: st.markdown(kpi_html_delta(
+    "LEVEL KRISIS", f"{EMOJI_MAP.get(level,'')} {level}",
+    _proj_badge + f"RF: {rf_pred}",
+    f"<span style='color:#475569;font-size:10px'>{_prev_month or '—'}</span>",
+    level), unsafe_allow_html=True)
+with c2: st.markdown(kpi_html_delta(
+    "CRISIS SCORE",  f"{score:.1f}",
+    _proj_badge + f"dari 100 · conf {conf:.0f}%",
+    _d_score), unsafe_allow_html=True)
+with c3: st.markdown(kpi_html_delta(
+    "WISMAN",        f"{wisman:,}",
+    _proj_badge + ("est. proyeksi" if _is_proj else "orang bulan ini"),
+    _d_wisman), unsafe_allow_html=True)
+with c4: st.markdown(kpi_html_delta(
+    "TPK BINTANG",   f"{tpk:.1f}%",
+    _proj_badge + ("est. proyeksi" if _is_proj else "hunian hotel"),
+    _d_tpk), unsafe_allow_html=True)
+with c5: st.markdown(kpi_html_delta(
+    "SENTIMEN",      f"{sent:+.3f}",
+    _proj_badge + ("est. proyeksi" if _is_proj else "avg ulasan"),
+    _d_sent), unsafe_allow_html=True)
+with c6: st.markdown(kpi_html_delta(
+    "USD/IDR",       f"Rp {usd_avg:,.0f}",
+    _live_badge,
+    _d_usd), unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ── Alert Banner ─────────────────────────────────────
