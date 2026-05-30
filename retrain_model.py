@@ -91,8 +91,36 @@ def prepare_model_data(df: pd.DataFrame):
     else:
         print(f"  ℹ️  Lag features tidak ditemukan — jalankan NB04 FINAL untuk mengaktifkan")
 
-    df_model = df[feat_cols + [TARGET, 'month']].dropna().copy()
-    print(f"  Baris setelah dropna: {len(df_model)} (dari {len(df)})")
+    df_model = df[feat_cols + [TARGET, 'month']].copy()
+
+    # Ganti inf/-inf → NaN, lalu isi dengan median kolom
+    df_model[feat_cols] = df_model[feat_cols].replace([np.inf, -np.inf], np.nan)
+    for col in feat_cols:
+        med = df_model[col].median()
+        df_model[col] = df_model[col].fillna(med if not np.isnan(med) else 0)
+
+    # Clip outlier ekstrem (±10 std) supaya scaler tidak meledak
+    for col in feat_cols:
+        std = df_model[col].std()
+        mn  = df_model[col].mean()
+        if std > 0:
+            df_model[col] = df_model[col].clip(mn - 10*std, mn + 10*std)
+
+    # Drop baris yang masih NaN di TARGET saja
+    df_model = df_model.dropna(subset=[TARGET])
+
+    # Sanity check
+    n_inf = np.isinf(df_model[feat_cols].values).sum()
+    n_nan = np.isnan(df_model[feat_cols].values).sum()
+    if n_inf + n_nan > 0:
+        print(f"  ⚠️  Masih ada {n_inf} inf / {n_nan} NaN — kolom bermasalah:")
+        for col in feat_cols:
+            bad = np.isinf(df_model[col]).sum() + df_model[col].isna().sum()
+            if bad: print(f"       {col}: {bad}")
+    else:
+        print(f"  ✅ Data bersih — tidak ada inf/NaN")
+
+    print(f"  Baris: {len(df_model)} (dari {len(df)})")
     print(f"  Fitur: {len(feat_cols)} | Distribusi: {df_model[TARGET].value_counts().to_dict()}")
 
     return df_model, feat_cols

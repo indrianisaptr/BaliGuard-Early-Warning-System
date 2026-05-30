@@ -472,11 +472,9 @@ def alert_html(level, title, body):
             f'<div class="alert-body">{body}</div></div>')
 
 def level_from_score(s):
-    # Threshold disesuaikan distribusi aktual data (range 11.5–48.1)
-    # 42 = tepat menangkap Mar-Apr 2020 COVID sebagai KRISIS (validasi empiris)
-    if s >= 42: return 'KRISIS'
-    if s >= 30: return 'SIAGA'
-    if s >= 20: return 'WASPADA'
+    if s >= 70: return 'KRISIS'
+    if s >= 50: return 'SIAGA'
+    if s >= 30: return 'WASPADA'
     return 'AMAN'
 
 # ── Live USD/IDR ──────────────────────────────────────────────
@@ -1344,7 +1342,7 @@ if selected_nav == "📈 Overview & Timeline":
                 marker=dict(color=col,size=7,line=dict(width=1.2,color='#050d1a')),
                 hovertemplate=f'<b>{lv}</b><br>%{{x|%b %Y}}<br>Score: %{{y:.1f}}<extra></extra>'
             ), row=1, col=1)
-    for thr,lbl,col in [(42,'KRISIS','#ef4444'),(30,'SIAGA','#f97316'),(20,'WASPADA','#f59e0b')]:
+    for thr,lbl,col in [(70,'KRISIS','#ef4444'),(50,'SIAGA','#f97316'),(30,'WASPADA','#f59e0b')]:
         fig.add_hline(y=thr, line_dash='dot', line_color=col, line_width=1, opacity=0.7,
                       annotation_text=lbl, annotation_position='right',
                       annotation_font_size=9, annotation_font_color=col,
@@ -1519,28 +1517,13 @@ if selected_nav == "🔬 Analisis Detail":
             st.markdown('<div class="box-heading sec-blue">📊 Komponen Crisis Score</div>', unsafe_allow_html=True)
 
             mr_rows = master[master['month']==sel]
-            if len(mr_rows) > 0:
+            if len(mr_rows)>0:
                 mr = mr_rows.iloc[0]
                 comp_vals = {
                     'Kunjungan Wisatawan': sf(mr.get('crisis_component_tourism',0)),
                     'Kondisi Ekonomi':     sf(mr.get('crisis_component_economy',0)),
                     'Sentimen Ulasan':     sf(mr.get('crisis_component_sentiment',0)),
                 }
-                _comp_proj = False
-            elif _is_proj:
-                # Proyeksi: estimasi komponen dari crisis_score_100
-                _sc = score / 100.0
-                comp_vals = {
-                    'Kunjungan Wisatawan': round(_sc * 0.45, 4),
-                    'Kondisi Ekonomi':     round(_sc * 0.30, 4),
-                    'Sentimen Ulasan':     round(_sc * 0.25, 4),
-                }
-                _comp_proj = True
-            else:
-                comp_vals = None
-                _comp_proj = False
-
-            if comp_vals is not None:
                 fig_c = go.Figure(go.Bar(
                     x=list(comp_vals.keys()),
                     y=[v*100 for v in comp_vals.values()],
@@ -1561,14 +1544,8 @@ if selected_nav == "🔬 Analisis Detail":
                     font=dict(family='DM Sans',size=12,color='#cbd5e1')
                 )
                 st.plotly_chart(fig_c, use_container_width=True)
-                if _comp_proj:
-                    st.markdown(
-                        "<div style='font-size:10px;color:#a78bfa;text-align:center;margin-top:-8px'>"
-                        "🔮 Estimasi proporsi berbasis crisis score proyeksi — bukan data historis</div>",
-                        unsafe_allow_html=True
-                    )
             else:
-                st.info("Data komponen tidak tersedia untuk bulan ini.")
+                st.info("Data bulan ini tidak ada di master dataset.")
 
         # ── Box 2: Indikator Detail ───────────────────────
         indicators = [
@@ -1681,43 +1658,15 @@ if selected_nav == "💬 Sentimen":
     sent_pct   = int((sent + 1) / 2 * 100)
 
     mr_pct_rows = master[master['month']==sel]
-
-    # ── Proyeksi: tidak ada data review nyata ────────────────
-    if _is_proj:
-        # Gunakan sentimen proyeksi, tapi tandai review sebagai N/A
-        pct_neg         = 0.0
-        pct_pos         = 0.0
-        pct_netral      = 0.0
-        _review_is_proj = True
-        _netral_estimated = False
-        # Ambil sentimen terakhir yang diketahui dari data historis
-        _last_real_sent  = float(predictions[predictions['month'] <= _last_data_month]['avg_sentiment_monthly'].iloc[-1])
-        _last_real_month = predictions['month'].iloc[-1]
-    else:
-        _review_is_proj  = False
-        _last_real_sent  = None
-        _last_real_month = None
-        pct_neg = sf(mr_pct_rows['pct_negative_monthly'].iloc[0] if len(mr_pct_rows) > 0
-                     and 'pct_negative_monthly' in master.columns
-                     else row_data.get('pct_negative_monthly', 0))
-
-        # pct_positive & pct_neutral tidak ada di master (NB04 hanya simpan pct_negative)
-        _avg_sent_raw = float(mr_pct_rows['avg_sentiment_monthly'].iloc[0]
-                              if len(mr_pct_rows) > 0 and 'avg_sentiment_monthly' in master.columns
-                              else sent)
-        _sentiment_est = min(1.0, max(0.0, _avg_sent_raw))
-
-        _nonneg = max(0.0, 100.0 - pct_neg)
-        if 'pct_positive_monthly' in master.columns and len(mr_pct_rows) > 0:
-            pct_pos    = sf(mr_pct_rows['pct_positive_monthly'].iloc[0])
-            pct_netral = max(0.0, round(100.0 - pct_pos - pct_neg, 1))
-            _netral_estimated = False
-        else:
-            _s_norm       = min(1.0, _sentiment_est / 0.8)
-            _netral_frac  = 0.30 - 0.20 * _s_norm
-            pct_netral    = round(_nonneg * _netral_frac, 1)
-            pct_pos       = round(_nonneg - pct_netral, 1)
-            _netral_estimated = True
+    pct_neg = sf(mr_pct_rows['pct_negative_monthly'].iloc[0] if len(mr_pct_rows) > 0
+                 and 'pct_negative_monthly' in master.columns
+                 else row_data.get('pct_negative_monthly', 0))
+    pct_pos = sf(mr_pct_rows['pct_positive_monthly'].iloc[0] if len(mr_pct_rows) > 0
+                 and 'pct_positive_monthly' in master.columns
+                 else (100 - pct_neg))
+    pct_netral = sf(mr_pct_rows['pct_neutral_monthly'].iloc[0] if len(mr_pct_rows) > 0
+                 and 'pct_neutral_monthly' in master.columns
+                 else max(0.0, 100.0 - pct_pos - pct_neg))
 
     # ── Hero: pakai kolom native Streamlit, bukan HTML kompleks ──
     h1, h2, h3, h4, h5 = st.columns([2, 1, 1, 1, 1], gap="medium")
@@ -1727,104 +1676,55 @@ if selected_nav == "💬 Sentimen":
             f"<div style='font-size:11px;font-weight:700;letter-spacing:.12em;color:#475569;text-transform:uppercase;margin-bottom:6px'>Sentimen Bulan Ini · {sel}</div>"
             f"<div style='font-family:DM Serif Display,serif;font-size:36px;color:{sent_color};line-height:1'>{sent_label}</div>"
             f"<div style='font-family:JetBrains Mono,monospace;font-size:20px;color:{sent_color};margin-top:4px'>{sent:+.3f}</div>"
-            + (f"<div style='font-size:10px;color:#a78bfa;margin-top:6px'>🔮 proyeksi — data terakhir {_last_real_month}</div>" if _review_is_proj else "")
-            + f"</div>",
+            f"</div>",
             unsafe_allow_html=True
         )
-
-    if _review_is_proj:
-        # Bulan proyeksi: tampilkan 3 kolom info, bukan angka palsu
-        with h2:
-            st.markdown(
-                f"<div style='text-align:center;padding:16px 0'>"
-                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Positif</div>"
-                f"<div style='font-size:22px;color:#475569'>—</div>"
-                f"<div style='font-size:10px;color:#334155;margin-top:6px'>tidak tersedia</div>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
-        with h3:
-            st.markdown(
-                f"<div style='text-align:center;padding:16px 0'>"
-                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Negatif</div>"
-                f"<div style='font-size:22px;color:#475569'>—</div>"
-                f"<div style='font-size:10px;color:#334155;margin-top:6px'>tidak tersedia</div>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
-        with h4:
-            st.markdown(
-                f"<div style='text-align:center;padding:16px 0'>"
-                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Netral</div>"
-                f"<div style='font-size:22px;color:#475569'>—</div>"
-                f"<div style='font-size:10px;color:#334155;margin-top:6px'>tidak tersedia</div>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
-        with h5:
-            st.markdown(
-                f"<div style='text-align:center;padding:16px 0'>"
-                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Sentimen Terakhir</div>"
-                f"<div style='font-family:JetBrains Mono,monospace;font-size:20px;color:{sent_color}'>{_last_real_sent:+.3f}</div>"
-                f"<div style='font-size:10px;color:#a78bfa;margin-top:4px'>{_last_real_month}</div>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
+    with h2:
         st.markdown(
-            "<div style='background:rgba(167,139,250,0.07);border:1px solid rgba(167,139,250,0.2);"
-            "border-radius:10px;padding:10px 16px;margin:8px 0 16px;font-size:11px;color:#a78bfa'>"
-            f"🔮 <b>Bulan proyeksi</b> — data review wisatawan belum tersedia. "
-            f"Sentimen ditampilkan berdasarkan proyeksi tren dari data terakhir ({_last_real_month}: {_last_real_sent:+.3f})."
-            "</div>",
+            f"<div style='text-align:center;padding:16px 0'>"
+            f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Positif</div>"
+            f"<div style='font-family:DM Serif Display,serif;font-size:28px;color:#4ade80'>{pct_pos:.1f}%</div>"
+            f"</div>",
             unsafe_allow_html=True
         )
-    else:
-        with h2:
-            st.markdown(
-                f"<div style='text-align:center;padding:16px 0'>"
-                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Positif</div>"
-                f"<div style='font-family:DM Serif Display,serif;font-size:28px;color:#4ade80'>{pct_pos:.1f}%</div>"
-                f"</div>",
-                unsafe_allow_html=True
+        st.markdown(
+            f"<div style='text-align:center;margin-top:-8px'>"
+            f"<span style='background:rgba(74,222,128,0.15);color:#4ade80;font-size:11px;font-weight:700;"
+            f"padding:3px 10px;border-radius:20px;border:1px solid rgba(74,222,128,0.3)'>"
+            f"{'↑ Baik' if pct_pos > 60 else '↓ Perhatian'}</span></div>",
+            unsafe_allow_html=True
+        )
+    with h3:
+        st.markdown(
+            f"<div style='text-align:center;padding:16px 0'>"
+            f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Negatif</div>"
+            f"<div style='font-family:DM Serif Display,serif;font-size:28px;color:#f87171'>{pct_neg:.1f}%</div>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+        neg_ok = pct_neg < 30
+        st.markdown(
+            f"<div style='text-align:center;margin-top:-8px'>"
+            f"<span style='background:{'rgba(74,222,128,0.15)' if neg_ok else 'rgba(239,68,68,0.15)'};"
+            f"color:{'#4ade80' if neg_ok else '#f87171'};font-size:11px;font-weight:700;"
+            f"padding:3px 10px;border-radius:20px;border:1px solid {'rgba(74,222,128,0.3)' if neg_ok else 'rgba(239,68,68,0.3)'}'>{'↓ Rendah' if neg_ok else '↑ Tinggi'}</span></div>",
+            unsafe_allow_html=True
+        )
+    with h4:
+        st.markdown(
+            f"<div style='text-align:center;padding:16px 0'>"
+            f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Netral</div>"
+            f"<div style='font-family:DM Serif Display,serif;font-size:28px;color:#fbbf24'>{pct_netral:.1f}%</div>"
+            f"</div>",
+            unsafe_allow_html=True
             )
-            st.markdown(
-                f"<div style='text-align:center;margin-top:-8px'>"
-                f"<span style='background:rgba(74,222,128,0.15);color:#4ade80;font-size:11px;font-weight:700;"
-                f"padding:3px 10px;border-radius:20px;border:1px solid rgba(74,222,128,0.3)'>"
-                f"{'↑ Baik' if pct_pos > 60 else '↓ Perhatian'}</span></div>",
-                unsafe_allow_html=True
-            )
-        with h3:
-            st.markdown(
-                f"<div style='text-align:center;padding:16px 0'>"
-                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Negatif</div>"
-                f"<div style='font-family:DM Serif Display,serif;font-size:28px;color:#f87171'>{pct_neg:.1f}%</div>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
-            neg_ok = pct_neg < 30
-            st.markdown(
-                f"<div style='text-align:center;margin-top:-8px'>"
-                f"<span style='background:{'rgba(74,222,128,0.15)' if neg_ok else 'rgba(239,68,68,0.15)'};"
-                f"color:{'#4ade80' if neg_ok else '#f87171'};font-size:11px;font-weight:700;"
-                f"padding:3px 10px;border-radius:20px;border:1px solid {'rgba(74,222,128,0.3)' if neg_ok else 'rgba(239,68,68,0.3)'}'>{'↓ Rendah' if neg_ok else '↑ Tinggi'}</span></div>",
-                unsafe_allow_html=True
-            )
-        with h4:
-            st.markdown(
-                f"<div style='text-align:center;padding:16px 0'>"
-                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Netral{'  ~est' if _netral_estimated else ''}</div>"
-                f"<div style='font-family:DM Serif Display,serif;font-size:28px;color:#fbbf24'>{pct_netral:.1f}%</div>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
-            netral_ok = pct_netral < 20
-            st.markdown(
-                f"<div style='text-align:center;margin-top:-8px'>"
-                f"<span style='background:{'rgba(74,222,128,0.15)' if netral_ok else 'rgba(251,191,36,0.15)'};"
-                f"color:{'#4ade80' if netral_ok else '#fbbf24'};font-size:11px;font-weight:700;"
-                f"padding:3px 10px;border-radius:20px;border:1px solid {'rgba(74,222,128,0.3)' if netral_ok else 'rgba(251,191,36,0.3)'}'>{'→ Normal' if netral_ok else '↑ Tinggi'}</span></div>",
-                unsafe_allow_html=True
+        netral_ok = pct_netral < 20
+        st.markdown(
+            f"<div style='text-align:center;margin-top:-8px'>"
+            f"<span style='background:{'rgba(74,222,128,0.15)' if netral_ok else 'rgba(251,191,36,0.15)'};"
+            f"color:{'#4ade80' if netral_ok else '#fbbf24'};font-size:11px;font-weight:700;"
+            f"padding:3px 10px;border-radius:20px;border:1px solid {'rgba(74,222,128,0.3)' if netral_ok else 'rgba(251,191,36,0.3)'}'>{'→ Normal' if netral_ok else '↑ Tinggi'}</span></div>",
+            unsafe_allow_html=True
             )
     with h5:
         st.markdown(
@@ -2487,7 +2387,7 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
             mode='lines+markers', name='Proyeksi',
             line=dict(color='#f59e0b', width=2, dash='dash'),
             marker=dict(size=8, symbol='diamond', color='#f59e0b')))
-        for thr,lbl,col in [(42,'KRISIS','#ef4444'),(30,'SIAGA','#f97316'),(20,'WASPADA','#f59e0b')]:
+        for thr,lbl,col in [(70,'KRISIS','#ef4444'),(50,'SIAGA','#f97316'),(30,'WASPADA','#f59e0b')]:
             fig_fc.add_hline(y=thr, line_dash='dot', line_color=col, line_width=0.7, opacity=0.45,
                              annotation_text=lbl, annotation_position='right',
                              annotation_font_size=9, annotation_font_color=col)

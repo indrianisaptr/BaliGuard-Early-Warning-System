@@ -937,10 +937,17 @@ with tab3:
             fig_s.add_vrect(x0='2020-03-01',x1='2021-12-01',
                 fillcolor='rgba(239,68,68,0.06)',line_width=0,
                 annotation_text='COVID',annotation_font_color='#ef4444')
-            fig_s.add_vline(x=sel_dt,line_dash='dot',line_color='#60a5fa',line_width=1.2)
+
+            # FIX: batas x-axis eksplisit agar tidak molor ke tahun proyeksi
+            _s_last = pd.to_datetime(master['month'].iloc[-1])
+            _s_first = pd.to_datetime(master['month'].iloc[0])
+            _s_end = _s_last + pd.DateOffset(months=2)
+            if sel_dt <= _s_last:
+                fig_s.add_vline(x=sel_dt, line_dash='dot', line_color='#60a5fa', line_width=1.2)
             fig_s.update_layout(
                 yaxis=dict(title='Sentimen (-1 → +1)',gridcolor='rgba(255,255,255,0.04)',color='#64748b'),
-                xaxis=dict(gridcolor='rgba(255,255,255,0.04)',color='#64748b'),
+                xaxis=dict(gridcolor='rgba(255,255,255,0.04)',color='#64748b',
+                           range=[_s_first, _s_end]),  # ← fix
                 plot_bgcolor='rgba(5,13,26,0.5)', paper_bgcolor='rgba(0,0,0,0)',
                 height=290, margin=dict(l=0,r=0,t=10,b=0),
                 font=dict(family='DM Sans',size=11,color='#94a3b8'))
@@ -987,7 +994,6 @@ with tab3:
                              paper_bgcolor='rgba(0,0,0,0)',font=dict(family='DM Sans',color='#94a3b8'))
         st.plotly_chart(fig_g, use_container_width=True)
 
-        # pct_negative_monthly is in master, not predictions — look it up correctly
         mr_pct_rows = master[master['month']==sel]
         pct_neg = sf(mr_pct_rows['pct_negative_monthly'].iloc[0] if len(mr_pct_rows) > 0
                      and 'pct_negative_monthly' in master.columns
@@ -1200,43 +1206,215 @@ with tab4:
             </div>
             """, unsafe_allow_html=True)
 
-        # Recovery rate vs pre-COVID baseline
-        st.markdown('<div class="section-title sec-sky sec-gap-md">📉 Recovery Rate vs Baseline 2017–2019</div>', unsafe_allow_html=True)
-        _precovid_mean = delta_ctx['precovid_mean']
-        if _precovid_mean > 0 and 'wisman' in predictions.columns:
-            rec_df = predictions.copy()
-            rec_df['recovery_pct'] = (rec_df['wisman'] / _precovid_mean * 100).round(1)
-            fig_rec = go.Figure()
-            fig_rec.add_hline(y=100, line_dash='dot', line_color='#4ade80', line_width=1.5,
-                              annotation_text='Baseline 100%', annotation_position='right',
-                              annotation_font_color='#4ade80', annotation_font_size=10)
-            fig_rec.add_trace(go.Scatter(
-                x=pd.to_datetime(rec_df['month'].astype(str)), y=rec_df['recovery_pct'],
-                mode='lines', fill='tozeroy',
-                fillcolor='rgba(96,165,250,0.06)', line=dict(color='#60a5fa', width=2),
-                hovertemplate='%{x|%b %Y}<br>Recovery: %{y:.1f}%<extra></extra>'
-            ))
-            fig_rec.add_vrect(x0='2020-03-01', x1='2021-12-01',
-                fillcolor='rgba(239,68,68,0.06)', line_width=0,
-                annotation_text='COVID', annotation_font_color='#ef4444')
-            fig_rec.add_vline(x=sel_dt, line_dash='dot', line_color='#60a5fa', line_width=1.2)
-            fig_rec.update_layout(
-                yaxis=dict(title='Recovery (%)', gridcolor='rgba(255,255,255,0.04)', color='#64748b'),
-                xaxis=dict(gridcolor='rgba(255,255,255,0.04)', color='#64748b'),
-                plot_bgcolor='rgba(5,13,26,0.5)', paper_bgcolor='rgba(0,0,0,0)',
-                height=210, margin=dict(l=0, r=80, t=10, b=0),
-                font=dict(family='DM Sans', size=11, color='#94a3b8'))
-            st.plotly_chart(fig_rec, use_container_width=True)
-            _rcol = '#4ade80' if delta_ctx['recovery_pct'] >= 90 else ('#fbbf24' if delta_ctx['recovery_pct'] >= 60 else '#f87171')
-            st.markdown(
-                f"<div style='background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 16px;"
-                f"font-size:12px;color:#94a3b8;margin-top:4px'>"
-                f"📊 Recovery <b style='color:#e2e8f0'>{sel}</b>: "
-                f"<span style='color:{_rcol};font-weight:700;font-size:16px'>{delta_ctx['recovery_pct']:.1f}%</span>"
-                f" dari baseline pre-COVID ({int(_precovid_mean):,} wisman/bln)</div>",
-                unsafe_allow_html=True
+        # ==========================================================
+        # Recovery rate vs pre-COVID baseline (FIXED)
+        # ==========================================================
+
+        st.markdown(
+            '<div class="section-title sec-sky sec-gap-md">📉 Recovery Rate vs Baseline 2017–2019</div>',
+            unsafe_allow_html=True
+        )
+
+        # =====================================================
+        # Hitung baseline pre-COVID dengan aman
+        # =====================================================
+
+        predictions['month_dt'] = pd.to_datetime(
+            predictions['month'],
+            errors='coerce'
+        )
+
+        precovid_df = predictions[
+            predictions['month_dt'].dt.year.isin(
+                [2017, 2018, 2019]
+            )
+        ].copy()
+
+        if len(precovid_df) == 0:
+
+            st.warning(
+                "Data baseline 2017-2019 tidak ditemukan."
             )
 
+        else:
+
+            _precovid_mean = float(
+                precovid_df['wisman']
+                .dropna()
+                .mean()
+            )
+
+            if np.isnan(_precovid_mean):
+
+                st.warning(
+                    "Baseline pre-COVID bernilai NaN."
+                )
+
+            elif 'wisman' not in predictions.columns:
+
+                st.warning(
+                    "Kolom wisman tidak ditemukan."
+                )
+
+            else:
+
+                rec_df = predictions.copy()
+
+                # ==========================================
+                # Tambah forecast sampai bulan terpilih
+                # ==========================================
+
+                last_period = pd.Period(
+                    str(rec_df['month'].max()),
+                    freq='M'
+                )
+
+                selected_period = pd.Period(
+                    str(sel),
+                    freq='M'
+                )
+
+                if selected_period > last_period:
+
+                    future_rows = []
+
+                    for p in pd.period_range(
+                        start=last_period + 1,
+                        end=selected_period,
+                        freq='M'
+                    ):
+
+                        try:
+
+                            future_rows.append(
+                                project_future_row(
+                                    predictions,
+                                    str(p)
+                                )
+                            )
+
+                        except Exception as e:
+
+                            st.error(
+                                f'Forecast error: {e}'
+                            )
+
+                    if len(future_rows) > 0:
+
+                        rec_df = pd.concat(
+                            [
+                                rec_df,
+                                pd.DataFrame(
+                                    future_rows
+                                )
+                            ],
+                            ignore_index=True
+                        )
+
+                # ==========================================
+                # Recovery
+                # ==========================================
+
+                rec_df['recovery_pct'] = (
+                    rec_df['wisman']
+                    / _precovid_mean
+                    * 100
+                )
+
+                rec_df = rec_df.dropna(
+                    subset=['recovery_pct']
+                )
+
+                if '_is_projected' not in rec_df.columns:
+
+                    rec_df['_is_projected'] = False
+
+                historical = rec_df[
+                    rec_df['_is_projected'] != True
+                ]
+
+                forecast = rec_df[
+                    rec_df['_is_projected'] == True
+                ]
+
+                fig_rec = go.Figure()
+
+                # HISTORICAL
+
+                if len(historical) > 0:
+
+                    fig_rec.add_trace(
+                        go.Scatter(
+                            x=pd.to_datetime(
+                                historical['month'],
+                                errors='coerce'
+                            ),
+                            y=historical['recovery_pct'],
+                            mode='lines',
+                            fill='tozeroy',
+                            fillcolor='rgba(59,130,246,0.06)',
+                            line=dict(
+                                color='#3b82f6',
+                                width=2
+                            ),
+                            name='Historis'
+                        )
+                    )
+
+                # FORECAST
+
+                if len(forecast) > 0:
+
+                    fig_rec.add_trace(
+                        go.Scatter(
+                            x=pd.to_datetime(
+                                forecast['month'],
+                                errors='coerce'
+                            ),
+                            y=forecast['recovery_pct'],
+                            mode='lines',
+                            line=dict(
+                                color='#f59e0b',
+                                width=3,
+                                dash='dash'
+                            ),
+                            name='Forecast'
+                        )
+                    )
+
+                fig_rec.add_hline(
+                    y=100,
+                    line_dash='dot',
+                    line_color='#10b981'
+                )
+
+                fig_rec.add_vline(
+                    x=sel_dt,
+                    line_dash='dot',
+                    line_color='#7dd3fc'
+                )
+
+                fig_rec.update_layout(
+                    height=320,
+                    plot_bgcolor='rgba(8,16,32,0.5)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(
+                        l=0,
+                        r=30,
+                        t=10,
+                        b=0
+                    ),
+                    legend=dict(
+                        orientation='h'
+                    ),
+                    yaxis_title='Recovery (%)'
+                )
+
+                st.plotly_chart(
+                    fig_rec,
+                    use_container_width=True
+                )
+            
         # Risk scatter — use master (has wisman_growth_mom + crisis_level)
         st.markdown('<div class="section-title sec-purple sec-gap-md">🗺️ Peta Risiko Historis</div>', unsafe_allow_html=True)
         scatter_src = master if 'wisman_growth_mom' in master.columns else predictions
