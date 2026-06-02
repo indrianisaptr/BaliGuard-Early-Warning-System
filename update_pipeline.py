@@ -47,10 +47,10 @@ W_ECONOMY   = 0.30
 W_SENTIMENT = 0.25
 
 # ── Level thresholds (HARUS sama persis dengan NB04 FINAL) ──
-# NB04: >= 70 KRISIS · >= 50 SIAGA · >= 30 WASPADA
+# NB04: >= 60 KRISIS · >= 45 SIAGA · >= 30 WASPADA
 def level_from_score(s: float) -> str:
-    if s >= 70: return 'KRISIS'
-    if s >= 50: return 'SIAGA'
+    if s >= 60: return 'KRISIS'
+    if s >= 45: return 'SIAGA'
     if s >= 30: return 'WASPADA'
     return 'AMAN'
 

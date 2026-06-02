@@ -30,6 +30,23 @@ from sklearn.metrics import classification_report, confusion_matrix
 
 warnings.filterwarnings('ignore')
 
+# ══════════════════════════════════════════════════════════════
+# THRESHOLD KRISIS — satu-satunya tempat yang perlu diubah
+# kalau range crisis_score berubah lagi di masa depan.
+# Berlaku untuk: relabeling CSV/parquet + dashboard level_from_score
+# ══════════════════════════════════════════════════════════════
+THRESHOLD_KRISIS  = 60   # score >= 60  → KRISIS
+THRESHOLD_SIAGA   = 45   # score >= 45  → SIAGA
+THRESHOLD_WASPADA = 30   # score >= 30  → WASPADA
+                          # score <  30  → AMAN
+
+def level_from_score(s: float) -> str:
+    """Konversi crisis_score_100 → level string. Konsisten dengan NB04."""
+    if s >= THRESHOLD_KRISIS:  return 'KRISIS'
+    if s >= THRESHOLD_SIAGA:   return 'SIAGA'
+    if s >= THRESHOLD_WASPADA: return 'WASPADA'
+    return 'AMAN'
+
 # ── Path config ──────────────────────────────────────────────
 BASE     = Path(__file__).parent
 DATA_FIN = BASE / 'data' / 'final'
@@ -73,7 +90,7 @@ def load_data() -> pd.DataFrame:
 
 
 TARGET      = 'crisis_level'
-LABEL_ORDER = ['AMAN', 'KRISIS', 'SIAGA', 'WASPADA']
+LABEL_ORDER = ['AMAN', 'WASPADA', 'SIAGA', 'KRISIS']   # ✅ severity order: 0→3
 
 
 def prepare_model_data(df: pd.DataFrame):
@@ -181,12 +198,15 @@ def train_random_forest(X_scaled: np.ndarray, y: np.ndarray,
 
     # Training metrics
     y_pred = rf.predict(X_scaled)
-    classes = le.inverse_transform(np.unique(y))
-    print(f"\n  📋 Classification Report (train set):")
+    # ✅ FIX: pakai label yang benar-benar ada di y
+    # Menghindari ValueError "Number of classes X does not match target_names Y"
+    # ketika kelas tertentu belum muncul (misal KRISIS sebelum NB04 baru dijalankan)
+    present_labels = [LABEL_ORDER[i] for i in sorted(np.unique(y))]
+    print(f"\n  📋 Classification Report (train set) — kelas aktif: {present_labels}")
     print(classification_report(
         le.inverse_transform(y),
         le.inverse_transform(y_pred),
-        target_names=LABEL_ORDER,
+        labels=present_labels,
         zero_division=0
     ))
 
@@ -247,6 +267,10 @@ def generate_predictions(df: pd.DataFrame, df_model: pd.DataFrame,
 
 def save_outputs(df: pd.DataFrame, scaler, iso, rf, le, feat_cols):
     """Simpan model dan predictions."""
+    # ── Re-apply threshold sebelum simpan (aman kalau dipanggil standalone) ──
+    if 'crisis_score_100' in df.columns:
+        df['crisis_level'] = df['crisis_score_100'].apply(level_from_score)
+
     # Models
     joblib.dump(scaler, MDL_DIR / 'scaler.pkl')
     joblib.dump(iso,    MDL_DIR / 'model_isolation_forest.pkl')
@@ -254,11 +278,12 @@ def save_outputs(df: pd.DataFrame, scaler, iso, rf, le, feat_cols):
     joblib.dump(le,     MDL_DIR / 'label_encoder.pkl')
     print(f"\n  ✅ Models saved → {MDL_DIR}/")
 
-    # Predictions CSV
+    # Predictions CSV — sertakan wisman_growth jika ada
     pred_cols = [
         'month', 'wisman', 'tpk_bintang', 'inflasi_processed',
         'usd_idr_avg', 'avg_sentiment_monthly', 'bali_share_pct',
-        'wisman_zscore', 'crisis_score_100', 'crisis_level',
+        'wisman_zscore', 'wisman_growth_mom', 'wisman_growth_yoy',
+        'crisis_score_100', 'crisis_level',
         'rf_predicted_level', 'rf_confidence', 'iso_anomaly',
         'prob_krisis', 'prob_siaga', 'prob_waspada', 'prob_aman',
         'crisis_component_tourism', 'crisis_component_economy', 'crisis_component_sentiment',
@@ -266,7 +291,7 @@ def save_outputs(df: pd.DataFrame, scaler, iso, rf, le, feat_cols):
     pred_cols_avail = [c for c in pred_cols if c in df.columns]
     pred_path = DATA_FIN / 'predictions_final.csv'
     df[pred_cols_avail].to_csv(pred_path, index=False)
-    print(f"  ✅ predictions_final.csv ({len(df)} baris)")
+    print(f"  ✅ predictions_final.csv ({len(df)} baris, {len(pred_cols_avail)} kolom)")
 
     # Master parquet
     df.to_parquet(DATA_FIN / 'master_dataset_clean.parquet', index=False)
@@ -290,6 +315,23 @@ def run_retrain(verbose: bool = True):
     print("\n[1/5] Loading data...")
     df = load_data()
 
+    # ── Auto-relabel crisis_level pakai threshold terbaru ──
+    print(f"\n  🔁 Re-labeling crisis_level dengan threshold {THRESHOLD_KRISIS}/{THRESHOLD_SIAGA}/{THRESHOLD_WASPADA}...")
+    df['crisis_level'] = df['crisis_score_100'].apply(level_from_score)
+    print(f"  Distribusi baru: {df['crisis_level'].value_counts().to_dict()}")
+
+    # ── Pastikan wisman_growth_mom & yoy ada di df ─────────
+    for col in ['wisman_growth_mom', 'wisman_growth_yoy']:
+        if col not in df.columns:
+            print(f"  ⚠️  '{col}' tidak ditemukan — menghitung ulang dari wisman...")
+            df = df.sort_values('month').reset_index(drop=True)
+            if col == 'wisman_growth_mom':
+                df[col] = df['wisman'].pct_change(1)
+            else:
+                df[col] = df['wisman'].pct_change(12)
+            df[col] = df[col].replace([np.inf, -np.inf], np.nan)
+            print(f"  ✅ '{col}' berhasil ditambahkan")
+
     # Prepare
     print("\n[2/5] Preparing model data...")
     df_model, feat_cols = prepare_model_data(df)
@@ -299,7 +341,9 @@ def run_retrain(verbose: bool = True):
 
     # Label encoding
     le = LabelEncoder()
-    le.fit(LABEL_ORDER)
+    # ✅ FIX: set classes_ langsung — le.fit() akan sort alphabetical (AMAN,KRISIS,SIAGA,WASPADA)
+    # padahal kita butuh severity order: AMAN=0, WASPADA=1, SIAGA=2, KRISIS=3
+    le.classes_ = np.array(LABEL_ORDER)
     y = le.transform(y_raw)
 
     # Train scaler

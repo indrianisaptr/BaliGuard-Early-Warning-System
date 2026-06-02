@@ -7,10 +7,20 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import joblib, json, os, sys, urllib.request
 from datetime import datetime
+from PIL import Image
+import base64
+
+# Load logo BaliGuard
+_logo = Image.open("FIX.png")
+
+# Base64 untuk embed di HTML (sidebar & header)
+with open("FIX.png", "rb") as _f:
+    _logo_b64 = base64.b64encode(_f.read()).decode()
+_logo_html = f"data:image/png;base64,{_logo_b64}"
 
 st.set_page_config(
     page_title="BaliGuard — Early Warning Pariwisata",
-    page_icon="🛡️",
+    page_icon=_logo,
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -124,8 +134,8 @@ html, body, [class*="css"] {
 .alert-waspada { background:rgba(245,158,11,0.07); border-left:3px solid var(--c-waspada); padding:14px 20px; border-radius:var(--radius-sm); margin-top:14px; }
 .alert-siaga   { background:rgba(249,115,22,0.07); border-left:3px solid var(--c-siaga);   padding:14px 20px; border-radius:var(--radius-sm); margin-top:14px; }
 .alert-krisis  { background:rgba(239,68,68,0.09);  border-left:3px solid var(--c-krisis);  padding:14px 20px; border-radius:var(--radius-sm); margin-top:14px; }
-.alert-title   { font-family:'DM Sans'; font-size:14px; font-weight:700; color:#f1f5f9; margin-bottom:5px; }
-.alert-body    { font-size:13px; color:#94a3b8; line-height:1.75; }
+.alert-title   { font-family:'DM Sans'; font-size:16px; font-weight:700; color:#f1f5f9; margin-bottom:6px; }
+.alert-body    { font-size:14px; color:#cbd5e1; line-height:1.75; }
 
 /* ── Section Titles ── */
 .section-title {
@@ -312,6 +322,8 @@ html, body, [class*="css"] {
 /* ── Selectbox / slider ── */
 [data-baseweb="select"] { background: rgba(255,255,255,0.05) !important; }
 .stSlider [data-baseweb="slider"] { background: rgba(255,255,255,0.08) !important; }
+.stSlider label p { font-size:14px !important; font-weight:700 !important; color:#e2e8f0 !important; letter-spacing:.01em !important; }
+[data-testid='stButton-pct_trend'] button p,[data-testid='stButton-pct_rec'] button p,[data-testid='stButton-pct_scatter'] button p { font-weight:800 !important; letter-spacing:.02em !important; }
 [data-testid="stTickBarMin"], [data-testid="stTickBarMax"] { display: none !important; visibility: hidden !important; }
 
 /* ── Status dot (SVG-based, replaces emoji circles) ── */
@@ -371,6 +383,13 @@ html, body, [class*="css"] {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: .4; transform: scale(.7); }
 }
+
+/* ── Accent top-border (global — berlaku di semua tab) ── */
+.accent-blue   { display:block; border-top: 3px solid #3b82f6; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
+.accent-orange { display:block; border-top: 3px solid #f97316; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
+.accent-purple { display:block; border-top: 3px solid #a855f7; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
+.accent-green  { display:block; border-top: 3px solid #22c55e; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
+.accent-teal   { display:block; border-top: 3px solid #14b8a6; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -468,15 +487,15 @@ def kpi_html(label, value, sub="", level=None):
 
 def alert_html(level, title, body):
     return (f'<div class="{ALERT_MAP.get(level,"alert-aman")}">'
-            f'<div class="alert-title">{EMOJI_MAP.get(level,"")} {title}</div>'
+            f'<div class="alert-title">{title}</div>'
             f'<div class="alert-body">{body}</div></div>')
 
 def level_from_score(s):
     # Threshold disesuaikan distribusi aktual data (range 11.5–48.1)
     # 42 = tepat menangkap Mar-Apr 2020 COVID sebagai KRISIS (validasi empiris)
-    if s >= 42: return 'KRISIS'
-    if s >= 30: return 'SIAGA'
-    if s >= 20: return 'WASPADA'
+    if s >= 60: return 'KRISIS'
+    if s >= 45: return 'SIAGA'
+    if s >= 30: return 'WASPADA'
     return 'AMAN'
 
 # ── Live USD/IDR ──────────────────────────────────────────────
@@ -673,17 +692,9 @@ current_fc      = fc_list[0]                # entri pertama = bulan sekarang
 # SIDEBAR
 # ══════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown("""
+    st.markdown(f"""
     <div style='text-align:center;padding:20px 0 8px'>
-        <div style='display:inline-flex;align-items:center;justify-content:center;
-                    width:72px;height:72px;background:rgba(59,130,246,0.12);
-                    border:1px solid rgba(59,130,246,0.25);border-radius:18px;margin-bottom:12px'>
-            <svg width="38" height="42" viewBox="0 0 26 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M13 1L2 5.5V13.5C2 19.75 6.8 25.56 13 27C19.2 25.56 24 19.75 24 13.5V5.5L13 1Z"
-                      fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
-                <path d="M8 14l3.5 3.5L18 10" stroke="#93c5fd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </div>
+        <img src='{_logo_html}' style='width:130px;height:130px;object-fit:contain;margin-bottom:8px;border-radius:16px'/>
         <div style='font-family:"DM Serif Display";font-size:30px;color:#f1f5f9;letter-spacing:-.01em'>BaliGuard</div>
         <div style='font-size:11px;color:#64748b;margin-top:5px;letter-spacing:.1em;font-weight:700'>EARLY WARNING SYSTEM</div>
     </div>
@@ -707,9 +718,16 @@ with st.sidebar:
         if m > _last_data:
             return f"{m}  "
         return m
-    sel = st.selectbox("📅 Periode Analisis", avail,
+    st.markdown(
+        "<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;font-size:13px;font-weight:600;color:#e2e8f0'>"
+        "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;"
+        "background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0'></span>"
+        "Periode Analisis</div>",
+        unsafe_allow_html=True)
+    sel = st.selectbox("", avail,
                        format_func=_month_label,
-                       help="Bulan dengan = proyeksi (belum ada data BPS)")
+                       help="Bulan dengan = proyeksi (belum ada data BPS)",
+                       label_visibility="collapsed")
     sel_dt = pd.to_datetime(sel)
 
     st.divider()
@@ -747,7 +765,7 @@ with st.sidebar:
 
     st.divider()
     # ── Groq API Key (tersembunyi di expander) ────────────
-    with st.expander("⚙️ Groq Narrative Engine", expanded=False):
+    with st.expander("✦ API untuk Aktifkan Narasi AI", expanded=False):
         st.caption("Masukkan API key Groq Anda untuk mengaktifkan narasi AI.")
         groq_key = st.text_input("API Key", type="password", placeholder="gsk_...",
                                   label_visibility="collapsed",
@@ -811,24 +829,15 @@ st.markdown(f"""
     <div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px'>
         <!-- Left: logo + wordmark -->
         <div style='display:flex;align-items:center;gap:16px'>
-            <div style='flex-shrink:0;width:48px;height:48px;
-                        background:rgba(59,130,246,0.15);border-radius:12px;
-                        border:1px solid rgba(59,130,246,0.3);
-                        display:flex;align-items:center;justify-content:center'>
-                <svg width="26" height="28" viewBox="0 0 26 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M13 1L2 5.5V13.5C2 19.75 6.8 25.56 13 27C19.2 25.56 24 19.75 24 13.5V5.5L13 1Z"
-                          fill="rgba(59,130,246,0.25)" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
-                    <path d="M8 14l3.5 3.5L18 10" stroke="#93c5fd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
+            <img src='{_logo_html}' style='width:80px;height:80px;object-fit:contain;border-radius:12px'/>
             <div>
-                <div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.18em;
-                            color:rgba(255,255,255,0.35);margin-bottom:5px;font-family:"DM Sans"'>
+                <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.18em;
+                            color:rgba(255,255,255,0.5);margin-bottom:5px;font-family:"DM Sans"'>
                     SISTEM DETEKSI DINI PARIWISATA
                 </div>
                 <div style='font-family:"DM Serif Display";font-size:30px;color:#f1f5f9;
                             letter-spacing:-.02em;line-height:1.1'>BaliGuard</div>
-                <div style='font-size:12.5px;color:rgba(255,255,255,0.45);margin-top:6px;line-height:1.65;font-family:"DM Sans"'>
+                <div style='font-size:14px;color:rgba(255,255,255,0.6);margin-top:6px;line-height:1.65;font-family:"DM Sans"'>
                     Dashboard Early Warning System &mdash; Multi-Sumber Data,
                     Machine Learning &amp; Analisis Sentimen Multibahasa
                 </div>
@@ -837,12 +846,12 @@ st.markdown(f"""
         <!-- Right: last data chip -->
         <div style='background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
                     border-radius:12px;padding:14px 20px;text-align:center;flex-shrink:0'>
-            <div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;
-                        color:rgba(255,255,255,0.35);margin-bottom:5px;font-family:"DM Sans";text-align:center'>DATA TERAKHIR</div>
+            <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;
+                        color:rgba(255,255,255,0.55);margin-bottom:5px;font-family:"DM Sans";text-align:center'>DATA TERAKHIR</div>
             <div style='font-family:"JetBrains Mono";font-size:20px;color:#93c5fd;font-weight:700;letter-spacing:.02em;text-align:center'>
                 {_last_month}
             </div>
-            <div style='font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px;font-family:"DM Sans";text-align:center'>
+            <div style='font-size:13px;color:rgba(255,255,255,0.45);margin-top:4px;font-family:"DM Sans";text-align:center'>
                 {_n_months} bulan data historis
             </div>
         </div>
@@ -868,7 +877,7 @@ st.markdown(f"""
     <div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px'>
         <!-- Left: level + score + trend -->
         <div>
-            <div style='font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;
+            <div style='font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;
                         letter-spacing:.13em;margin-bottom:8px;font-family:"DM Sans"'>
                 PROYEKSI BULAN INI &mdash; {curr_mo}
             </div>
@@ -890,24 +899,24 @@ st.markdown(f"""
         <div style='display:flex;gap:6px'>
             <div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);
                         border-radius:10px;padding:10px 18px;text-align:center;min-width:82px'>
-                <div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
-                            color:#475569;margin-bottom:4px;font-family:"DM Sans";text-align:center'>CONFIDENCE</div>
+                <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+                            color:#64748b;margin-bottom:4px;font-family:"DM Sans";text-align:center'>CONFIDENCE</div>
                 <div style='font-family:"JetBrains Mono";font-size:18px;color:#93c5fd;font-weight:700;line-height:1;text-align:center'>
                     {curr_conf:.0f}%
                 </div>
             </div>
             <div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);
                         border-radius:10px;padding:10px 18px;text-align:center;min-width:82px'>
-                <div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
-                            color:#475569;margin-bottom:4px;font-family:"DM Sans";text-align:center'>PROYEKSI DARI</div>
+                <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+                            color:#64748b;margin-bottom:4px;font-family:"DM Sans";text-align:center'>PROYEKSI DARI</div>
                 <div style='font-family:"JetBrains Mono";font-size:18px;color:#93c5fd;font-weight:600;line-height:1;text-align:center'>
                     {_last_month}
                 </div>
             </div>
             <div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);
                         border-radius:10px;padding:10px 18px;text-align:center;min-width:82px'>
-                <div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
-                            color:#475569;margin-bottom:4px;font-family:"DM Sans";text-align:center'>TREN/BULAN</div>
+                <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+                            color:#64748b;margin-bottom:4px;font-family:"DM Sans";text-align:center'>TREN/BULAN</div>
                 <div style='font-family:"JetBrains Mono";font-size:18px;color:{_tren_val_col};font-weight:700;line-height:1;text-align:center'>
                     {fc_trend:+.2f}
                 </div>
@@ -971,7 +980,7 @@ else:
 
 def _delta_txt(curr, prev_val, fmt="+.1f", suffix="", invert=False):
     if prev_val is None or prev_val == 0:
-        return "<span style='color:#475569;font-size:10px'>— vs bln lalu</span>"
+        return "<span style='color:#64748b;font-size:12px'>— vs bln lalu</span>"
     d    = curr - prev_val
     pct  = (d / abs(prev_val) * 100) if prev_val != 0 else 0
     good = (d < 0) if invert else (d > 0)
@@ -983,7 +992,7 @@ def _delta_txt(curr, prev_val, fmt="+.1f", suffix="", invert=False):
         txt = f"{sign} {abs(pct):.1f}% vs bln lalu"
     else:
         txt = f"{sign} {abs(d):{fmt}} vs bln lalu"
-    return f"<span style='color:{col};font-size:10px;font-weight:700'>{txt}</span>"
+    return f"<span style='color:{col};font-size:12px;font-weight:700'>{txt}</span>"
 
 _p_score  = sf(_prev_row.get('crisis_score_100',0))     if _prev_row is not None else None
 _p_wisman = sf(_prev_row.get('wisman',0))               if _prev_row is not None else None
@@ -1095,7 +1104,7 @@ body { height: 100%; }
 #kpi-track {
   display: flex;
   gap: 14px;
-  padding: 6px 14px 8px 40px;
+  padding: 6px 28px 8px 20px;
   will-change: transform;
   cursor: grab;
 }
@@ -1120,9 +1129,9 @@ body { height: 100%; }
   background: rgba(255,255,255,0.07);
 }
 .kpi-c-label {
-  font-size:10px !important;
+  font-size:13px !important;
   font-weight:700 !important;
-  color:#64748b !important;
+  color:#94a3b8 !important;
   text-transform:uppercase !important;
   letter-spacing:.1em !important;
   margin-bottom:8px !important;
@@ -1142,15 +1151,15 @@ body { height: 100%; }
   text-align:center !important;
 }
 .kpi-c-sub {
-  font-size:11px !important;
-  color:#475569 !important;
+  font-size:13px !important;
+  color:#94a3b8 !important;
   margin-top:6px !important;
   font-family:'DM Sans', sans-serif !important;
   font-weight:400 !important;
   line-height:1.5 !important;
   text-align:center !important;
 }
-.kpi-c-delta { margin-top: 7px; font-size: 11px; font-weight: 600; font-family: sans-serif; line-height: 1.4; }
+.kpi-c-delta { margin-top: 7px; font-size: 13px; font-weight: 600; font-family: sans-serif; line-height: 1.4; }
 
 .kpi-btn {
   position: absolute;
@@ -1215,8 +1224,9 @@ body { height: 100%; }
     var root = document.getElementById('kpi-root');
     var vw   = root ? root.getBoundingClientRect().width : window.innerWidth;
     var step = getStep();
-    var visible = Math.round((vw + 14) / step);
-    return Math.max(0, N - visible);
+    var totalW = N * step - 14; // total track width minus last gap
+    var maxScroll = Math.max(0, totalW - vw + 48); // 48 = left+right padding
+    return Math.round(maxScroll / step);
   }
 
   function xFor(idx) { return -(idx * getStep()); }
@@ -1306,10 +1316,11 @@ _NAV_ICONS = {
 }
 _icon, _title, _col = _NAV_ICONS.get(selected_nav, ("📈", selected_nav, "#93c5fd"))
 st.markdown(f"""
-<div style='margin-top:56px;margin-bottom:28px;text-align:center;
-            padding-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.08)'>
-    <div style='font-family:"DM Serif Display";font-size:26px;color:{_col};line-height:1.2'>
-        {_icon} {_title}
+<div style='margin-top:48px;margin-bottom:28px;text-align:center;
+            padding-bottom:24px;border-bottom:1px solid rgba(255,255,255,0.07)'>
+    <div style='font-family:"DM Serif Display",serif;font-size:38px;font-weight:400;
+                color:#f1f5f9;letter-spacing:-.02em;line-height:1.15'>
+        {_title}
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -1344,7 +1355,7 @@ if selected_nav == "📈 Overview & Timeline":
                 marker=dict(color=col,size=7,line=dict(width=1.2,color='#050d1a')),
                 hovertemplate=f'<b>{lv}</b><br>%{{x|%b %Y}}<br>Score: %{{y:.1f}}<extra></extra>'
             ), row=1, col=1)
-    for thr,lbl,col in [(42,'KRISIS','#ef4444'),(30,'SIAGA','#f97316'),(20,'WASPADA','#f59e0b')]:
+    for thr,lbl,col in [(60,'KRISIS','#ef4444'),(45,'SIAGA','#f97316'),(30,'WASPADA','#f59e0b')]:
         fig.add_hline(y=thr, line_dash='dot', line_color=col, line_width=1, opacity=0.7,
                       annotation_text=lbl, annotation_position='right',
                       annotation_font_size=9, annotation_font_color=col,
@@ -1516,7 +1527,7 @@ if selected_nav == "🔬 Analisis Detail":
         # ── Box 1: Komponen Crisis Score ──────────────────
         with st.container(border=True):
             st.markdown('<div class="accent-blue"></div>', unsafe_allow_html=True)
-            st.markdown('<div class="box-heading sec-blue">📊 Komponen Crisis Score</div>', unsafe_allow_html=True)
+            st.markdown('<div class="box-heading sec-blue">Komponen Crisis Score</div>', unsafe_allow_html=True)
 
             mr_rows = master[master['month']==sel]
             if len(mr_rows) > 0:
@@ -1564,7 +1575,7 @@ if selected_nav == "🔬 Analisis Detail":
                 if _comp_proj:
                     st.markdown(
                         "<div style='font-size:10px;color:#a78bfa;text-align:center;margin-top:-8px'>"
-                        "🔮 Estimasi proporsi berbasis crisis score proyeksi — bukan data historis</div>",
+                        "Estimasi proporsi berbasis crisis score proyeksi — bukan data historis</div>",
                         unsafe_allow_html=True
                     )
             else:
@@ -1595,7 +1606,7 @@ if selected_nav == "🔬 Analisis Detail":
         with st.container(border=True):
             st.markdown(
                 '<div class="accent-purple"></div>'
-                '<div class="box-heading sec-purple">📋 Indikator Detail</div>'
+                '<div class="box-heading sec-purple">Indikator Detail</div>'
                 + rows_html,
                 unsafe_allow_html=True
             )
@@ -1604,7 +1615,7 @@ if selected_nav == "🔬 Analisis Detail":
         # ── Box 3: Probabilitas RF ────────────────────────
         with st.container(border=True):
             st.markdown('<div class="accent-orange"></div>', unsafe_allow_html=True)
-            st.markdown('<div class="box-heading sec-orange">🎯 Probabilitas Prediksi Random Forest</div>', unsafe_allow_html=True)
+            st.markdown('<div class="box-heading sec-orange">Probabilitas Prediksi Random Forest</div>', unsafe_allow_html=True)
 
             prob_labels = ['AMAN','WASPADA','SIAGA','KRISIS']
             prob_vals   = [sf(row_data.get(f'prob_{l.lower()}',0))*100 for l in prob_labels]
@@ -1631,7 +1642,7 @@ if selected_nav == "🔬 Analisis Detail":
         # ── Box 4: Feature Importance ─────────────────────
         with st.container(border=True):
             st.markdown('<div class="accent-green"></div>', unsafe_allow_html=True)
-            st.markdown('<div class="box-heading sec-green">🌲 Feature Importance — Random Forest</div>', unsafe_allow_html=True)
+            st.markdown('<div class="box-heading sec-green">Feature Importance — Random Forest</div>', unsafe_allow_html=True)
 
             try:
                 fi_available = [f for f in FEATURES if f in master.columns]
@@ -1844,12 +1855,13 @@ if selected_nav == "💬 Sentimen":
     with sc1:
         # ── Box: Tren Sentimen Historis ───────────────────
         with st.container(border=True):
+            st.markdown('<div class="accent-green"></div>', unsafe_allow_html=True)
             st.markdown(
                 "<div style='display:flex;align-items:center;gap:8px;padding:4px 0 10px;"
                 "border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px'>"
                 "<span style='font-family:DM Sans,sans-serif;font-size:15px;font-weight:700;"
                 "letter-spacing:.05em;text-transform:uppercase;color:#4ade80;"
-                "border-left:3px solid #22c55e;padding-left:10px'>📈 Tren Sentimen Historis</span></div>",
+                "border-left:3px solid #22c55e;padding-left:10px'>Tren Sentimen Historis</span></div>",
                 unsafe_allow_html=True
             )
             if 'avg_sentiment_monthly' in master.columns:
@@ -1887,12 +1899,13 @@ if selected_nav == "💬 Sentimen":
 
         # ── Box: 6 Bulan Terakhir ──────────────────────────
         with st.container(border=True):
+            st.markdown('<div class="accent-green"></div>', unsafe_allow_html=True)
             st.markdown(
                 "<div style='display:flex;align-items:center;gap:8px;padding:4px 0 10px;"
                 "border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px'>"
                 "<span style='font-family:DM Sans,sans-serif;font-size:15px;font-weight:700;"
                 "letter-spacing:.05em;text-transform:uppercase;color:#4ade80;"
-                "border-left:3px solid #22c55e;padding-left:10px'>📊 6 Bulan Terakhir</span></div>",
+                "border-left:3px solid #22c55e;padding-left:10px'>6 Bulan Terakhir</span></div>",
                 unsafe_allow_html=True
             )
             if 'avg_sentiment_monthly' in predictions.columns:
@@ -1925,11 +1938,12 @@ if selected_nav == "💬 Sentimen":
         bd_neg  = "rgba(239,68,68,0.25)"   if sent < -0.3          else "rgba(255,255,255,0.06)"
 
         with st.container(border=True):
+            st.markdown('<div class="accent-teal"></div>', unsafe_allow_html=True)
             st.markdown(
                 "<div style='display:flex;align-items:center;gap:8px;padding:4px 0 12px'>"
                 "<span style='font-family:DM Sans,sans-serif;font-size:15px;font-weight:700;"
                 "letter-spacing:.05em;text-transform:uppercase;color:#2dd4bf;"
-                "border-left:3px solid #14b8a6;padding-left:10px'>🎯 Gauge Sentimen</span></div>",
+                "border-left:3px solid #14b8a6;padding-left:10px'>Gauge Sentimen</span></div>",
                 unsafe_allow_html=True
             )
 
@@ -2030,10 +2044,10 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
 
     /* ── Section divider ── */
     .pred-section-hdr { display:flex; align-items:center; gap:10px; margin:20px 0 14px; }
-    .pred-section-hdr-line { flex:1; height:1px; background:rgba(255,255,255,0.06); }
+    .pred-section-hdr-line { flex:1; height:1px; background:rgba(255,255,255,0.10); }
     .pred-section-hdr-text {
-      font-size:10px; font-weight:800; letter-spacing:.14em;
-      text-transform:uppercase; color:#334155; white-space:nowrap;
+      font-size:12px; font-weight:800; letter-spacing:.14em;
+      text-transform:uppercase; color:#94a3b8; white-space:nowrap;
     }
 
     /* ── Forecast grid cards ── */
@@ -2048,52 +2062,54 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
       pointer-events:none; min-height:118px; border-radius:14px;
     }
     .fc-grid-card {
-      border-radius:14px; padding:14px 16px 13px; position:relative;
+      border-radius:14px; padding:16px 18px 15px; position:relative;
       overflow:hidden; transition:transform .2s, box-shadow .2s;
     }
-    .fc-grid-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.35); }
+    .fc-grid-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.45); }
 
     /* ── Confidence-tier card backgrounds ── */
     /* HIGH  76–100 */
     .fc-conf-high {
-      background:rgba(16,185,129,0.07); border:1px solid rgba(16,185,129,0.18);
+      background:rgba(16,185,129,0.10); border:1px solid rgba(16,185,129,0.28);
     }
     /* MID   51–75 */
     .fc-conf-mid {
-      background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.18);
+      background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.28);
     }
     /* LOW   26–50 */
     .fc-conf-low {
-      background:rgba(249,115,22,0.05); border:1px solid rgba(249,115,22,0.15);
+      background:rgba(249,115,22,0.09); border:1px solid rgba(249,115,22,0.25);
     }
     /* VLOW  0–25 */
     .fc-conf-vlow {
-      background:rgba(100,116,139,0.04); border:1px solid rgba(100,116,139,0.1);
+      background:rgba(100,116,139,0.08); border:1px solid rgba(100,116,139,0.20);
     }
 
     .fc-card-month {
-      font-family:'JetBrains Mono',monospace; font-size:10px;
-      color:#334155; letter-spacing:.06em; margin-bottom:8px;
+      font-family:'JetBrains Mono',monospace; font-size:11px;
+      color:#94a3b8; letter-spacing:.08em; margin-bottom:8px; font-weight:600;
     }
-    .fc-card-level { font-size:13px; font-weight:800; margin-bottom:2px; letter-spacing:.03em; }
+    .fc-card-level { font-size:16px; font-weight:900; margin-bottom:3px; letter-spacing:.04em; }
     .fc-card-score {
-      font-family:'JetBrains Mono',monospace; font-size:11px; color:#475569; margin-bottom:9px;
+      font-family:'JetBrains Mono',monospace; font-size:12px; color:#94a3b8;
+      font-weight:600; margin-bottom:10px;
     }
     .fc-conf-bar-wrap {
-      height:4px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; margin-bottom:6px;
+      height:5px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; margin-bottom:7px;
     }
     .fc-conf-bar-fill { height:100%; border-radius:3px; }
     .fc-conf-label { display:flex; justify-content:space-between; align-items:center; }
     .fc-conf-pct {
-      font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700;
+      font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:800;
     }
-    .fc-conf-txt { font-size:9px; color:#1e3a5f; text-transform:uppercase; letter-spacing:.06em; }
+    .fc-conf-txt { font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:.08em; font-weight:600; }
 
     /* ── Warning note ── */
     .fc-note {
-      display:flex; align-items:center; gap:8px; background:rgba(245,158,11,0.05);
-      border:1px solid rgba(245,158,11,0.12); border-left:3px solid rgba(245,158,11,0.4);
-      border-radius:8px; padding:9px 14px; font-size:11px; color:#92400e; margin-bottom:20px;
+      display:flex; align-items:center; gap:8px; background:rgba(245,158,11,0.07);
+      border:1px solid rgba(245,158,11,0.18); border-left:3px solid rgba(245,158,11,0.55);
+      border-radius:8px; padding:11px 16px; font-size:13px; color:#fbbf24;
+      font-weight:600; margin-bottom:20px; letter-spacing:.01em;
     }
 
     /* Sembunyikan tick bar bawaan */
@@ -2118,8 +2134,10 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
 
     /* ── Simulator hint ── */
     .sim-hint {
-      background:rgba(59,130,246,0.06); border:1px solid rgba(59,130,246,0.12);
-      border-radius:8px; padding:7px 12px; font-size:11px; color:#3b82f6; margin-bottom:10px;
+      background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.20);
+      border-left:3px solid rgba(59,130,246,0.6);
+      border-radius:8px; padding:11px 16px; font-size:13px; color:#93c5fd;
+      font-weight:600; margin-bottom:14px; letter-spacing:.01em;
     }
 
     /* ── Slider label row ── */
@@ -2169,17 +2187,17 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
       border-radius:14px; padding:16px 18px;
     }
     .bd-panel-title {
-      font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.12em;
-      color:#334155; margin-bottom:12px; display:flex; align-items:center; gap:6px;
+      font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.12em;
+      color:#94a3b8; margin-bottom:14px; display:flex; align-items:center; gap:6px;
     }
     .bd-row {
       display:flex; justify-content:space-between; align-items:center;
       padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04);
     }
     .bd-row:last-child { border-bottom:none; }
-    .bd-name { font-size:12px; color:#94a3b8; }
+    .bd-name { font-size:14px; font-weight:500; color:#cbd5e1; }
     .bd-badge {
-      font-size:10px; font-weight:700; padding:3px 10px;
+      font-size:12px; font-weight:700; padding:4px 12px;
       border-radius:20px; letter-spacing:.04em;
     }
     .bd-badge-rendah { background:rgba(16,185,129,0.12); color:#34d399; border:1px solid rgba(16,185,129,0.2); }
@@ -2192,30 +2210,26 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
       border-radius:14px; padding:16px 18px;
     }
     .reko-title {
-      font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.12em;
-      color:#334155; margin-bottom:12px; display:flex; align-items:center; gap:6px;
+      font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.12em;
+      color:#94a3b8; margin-bottom:14px; display:flex; align-items:center; gap:6px;
     }
     .reko-item {
-      display:flex; align-items:flex-start; gap:10px; padding:8px 0;
-      border-bottom:1px solid rgba(255,255,255,0.04); font-size:12px;
-      color:#94a3b8; line-height:1.6;
+      display:flex; align-items:flex-start; gap:10px; padding:10px 0;
+      border-bottom:1px solid rgba(255,255,255,0.05); font-size:14px;
+      color:#cbd5e1; line-height:1.7; font-weight:400;
     }
     .reko-item:last-child { border-bottom:none; }
     .reko-num {
-      flex-shrink:0; width:20px; height:20px; border-radius:50%;
+      flex-shrink:0; width:24px; height:24px; border-radius:50%;
       display:flex; align-items:center; justify-content:center;
-      font-size:10px; font-weight:800; margin-top:1px;
+      font-size:12px; font-weight:800; margin-top:2px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # ── PAGE HEADER ──────────────────────────────────────
+    # ── ENGINE PILL SUBTITLE ──────────────────────────────
     st.markdown("""
-    <div class='pred-page-header'>
-        <div class='pred-page-title'>Prediksi &amp; Proyeksi</div>
-        <div class='pred-page-sub'>Sistem prediksi berbasis ML &nbsp;·&nbsp; pola historis 2009–2024</div>
-    </div>
-    <div style='text-align:center;margin-bottom:24px'>
+    <div style='text-align:center;margin-bottom:20px;margin-top:-16px'>
         <div class='engine-pill'>
             <span class='engine-label'>Prediction Engine</span>
             <span class='engine-desc'>Random Forest + Isolation Forest + Trend Ekstrapolasi &nbsp;·&nbsp; pola historis 2009–2024</span>
@@ -2231,13 +2245,13 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
     with _sel_left:
         _sel_c1, _sel_c2 = st.columns([1, 1])
         with _sel_c1:
-            st.markdown("<div class='ctrl-label'>📅 Tahun Mulai</div>", unsafe_allow_html=True)
+            st.markdown("<div class='ctrl-label'><span style='display:inline-block;width:9px;height:9px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;margin-right:6px;vertical-align:middle;flex-shrink:0'></span>TAHUN MULAI</div>", unsafe_allow_html=True)
             _year_opts      = list(range(int(predictions['month'].iloc[-1][:4]), _now.year + 3))
             _default_yr_idx = _year_opts.index(_now.year) if _now.year in _year_opts else 0
             _proj_year      = st.selectbox("Tahun", _year_opts, index=_default_yr_idx,
                                             key="proj_year", label_visibility="collapsed")
         with _sel_c2:
-            st.markdown("<div class='ctrl-label'>🗓️ Bulan Mulai</div>", unsafe_allow_html=True)
+            st.markdown("<div class='ctrl-label'><span style='display:inline-block;width:9px;height:9px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;margin-right:6px;vertical-align:middle;flex-shrink:0'></span>BULAN MULAI</div>", unsafe_allow_html=True)
             _proj_month_name = st.selectbox("Bulan", _MONTH_NAMES, index=_now.month-1,
                                              key="proj_month", label_visibility="collapsed")
             _proj_month_num  = _MONTH_NAMES.index(_proj_month_name) + 1
@@ -2268,7 +2282,7 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
         st.markdown(
             "<div class='pred-section-hdr'>"
             "<div class='pred-section-hdr-line'></div>"
-            "<div class='pred-section-hdr-text'>🔮 Proyeksi " + str(_proj_n) + " Bulan — " + _proj_month_name + " " + str(_proj_year) + "</div>"
+            "<div class='pred-section-hdr-text'>Proyeksi " + str(_proj_n) + " Bulan — " + _proj_month_name + " " + str(_proj_year) + "</div>"
             "<div class='pred-section-hdr-line'></div>"
             "</div>",
             unsafe_allow_html=True)
@@ -2336,21 +2350,21 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
         st.markdown(
             "<div class='pred-section-hdr'>"
             "<div class='pred-section-hdr-line'></div>"
-            "<div class='pred-section-hdr-text'>🎮 Simulator Skenario Risiko</div>"
+            "<div class='pred-section-hdr-text'>Simulator Skenario Risiko</div>"
             "<div class='pred-section-hdr-line'></div>"
             "</div>",
             unsafe_allow_html=True)
 
         st.markdown(
-            "<div class='sim-hint'>💡 Geser slider untuk simulasi dampak perubahan indikator secara real-time.</div>",
+            "<div class='sim-hint'>Geser slider untuk simulasi dampak perubahan indikator secara real-time.</div>",
             unsafe_allow_html=True)
 
         # ── Sliders with value pills rendered via HTML label ──
-        w_d = st.slider("📉 Wisman (%)", -80, 50, 0, 5, key="sim_w")
+        w_d = st.slider("Wisman (%)", -80, 50, 0, 5, key="sim_w")
         st.markdown("<div class='slider-range-row'><span>-80%</span><span>+50%</span></div>", unsafe_allow_html=True)
-        u_d = st.slider("💱 USD/IDR (%)", -10, 30, 0, 1, key="sim_u")
+        u_d = st.slider("USD/IDR (%)", -10, 30, 0, 1, key="sim_u")
         st.markdown("<div class='slider-range-row'><span>-10%</span><span>+30%</span></div>", unsafe_allow_html=True)
-        s_d = st.slider("💬 Sentimen", -1.0, 1.0, 0.0, 0.1, key="sim_s")
+        s_d = st.slider("Sentimen", -1.0, 1.0, 0.0, 0.1, key="sim_s")
         st.markdown("<div class='slider-range-row'><span>-1.0</span><span>+1.0</span></div>", unsafe_allow_html=True)
 
         sim_sc = simulate_score(dict(row_data), w_d, u_d, s_d)
@@ -2404,7 +2418,7 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
         "<div class='bd-panel-title'>"
         "<span style='display:inline-block;width:7px;height:7px;border-radius:50%;"
         "background:#f59e0b;box-shadow:0 0 6px #f59e0b66'></span>"
-        "⚠️&nbsp; Breakdown Risiko"
+        "Breakdown Risiko"
         "</div>"
     )
     for nm, st_txt, cls in _bd_rows:
@@ -2422,7 +2436,7 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
         "<div class='reko-title'>"
         "<span style='display:inline-block;width:7px;height:7px;border-radius:50%;"
         "background:{clr};box-shadow:0 0 6px {clr}88'></span>"
-        "✅&nbsp; Rekomendasi — Level {lv}"
+        "Rekomendasi — Level {lv}"
         "</div>"
     ).format(clr=_rclr_btn, lv=sim_lv)
     for i, rec in enumerate(ADVICE_MAP.get(sim_lv, []), 1):
@@ -2441,23 +2455,47 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
     st.markdown("<div style='margin-top:20px'></div>", unsafe_allow_html=True)
     _chart_c1, _chart_c2, _chart_c3 = st.columns(3)
     with _chart_c1:
-        if st.button("↗ Tren + Proyeksi", key="pct_trend",
+        if st.button("Tren + Proyeksi", key="pct_trend",
                      type="primary" if st.session_state['pred_chart_tab']=='trend' else "secondary",
                      use_container_width=True):
             st.session_state['pred_chart_tab'] = 'trend'
             st.rerun()
     with _chart_c2:
-        if st.button("📉 Recovery Rate vs Baseline", key="pct_rec",
+        if st.button("Recovery Rate vs Baseline", key="pct_rec",
                      type="primary" if st.session_state['pred_chart_tab']=='recovery' else "secondary",
                      use_container_width=True):
             st.session_state['pred_chart_tab'] = 'recovery'
             st.rerun()
     with _chart_c3:
-        if st.button("🗺️ Peta Risiko Historis", key="pct_scatter",
+        if st.button("Peta Risiko Historis", key="pct_scatter",
                      type="primary" if st.session_state['pred_chart_tab']=='scatter' else "secondary",
                      use_container_width=True):
             st.session_state['pred_chart_tab'] = 'scatter'
             st.rerun()
+
+    components.html("""
+    <script>
+    (function() {
+        const labels = ["Tren + Proyeksi", "Recovery Rate vs Baseline", "Peta Risiko Historis"];
+        function boldTabBtns() {
+            window.parent.document.querySelectorAll('.stButton button').forEach(btn => {
+                const txt = (btn.querySelector('p')?.innerText || btn.innerText || '').trim();
+                if (labels.includes(txt)) {
+                    btn.style.setProperty('font-weight', '800', 'important');
+                    btn.style.setProperty('letter-spacing', '.02em', 'important');
+                    btn.style.setProperty('font-size', '14px', 'important');
+                }
+            });
+        }
+        boldTabBtns();
+        setTimeout(boldTabBtns, 200);
+        setTimeout(boldTabBtns, 600);
+        new MutationObserver(boldTabBtns).observe(
+            window.parent.document.body, {childList:true, subtree:true}
+        );
+    })();
+    </script>
+    """, height=0)
 
     st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
 
@@ -2487,7 +2525,7 @@ if selected_nav == "🔮 Prediksi & Proyeksi":
             mode='lines+markers', name='Proyeksi',
             line=dict(color='#f59e0b', width=2, dash='dash'),
             marker=dict(size=8, symbol='diamond', color='#f59e0b')))
-        for thr,lbl,col in [(42,'KRISIS','#ef4444'),(30,'SIAGA','#f97316'),(20,'WASPADA','#f59e0b')]:
+        for thr,lbl,col in [(60,'KRISIS','#ef4444'),(45,'SIAGA','#f97316'),(30,'WASPADA','#f59e0b')]:
             fig_fc.add_hline(y=thr, line_dash='dot', line_color=col, line_width=0.7, opacity=0.45,
                              annotation_text=lbl, annotation_position='right',
                              annotation_font_size=9, annotation_font_color=col)
@@ -2603,12 +2641,12 @@ if selected_nav == "✨ Narasi AI":
             </div>
             <div style='text-align:center;background:rgba(0,0,0,0.25);border-radius:12px;
                         padding:14px 20px;border:1px solid rgba(74,222,128,0.15)'>
-                <div style='font-size:10px;color:rgba(74,222,128,0.5);text-transform:uppercase;
+                <div style='font-size:10px;color:rgba(74,222,128,0.6);text-transform:uppercase;
                             letter-spacing:.08em;margin-bottom:4px'>PROVIDER</div>
-                <div style='font-family:monospace;font-size:12px;color:#4ade80;font-weight:600'>
+                <div style='font-family:monospace;font-size:13px;color:#4ade80;font-weight:700'>
                     Groq Cloud API
                 </div>
-                <div style='font-size:10px;color:#059669;margin-top:6px'>⚡ Latensi &lt; 1 detik · Gratis</div>
+                <div style='font-size:12px;color:#86efac;margin-top:6px'>Latensi &lt; 1 detik · Gratis</div>
             </div>
         </div>
     </div>
@@ -2616,30 +2654,27 @@ if selected_nav == "✨ Narasi AI":
 
     # ── Kegunaan cards ────────────────────────────────────
     st.markdown("""
-    <div style='font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;
-                letter-spacing:.1em;margin-bottom:12px'>💡 APA GUNANYA NARASI AI?</div>
+    <div style='font-size:15px;font-weight:700;color:#94a3b8;text-transform:uppercase;
+                letter-spacing:.12em;margin-bottom:14px'>APA GUNANYA NARASI AI?</div>
     <div style='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px'>
         <div style='background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);
-                    border-radius:12px;padding:16px'>
-            <div style='font-size:18px;margin-bottom:8px'>📋</div>
-            <div style='font-size:12px;font-weight:700;color:#93c5fd;margin-bottom:6px'>Laporan Dinas / Rapat</div>
-            <div style='font-size:11px;color:#64748b;line-height:1.7'>
+                    border-radius:12px;padding:20px 16px 16px'>
+            <div style='font-size:16px;font-weight:800;color:#93c5fd;margin-bottom:6px;text-align:center'>Laporan Dinas / Rapat</div>
+            <div style='font-size:13px;color:#e2e8f0;line-height:1.6;text-align:center'>
                 Draft laporan bulanan siap presentasi ke kepala dinas atau DPRD tanpa tulis manual.
             </div>
         </div>
         <div style='background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);
-                    border-radius:12px;padding:16px'>
-            <div style='font-size:18px;margin-bottom:8px'>🚨</div>
-            <div style='font-size:12px;font-weight:700;color:#fca5a5;margin-bottom:6px'>Peringatan Dini Krisis</div>
-            <div style='font-size:11px;color:#64748b;line-height:1.7'>
+                    border-radius:12px;padding:20px 16px 16px'>
+            <div style='font-size:16px;font-weight:800;color:#fca5a5;margin-bottom:6px;text-align:center'>Peringatan Dini Krisis</div>
+            <div style='font-size:13px;color:#e2e8f0;line-height:1.6;text-align:center'>
                 Saat SIAGA/KRISIS terdeteksi, sistem menyusun teks peringatan + rekomendasi untuk stakeholder.
             </div>
         </div>
         <div style='background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);
-                    border-radius:12px;padding:16px'>
-            <div style='font-size:18px;margin-bottom:8px'>📰</div>
-            <div style='font-size:12px;font-weight:700;color:#fcd34d;margin-bottom:6px'>Press Release / Media</div>
-            <div style='font-size:11px;color:#64748b;line-height:1.7'>
+                    border-radius:12px;padding:20px 16px 16px'>
+            <div style='font-size:16px;font-weight:800;color:#fcd34d;margin-bottom:6px;text-align:center'>Press Release / Media</div>
+            <div style='font-size:13px;color:#e2e8f0;line-height:1.6;text-align:center'>
                 Ringkasan berbasis data sebagai bahan siaran pers atau infografis pariwisata Bali.
             </div>
         </div>
@@ -2653,9 +2688,12 @@ if selected_nav == "✨ Narasi AI":
     # CONFIG COLUMNS
     # ══════════════════════════════════════════════════════
     # ─ 1. TIPE LAPORAN — FULL WIDTH 4 CARDS ──────────────
-    st.markdown("""<div style='font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;
-                letter-spacing:.1em;margin-bottom:14px'>📝 PILIH TIPE LAPORAN</div>""",
-                unsafe_allow_html=True)
+    st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-top:28px;margin-bottom:18px'>
+        <div style='flex:1;height:1px;background:rgba(255,255,255,0.10)'></div>
+        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#94a3b8;text-transform:uppercase;
+                    letter-spacing:.12em;white-space:nowrap'>PILIH TIPE LAPORAN</div>
+        <div style='flex:1;height:1px;background:rgba(255,255,255,0.10)'></div>
+    </div>""", unsafe_allow_html=True)
 
     REPORT_CARDS = {
         'summary': {
@@ -2692,18 +2730,16 @@ if selected_nav == "✨ Narasi AI":
             _opac   = "1" if _is_sel else "0.90"
             st.markdown(
                 "<div style='background:" + _card['bg'] + ";border:" + _bdr + ";"
-                "border-radius:12px;padding:16px 14px 14px;min-height:140px;"
+                "border-radius:12px;padding:20px 16px 16px;min-height:140px;margin-bottom:6px;"
                 "opacity:" + _opac + ";" + _shad + ";transition:opacity .2s'>"
-                "<div style='font-size:24px;margin-bottom:8px'>" + _card['icon'] + "</div>"
-                "<div style='font-size:12px;font-weight:700;color:" + _card['color'] + ";margin-bottom:4px'>"
+                "<div style='font-size:16px;font-weight:800;color:" + _card['color'] + ";margin-bottom:4px;text-align:center'>"
                 + _card['title'] + "</div>"
-                "<div style='font-size:10px;color:#94a3b8;font-weight:600;margin-bottom:6px'>"
+                "<div style='font-size:13px;color:#cbd5e1;font-weight:700;margin-bottom:6px;text-align:center'>"
                 + _card['desc'] + "</div>"
-                "<div style='font-size:10px;color:#64748b;line-height:1.65'>" + _card['detail'] + "</div>"
+                "<div style='font-size:13px;color:#e2e8f0;line-height:1.6;text-align:center'>" + _card['detail'] + "</div>"
                 "</div>",
                 unsafe_allow_html=True
             )
-            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
             if st.button(_card['title'], key="rt_" + _key, width="stretch"):
                 st.session_state['report_type_sel'] = _key
                 st.rerun()
@@ -2774,218 +2810,361 @@ if selected_nav == "✨ Narasi AI":
     report_type = st.session_state['report_type_sel']
     _sel_card   = REPORT_CARDS[report_type]
     st.markdown(
-        "<div style='margin-top:12px;margin-bottom:20px;background:" + _sel_card['bg'] + ";border-radius:8px;"
-        "padding:10px 14px;border-left:3px solid " + _sel_card['color'] + "'>"
-        "<span style='font-size:11px;color:#94a3b8'>Tipe dipilih: "
-        "<b style='color:" + _sel_card['color'] + "'>" + _sel_card['icon'] + " " + _sel_card['title'] + "</b>"
-        " &nbsp;·&nbsp; " + _sel_card['desc'] + "</span></div>",
+        "<div style='margin-top:-12px;margin-bottom:20px;background:" + _sel_card['bg'] + ";border-radius:8px;"
+        "padding:12px 16px;border-left:3px solid " + _sel_card['color'] + "'>"
+        "<span style='font-size:14px;color:#94a3b8'>Tipe dipilih: "
+        "<b style='color:" + _sel_card['color'] + "'>" + _sel_card['title'] + "</b>"
+        " &nbsp;·&nbsp; <span style='color:#cbd5e1'>" + _sel_card['desc'] + "</span></span></div>",
         unsafe_allow_html=True
     )
 
-    # ─ MODEL + API STATUS (2 kolom di bawah cards) ────────
-    na_l, na_r = st.columns([3, 2])
+    # ─ MODEL (4 kolom horizontal full width) ────────────
+    st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-top:28px;margin-bottom:16px'>
+        <div style='flex:1;height:1px;background:rgba(255,255,255,0.10)'></div>
+        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#94a3b8;text-transform:uppercase;
+                    letter-spacing:.12em;white-space:nowrap'>PILIH MODEL AI</div>
+        <div style='flex:1;height:1px;background:rgba(255,255,255,0.10)'></div>
+    </div>""", unsafe_allow_html=True)
 
-    with na_l:
-        # ─ 2. PILIH MODEL AI ──────────────────────────────
-        st.markdown("""<div style='font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;
-                    letter-spacing:.1em;margin-bottom:12px'>🧠 PILIH MODEL AI</div>""",
+    GROQ_MODELS = {
+        'llama-3.3-70b-versatile': {
+            'label': 'Llama 3.3 70B', 'tag': 'Terbaik',
+            'desc': 'Akurasi tinggi, analisis mendalam',
+            'color': '#a78bfa', 'bg': 'rgba(167,139,250,0.10)', 'border': 'rgba(167,139,250,0.28)',
+            'icon': '🏆',
+        },
+        'llama-3.1-8b-instant': {
+            'label': 'Llama 3.1 8B', 'tag': 'Tercepat',
+            'desc': 'Respons < 0.5 detik, ringkas',
+            'color': '#34d399', 'bg': 'rgba(52,211,153,0.10)', 'border': 'rgba(52,211,153,0.28)',
+            'icon': '⚡',
+        },
+        'mixtral-8x7b-32768': {
+            'label': 'Mixtral 8×7B', 'tag': 'Konteks Panjang',
+            'desc': 'Laporan detail & komprehensif',
+            'color': '#60a5fa', 'bg': 'rgba(96,165,250,0.10)', 'border': 'rgba(96,165,250,0.28)',
+            'icon': '📄',
+        },
+        'gemma2-9b-it': {
+            'label': 'Gemma2 9B', 'tag': 'Bahasa Natural',
+            'desc': 'Narasi mengalir & mudah dibaca',
+            'color': '#fb923c', 'bg': 'rgba(251,146,60,0.10)', 'border': 'rgba(251,146,60,0.28)',
+            'icon': '✍️',
+        },
+    }
+
+    if 'selected_model_key' not in st.session_state:
+        st.session_state['selected_model_key'] = 'llama-3.3-70b-versatile'
+
+    # ── Warna tiap model MENGIKUTI POSISI KOLOM tipe laporan di atasnya ──
+    # Kolom 0: Quick Summary (biru), Kolom 1: Emergency Alert (merah),
+    # Kolom 2: Laporan Bulanan (hijau), Kolom 3: Prediksi AI (ungu)
+    _report_list = list(REPORT_CARDS.values())   # urutan sama: summary, alert, monthly, predict
+
+    _mcols = st.columns(4)
+    _model_items = list(GROQ_MODELS.items())
+    for _mi, (_mkey, _mcard) in enumerate(_model_items):
+        # Ambil warna dari report card sejajar (posisi _mi)
+        _paired = _report_list[_mi]
+        _pc     = _paired['color']
+        _pb     = _paired['bg']
+        _pbr    = _paired['border']
+
+        with _mcols[_mi]:
+            _is_msel = st.session_state['selected_model_key'] == _mkey
+            _m_bdr   = ("2px solid " + _pc) if _is_msel else ("1px solid " + _pbr)
+            _m_shad  = ("box-shadow:0 0 14px " + _pc + "55;") if _is_msel else ""
+            _m_opac  = "1" if _is_msel else "0.90"
+            st.markdown(
+                "<div style='background:" + _pb + ";border:" + _m_bdr + ";"
+                "border-radius:10px;padding:12px 14px;opacity:" + _m_opac + ";" + _m_shad + ";margin-bottom:6px;"
+                "transition:opacity .2s,border .2s,box-shadow .2s'>"
+                "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>"
+                "<div style='font-size:16px;font-weight:800;color:" + _pc + "'>" + _mcard['label'] + "</div>"
+                "<span style='font-size:11px;font-weight:700;background:" + _pc + "22;"
+                "color:" + _pc + ";padding:3px 9px;border-radius:10px'>"
+                + _mcard['tag'] + "</span></div>"
+                "<div style='font-size:13px;color:#cbd5e1;line-height:1.5'>" + _mcard['desc'] + "</div>"
+                "</div>",
+                unsafe_allow_html=True
+            )
+            if st.button(_mcard['label'], key="model_" + _mkey, width="stretch"):
+                st.session_state['selected_model_key'] = _mkey
+                st.rerun()
+
+    selected_model = st.session_state['selected_model_key']
+    _sel_mcard     = GROQ_MODELS[selected_model]
+
+    # ── JS: tiap tombol model pakai warna report sejajarnya (per posisi) ──
+    # Bangun map: label → warna report sejajar
+    _model_color_map = {
+        list(GROQ_MODELS.values())[i]['label']: _report_list[i]['color']
+        for i in range(4)
+    }
+    _sel_model_label  = _sel_mcard['label']
+    _js_model_color_map = str(_model_color_map).replace("'", '"')
+    components.html(f"""
+    <script>
+    (function() {{
+        const colorMap   = {_js_model_color_map};
+        const activeModel = "{_sel_model_label}";
+
+        function hexToRgba(hex, a) {{
+            const r = parseInt(hex.slice(1,3),16);
+            const g = parseInt(hex.slice(3,5),16);
+            const b = parseInt(hex.slice(5,7),16);
+            return `rgba(${{r}},${{g}},${{b}},${{a}})`;
+        }}
+
+        function styleModelBtns() {{
+            const btns = window.parent.document.querySelectorAll('.stButton button');
+            btns.forEach(btn => {{
+                const label = (btn.querySelector('p')?.innerText || btn.innerText || '').trim();
+                const color = colorMap[label];
+                if (!color) return;
+
+                const isSel = (label === activeModel);
+
+                btn.style.setProperty('background',    isSel ? color : hexToRgba(color, 0.30), 'important');
+                btn.style.setProperty('color',         '#ffffff', 'important');
+                btn.style.setProperty('border',        '1px solid ' + hexToRgba(color, isSel ? 0.85 : 0.45), 'important');
+                btn.style.setProperty('font-weight',   '700', 'important');
+                btn.style.setProperty('border-radius', '8px', 'important');
+                btn.style.setProperty('transition',    'background .18s, box-shadow .18s', 'important');
+                if (isSel) {{
+                    btn.style.setProperty('box-shadow', '0 0 12px ' + hexToRgba(color, 0.50), 'important');
+                }} else {{
+                    btn.style.setProperty('box-shadow', 'none', 'important');
+                }}
+
+                btn.onmouseenter = () => {{
+                    btn.style.setProperty('background',  color, 'important');
+                    btn.style.setProperty('box-shadow',  '0 0 14px ' + hexToRgba(color, 0.55), 'important');
+                    btn.style.setProperty('opacity',     '1', 'important');
+                }};
+                btn.onmouseleave = () => {{
+                    btn.style.setProperty('background',  isSel ? color : hexToRgba(color, 0.30), 'important');
+                    btn.style.setProperty('box-shadow',  isSel ? '0 0 12px ' + hexToRgba(color, 0.50) : 'none', 'important');
+                }};
+            }});
+        }}
+
+        styleModelBtns();
+        setTimeout(styleModelBtns, 200);
+        setTimeout(styleModelBtns, 600);
+        new MutationObserver(styleModelBtns).observe(
+            window.parent.document.body, {{childList:true, subtree:true}}
+        );
+    }})();
+    </script>
+    """, height=0)
+
+    # ── Status bar model: warna ikut warna posisi model yg dipilih ──
+    _sel_model_idx   = list(GROQ_MODELS.keys()).index(selected_model)
+    _sel_pair_card   = _report_list[_sel_model_idx]
+    st.markdown(
+        "<div style='margin-top:-12px;background:" + _sel_pair_card['bg'] + ";border-radius:8px;"
+        "padding:12px 16px;border-left:3px solid " + _sel_pair_card['color'] + "'>"
+        "<span style='font-size:14px;color:#94a3b8'>Model: "
+        "<b style='color:" + _sel_pair_card['color'] + "'>" + _sel_mcard['label'] + "</b>"
+        " &nbsp;·&nbsp; <span style='color:#cbd5e1'>" + _sel_mcard['tag'] + "</span></span></div>",
+        unsafe_allow_html=True
+    )
+
+    st.markdown("<div style='margin:16px 0 8px'></div>", unsafe_allow_html=True)
+
+    # ─ API & STATUS — FULL WIDTH ──────────────────────────
+    st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-top:28px;margin-bottom:18px'>
+        <div style='flex:1;height:1px;background:rgba(255,255,255,0.10)'></div>
+        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#94a3b8;text-transform:uppercase;
+                    letter-spacing:.12em;white-space:nowrap'>API &amp; STATUS</div>
+        <div style='flex:1;height:1px;background:rgba(255,255,255,0.10)'></div>
+    </div>""", unsafe_allow_html=True)
+
+    # ─ PILIH BULAN & TAHUN ────────────────────────────────
+    _avail_months_hist = sorted(predictions['month'].unique())
+    _last_data_month   = _avail_months_hist[-1]
+    _last_p            = pd.Period(_last_data_month, freq='M')
+    _fc_extra, _       = forecast_months(predictions, n=18, from_month=str(_last_p - 1))
+    _fc_months_only    = [f['month'] for f in _fc_extra]
+    _fc_score_map      = {f['month']: f['score'] for f in _fc_extra}
+    _fc_level_map      = {f['month']: f['level'] for f in _fc_extra}
+    _all_months        = _avail_months_hist + [m for m in _fc_months_only if m not in _avail_months_hist]
+    _avail_years       = sorted(set(m[:4] for m in _all_months), reverse=True)
+
+    if 'narasi_year_sel' not in st.session_state:
+        st.session_state['narasi_year_sel'] = sel[:4]
+    if 'narasi_month_sel' not in st.session_state:
+        st.session_state['narasi_month_sel'] = sel
+
+    _MONTH_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
+    def _month_label_fn(m):
+        base = _MONTH_ID[int(m[5:7])-1]
+        return base
+
+    # 4 kolom sejajar: Tahun | Bulan | Status | Cache
+    _c_year, _c_month, _c_status, _c_cache = st.columns([1, 1, 1, 1])
+
+    with _c_year:
+        st.markdown("""<div style='font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;
+                    letter-spacing:.12em;margin-bottom:12px'>BULAN YANG DIANALISIS</div>""",
                     unsafe_allow_html=True)
-
-        GROQ_MODELS = {
-            'llama-3.3-70b-versatile': {
-                'label': 'Llama 3.3 70B', 'tag': 'Terbaik',
-                'desc': 'Akurasi tinggi, analisis mendalam',
-                'color': '#a78bfa', 'bg': 'rgba(167,139,250,0.10)', 'border': 'rgba(167,139,250,0.28)',
-                'icon': '🏆',
-            },
-            'llama-3.1-8b-instant': {
-                'label': 'Llama 3.1 8B', 'tag': 'Tercepat',
-                'desc': 'Respons < 0.5 detik, ringkas',
-                'color': '#34d399', 'bg': 'rgba(52,211,153,0.10)', 'border': 'rgba(52,211,153,0.28)',
-                'icon': '⚡',
-            },
-            'mixtral-8x7b-32768': {
-                'label': 'Mixtral 8×7B', 'tag': 'Konteks Panjang',
-                'desc': 'Laporan detail & komprehensif',
-                'color': '#60a5fa', 'bg': 'rgba(96,165,250,0.10)', 'border': 'rgba(96,165,250,0.28)',
-                'icon': '📄',
-            },
-            'gemma2-9b-it': {
-                'label': 'Gemma2 9B', 'tag': 'Bahasa Natural',
-                'desc': 'Narasi mengalir & mudah dibaca',
-                'color': '#fb923c', 'bg': 'rgba(251,146,60,0.10)', 'border': 'rgba(251,146,60,0.28)',
-                'icon': '✍️',
-            },
-        }
-
-        if 'selected_model_key' not in st.session_state:
-            st.session_state['selected_model_key'] = 'llama-3.3-70b-versatile'
-
-        _mc1, _mc2 = st.columns(2)
-        _model_items = list(GROQ_MODELS.items())
-        for _mi, (_mkey, _mcard) in enumerate(_model_items):
-            _col = _mc1 if _mi % 2 == 0 else _mc2
-            with _col:
-                _is_msel  = st.session_state['selected_model_key'] == _mkey
-                _m_bdr    = ("2px solid " + _mcard['color']) if _is_msel else ("1px solid " + _mcard['border'])
-                _m_shad   = ("box-shadow:0 0 10px " + _mcard['color'] + "30;") if _is_msel else ""
-                _m_opac   = "1" if _is_msel else "0.6"
-                st.markdown(
-                    "<div style='background:" + _mcard['bg'] + ";border:" + _m_bdr + ";"
-                    "border-radius:10px;padding:10px 12px;opacity:" + _m_opac + ";" + _m_shad + ";margin-bottom:6px'>"
-                    "<div style='display:flex;justify-content:space-between;align-items:flex-start'>"
-                    "<span style='font-size:16px'>" + _mcard['icon'] + "</span>"
-                    "<span style='font-size:9px;font-weight:700;background:" + _mcard['color'] + "22;"
-                    "color:" + _mcard['color'] + ";padding:2px 7px;border-radius:10px'>"
-                    + _mcard['tag'] + "</span></div>"
-                    "<div style='font-size:11px;font-weight:700;color:" + _mcard['color'] + ";margin:5px 0 2px'>"
-                    + _mcard['label'] + "</div>"
-                    "<div style='font-size:10px;color:#64748b;line-height:1.5'>" + _mcard['desc'] + "</div>"
-                    "</div>",
-                    unsafe_allow_html=True
-                )
-                if st.button(_mcard['label'], key="model_" + _mkey, width="stretch"):
-                    st.session_state['selected_model_key'] = _mkey
-                    st.rerun()
-
-        selected_model = st.session_state['selected_model_key']
-        _sel_mcard     = GROQ_MODELS[selected_model]
+        _ny_idx  = _avail_years.index(st.session_state['narasi_year_sel']) \
+                   if st.session_state['narasi_year_sel'] in _avail_years else 0
         st.markdown(
-            "<div style='margin-top:6px;background:" + _sel_mcard['bg'] + ";border-radius:8px;"
-            "padding:8px 12px;border-left:3px solid " + _sel_mcard['color'] + "'>"
-            "<span style='font-size:11px;color:#94a3b8'>Model: "
-            "<b style='color:" + _sel_mcard['color'] + "'>" + _sel_mcard['icon'] + " " + _sel_mcard['label'] + "</b>"
-            " &nbsp;·&nbsp; <span style='color:#64748b'>" + _sel_mcard['tag'] + "</span></span></div>",
+            "<div style='display:flex;align-items:center;gap:0;font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:4px'>" "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0;margin-right:7px'></span>Tahun</div>", unsafe_allow_html=True)
+        _sel_year = st.selectbox("", _avail_years, index=_ny_idx, key="narasi_year_box", label_visibility="collapsed")
+        st.session_state['narasi_year_sel'] = _sel_year
+
+    _months_for_year = [m for m in _all_months if m.startswith(_sel_year)]
+
+    with _c_month:
+        st.markdown("<div style='height:36px'></div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:0;font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:4px'>" "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0;margin-right:7px'></span>Bulan</div>", unsafe_allow_html=True)
+        _prev_nm = st.session_state.get('narasi_month_sel', sel)
+        _nm_default = _prev_nm if _prev_nm in _months_for_year else _months_for_year[-1]
+        _nm_idx  = _months_for_year.index(_nm_default)
+        _sel_month = st.selectbox("", _months_for_year,
+                                  format_func=_month_label_fn,
+                                  index=_nm_idx, key="narasi_month_box", label_visibility="collapsed")
+        st.session_state['narasi_month_sel'] = _sel_month
+
+    narasi_target   = st.session_state['narasi_month_sel']
+    _is_fc_month    = narasi_target not in _avail_months_hist
+    if _is_fc_month:
+        _narasi_level = _fc_level_map.get(narasi_target, 'WASPADA')
+        _narasi_score = _fc_score_map.get(narasi_target, 0.0)
+    else:
+        _narasi_row   = get_row(narasi_target)
+        _narasi_level = str(_narasi_row.get('crisis_level', 'WASPADA'))
+        _narasi_score = sf(_narasi_row.get('crisis_score_100', 0))
+
+    _fc_badge = (
+        "<span style='font-size:10px;font-weight:700;background:rgba(167,139,250,0.15);"
+        "color:#a78bfa;padding:2px 8px;border-radius:10px'>Proyeksi</span>"
+    ) if _is_fc_month else ""
+
+    # Cache status for narasi_target
+    _has_cache    = narasi_target in narratives_cache
+    _cache_level  = narratives_cache[narasi_target].get('crisis_level','') if _has_cache else ''
+    _cache_tokens = narratives_cache[narasi_target].get('tokens', 0)        if _has_cache else 0
+
+    with _c_status:
+        _status_clr = COLOR_MAP.get(_narasi_level, '#fff')
+        st.markdown("<div style='font-size:13px;font-weight:600;color:#e2e8f0;margin-top:31px;margin-bottom:4px'>Status Bulan</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);"
+            "border-radius:8px;padding:0 14px;display:flex;align-items:center;gap:12px;"
+            "height:42px;box-sizing:border-box'>"
+            "<span style='font-size:15px;font-weight:800;color:" + _status_clr + "'>" + _narasi_level + "</span>"
+            "<span style='font-family:monospace;font-size:13px;color:#94a3b8'>Score " + str(round(_narasi_score, 1)) + "/100</span>"
+            + (_fc_badge if _is_fc_month else "") +
+            "</div>",
             unsafe_allow_html=True
         )
 
-    with na_r:
-        st.markdown("""<div style='font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;
-                    letter-spacing:.1em;margin-bottom:14px'>🔑 API & STATUS</div>""",
-                    unsafe_allow_html=True)
-
-        # ─ 3. PILIH BULAN & TAHUN ─────────────────────────
-        # Gabungkan bulan historis + proyeksi hingga 18 bulan ke depan
-        _avail_months_hist = sorted(predictions['month'].unique())
-        _last_data_month   = _avail_months_hist[-1]
-        _last_p            = pd.Period(_last_data_month, freq='M')
-        _fc_extra, _       = forecast_months(predictions, n=18, from_month=str(_last_p - 1))
-        _fc_months_only    = [f['month'] for f in _fc_extra]
-        _fc_score_map      = {f['month']: f['score'] for f in _fc_extra}
-        _fc_level_map      = {f['month']: f['level'] for f in _fc_extra}
-        _all_months        = _avail_months_hist + [m for m in _fc_months_only if m not in _avail_months_hist]
-        _avail_years       = sorted(set(m[:4] for m in _all_months), reverse=True)
-
-        if 'narasi_year_sel' not in st.session_state:
-            st.session_state['narasi_year_sel'] = sel[:4]
-        if 'narasi_month_sel' not in st.session_state:
-            st.session_state['narasi_month_sel'] = sel
-
-        st.markdown("""<div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
-                    border-radius:12px;padding:14px 16px;margin-bottom:10px'>
-            <div style='font-size:10px;color:#475569;margin-bottom:10px;text-transform:uppercase;
-                        letter-spacing:.07em;font-weight:700'>📅 BULAN YANG DIANALISIS</div>""",
-                    unsafe_allow_html=True)
-
-        _ny_col, _nm_col = st.columns(2)
-        with _ny_col:
-            _ny_idx  = _avail_years.index(st.session_state['narasi_year_sel']) \
-                       if st.session_state['narasi_year_sel'] in _avail_years else 0
-            _sel_year = st.selectbox("Tahun", _avail_years, index=_ny_idx, key="narasi_year_box")
-            st.session_state['narasi_year_sel'] = _sel_year
-
-        _months_for_year = [m for m in _all_months if m.startswith(_sel_year)]
-        _MONTH_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
-        def _month_label_fn(m):
-            base = _MONTH_ID[int(m[5:7])-1]
-            return (base + " 🔮") if m not in _avail_months_hist else base
-
-        with _nm_col:
-            _prev_nm = st.session_state.get('narasi_month_sel', sel)
-            _nm_default = _prev_nm if _prev_nm in _months_for_year else _months_for_year[-1]
-            _nm_idx  = _months_for_year.index(_nm_default)
-            _sel_month = st.selectbox("Bulan", _months_for_year,
-                                      format_func=_month_label_fn,
-                                      index=_nm_idx, key="narasi_month_box")
-            st.session_state['narasi_month_sel'] = _sel_month
-
-        narasi_target   = st.session_state['narasi_month_sel']
-        _is_fc_month    = narasi_target not in _avail_months_hist
-        if _is_fc_month:
-            _narasi_level = _fc_level_map.get(narasi_target, 'WASPADA')
-            _narasi_score = _fc_score_map.get(narasi_target, 0.0)
-        else:
-            _narasi_row   = get_row(narasi_target)
-            _narasi_level = str(_narasi_row.get('crisis_level', 'WASPADA'))
-            _narasi_score = sf(_narasi_row.get('crisis_score_100', 0))
-
-        _fc_badge = (
-            "<span style='font-size:10px;font-weight:700;background:rgba(167,139,250,0.15);"
-            "color:#a78bfa;padding:2px 8px;border-radius:10px;margin-left:6px'>🔮 Proyeksi</span>"
-        ) if _is_fc_month else ""
-        st.markdown(
-            "<div style='display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap'>"
-            "<span style='font-size:13px;font-weight:700;color:" + COLOR_MAP.get(_narasi_level,'#fff') + "'>"
-            + EMOJI_MAP.get(_narasi_level,'') + " " + _narasi_level + "</span>"
-            "<span style='font-size:10px;color:#475569'>·</span>"
-            "<span style='font-family:monospace;font-size:11px;color:#64748b'>Score "
-            + str(round(_narasi_score, 1)) + "/100</span>"
-            + _fc_badge +
-            "</div></div>",
-            unsafe_allow_html=True
-        )
-
-        # Cache status for narasi_target
-        _has_cache    = narasi_target in narratives_cache
-        _cache_level  = narratives_cache[narasi_target].get('crisis_level','') if _has_cache else ''
-        _cache_tokens = narratives_cache[narasi_target].get('tokens', 0)        if _has_cache else 0
-
-        _cache_bg  = "rgba(34,197,94,0.07)"  if _has_cache else "rgba(255,255,255,0.03)"
-        _cache_bdr = "rgba(34,197,94,0.2)"   if _has_cache else "rgba(255,255,255,0.06)"
+    with _c_cache:
+        _cache_bg  = "rgba(34,197,94,0.07)"  if _has_cache else "rgba(255,255,255,0.04)"
+        _cache_bdr = "rgba(34,197,94,0.25)"  if _has_cache else "rgba(255,255,255,0.10)"
         _cache_inner = (
-            "<div style='font-size:12px;color:#4ade80;font-weight:600'>✅ Tersedia</div>"
-            "<div style='font-size:10px;color:#475569;margin-top:2px'>Level: " + _cache_level +
-            " · " + str(_cache_tokens) + " tokens</div>"
-        ) if _has_cache else "<div style='font-size:12px;color:#475569'>Belum ada cache untuk bulan ini</div>"
-
+            "<span style='font-size:15px;color:#4ade80;font-weight:700'>Tersedia</span>"
+            "<span style='font-size:13px;color:#94a3b8;margin-left:8px'>Level: <b style='color:#e2e8f0'>" + _cache_level + "</b>"
+            " · " + str(_cache_tokens) + " tokens</span>"
+        ) if _has_cache else (
+            "<span style='font-size:14px;color:#94a3b8'>Belum ada cache untuk bulan ini</span>"
+        )
+        st.markdown("<div style='font-size:13px;font-weight:600;color:#e2e8f0;margin-top:31px;margin-bottom:4px'>Cache Narasi</div>", unsafe_allow_html=True)
         st.markdown(
             "<div style='background:" + _cache_bg + ";border:1px solid " + _cache_bdr + ";"
-            "border-radius:12px;padding:12px 16px;margin-bottom:10px'>"
-            "<div style='font-size:10px;color:#475569;margin-bottom:4px;text-transform:uppercase;"
-            "letter-spacing:.07em'>💾 CACHE NARASI</div>" + _cache_inner + "</div>",
+            "border-radius:8px;padding:0 14px;display:flex;align-items:center;gap:6px;"
+            "height:42px;box-sizing:border-box'>"
+            + _cache_inner + "</div>",
             unsafe_allow_html=True
         )
 
-        if not groq_key:
-            st.markdown("""
-            <div style='background:rgba(245,158,11,0.09);border:1px solid rgba(245,158,11,0.2);
-                        border-radius:12px;padding:14px 16px;'>
-                <div style='font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:6px'>
-                    🔑 Groq API Key Diperlukan
+    # ─ API KEY + GENERATE ─────────────────────────────────
+    st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
+    if not groq_key:
+        st.markdown("""
+        <div style='background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);
+                    border-left:4px solid #f59e0b;border-radius:12px;padding:20px 22px;
+                    margin-top:12px;display:flex;align-items:center;gap:24px'>
+            <div style='flex:1'>
+                <div style='font-size:16px;font-weight:800;color:#fbbf24;margin-bottom:8px;
+                            letter-spacing:-.01em'>
+                    Groq API Key Diperlukan
                 </div>
-                <div style='font-size:11px;color:#92400e;line-height:1.7;margin-bottom:10px'>
-                    Masukkan API Key di sidebar (kiri) untuk mengaktifkan Narasi AI.
-                    Key gratis dan bisa didapat dalam 30 detik.
+                <div style='font-size:14px;color:#d97706;line-height:1.75;font-weight:500'>
+                    Masukkan API Key di sidebar <strong style='color:#fbbf24'>(panel kiri)</strong>
+                    untuk mengaktifkan fitur Narasi AI.<br>
+                    Key 100% gratis dan bisa didapat dalam <strong style='color:#fbbf24'>30 detik</strong>
+                    — tidak butuh kartu kredit.
                 </div>
+            </div>
+            <div style='flex-shrink:0'>
                 <a href='https://console.groq.com/keys' target='_blank'
-                   style='display:inline-block;background:rgba(245,158,11,0.2);
-                          color:#fbbf24;font-size:11px;font-weight:700;
-                          padding:6px 14px;border-radius:6px;text-decoration:none'>
-                    → Dapatkan Key Gratis
+                   style='display:inline-flex;align-items:center;gap:8px;
+                          background:linear-gradient(135deg,#f59e0b,#d97706);
+                          color:#0a0a0a;font-size:14px;font-weight:800;
+                          padding:12px 24px;border-radius:8px;text-decoration:none;
+                          box-shadow:0 4px 16px rgba(245,158,11,0.4);
+                          white-space:nowrap;letter-spacing:.01em'>
+                    Dapatkan Key Gratis →
                 </a>
             </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div style='background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);
-                        border-radius:12px;padding:12px 16px;margin-bottom:10px'>
-                <div style='font-size:12px;color:#4ade80;font-weight:700'>✅ API Key Terhubung</div>
-                <div style='font-size:10px;color:#475569;margin-top:3px'>Siap generate narasi</div>
-            </div>
-            """, unsafe_allow_html=True)
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style='background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);
+                    border-radius:12px;padding:12px 16px;margin-top:12px'>
+            <div style='font-size:12px;color:#4ade80;font-weight:700'>API Key Terhubung</div>
+            <div style='font-size:10px;color:#475569;margin-top:3px'>Siap generate narasi</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        gen_btn = st.button("🚀 Generate Narasi AI", type="primary",
-                            width="stretch", disabled=not bool(groq_key))
+    # ── Generate button — scoped CSS via unique container ─
+    st.markdown("""
+    <style>
+    /* Scope ONLY to main content area, excluding sidebar */
+    section[data-testid="stMain"] div[data-testid="stButton"] > button[kind="primary"] {
+        background: #16a34a !important;
+        color: #ffffff !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        letter-spacing: .08em !important;
+        padding: 14px 28px !important;
+        border-radius: 10px !important;
+        border: 1px solid #22c55e !important;
+        box-shadow: 0 2px 14px rgba(22,163,74,0.4) !important;
+        transition: all .18s ease !important;
+        text-transform: uppercase !important;
+    }
+    section[data-testid="stMain"] div[data-testid="stButton"] > button[kind="primary"]:hover:not(:disabled) {
+        background: #15803d !important;
+        border-color: #4ade80 !important;
+        box-shadow: 0 4px 22px rgba(22,163,74,0.55) !important;
+        transform: translateY(-1px) !important;
+    }
+    section[data-testid="stMain"] div[data-testid="stButton"] > button[kind="primary"]:active:not(:disabled) {
+        transform: translateY(0) !important;
+    }
+    /* Disabled — amber tint, tetap kelihatan */
+    section[data-testid="stMain"] div[data-testid="stButton"] > button[kind="primary"]:disabled {
+        background: rgba(245,158,11,0.15) !important;
+        color: #f59e0b !important;
+        border: 1px solid rgba(245,158,11,0.3) !important;
+        box-shadow: none !important;
+        opacity: 1 !important;
+        cursor: not-allowed !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    _btn_label = "Generate Narasi AI"
+    gen_btn = st.button(_btn_label, type="primary",
+                        use_container_width=True, disabled=not bool(groq_key))
 
     # ── Divider ──────────────────────────────────────────
     st.markdown("<div style='border-top:1px solid rgba(255,255,255,0.06);margin:20px 0'></div>",
@@ -3250,7 +3429,7 @@ if selected_nav == "✨ Narasi AI":
 # DATA TABLE
 # ══════════════════════════════════════════════════════
 st.divider()
-with st.expander("📋 Tabel Data Prediksi Lengkap", expanded=False):
+with st.expander("Tabel Data Prediksi Lengkap", expanded=False):
     disp = ['month','wisman','tpk_bintang','inflasi_processed','usd_idr_avg',
             'avg_sentiment_monthly','bali_share_pct','wisman_zscore',
             'crisis_score_100','crisis_level','rf_predicted_level','rf_confidence','iso_anomaly']
