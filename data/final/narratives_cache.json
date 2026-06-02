@@ -88,5 +88,14 @@
     "crisis_level": "KRISIS",
     "report_type": "alert",
     "crisis_score": 61.8
+  },
+  "2026-05": {
+    "success": true,
+    "narrative": "**Laporan Bulanan Analitis - Mei 2026**\n\n**1. RINGKASAN EKSEKUTIF**\nBulan ini, skor krisis pariwisata Bali meningkat menjadi 42,1/100, masih dalam level WASPADA, dengan kenaikan 6,3 poin dibandingkan bulan lalu. Perubahan ini menunjukkan adanya sinyal awal yang perlu dipantau, tetapi belum menunjukkan perubahan mendadak yang signifikan.\n\n**2. ANALISIS INDIKATOR**\nIndikator yang paling signifikan bulan ini adalah kenaikan skor krisis, namun tidak diikuti oleh perubahan signifikan pada indikator lain seperti jumlah wisman, tingkat penghunian hotel, dan inflasi. Jumlah wisman tetap stabil di 551.100, dengan tingkat penghunian hotel 61,9%, tidak menunjukkan perubahan yang signifikan. Hal ini menunjukkan bahwa kenaikan skor krisis lebih terkait dengan faktor lain yang belum terdeteksi secara jelas.\n\n**3. ANALISIS KAUSAL — MENGAPA INI TERJADI?**\nKemungkinan penyebab utama kenaikan skor krisis adalah faktor eksternal seperti perubahan kondisi ekonomi global atau perubahan kebijakan pemerintah yang belum terdeteksi secara jelas. Karena tidak ada anomali IF yang terdeteksi, maka analisis lebih fokus pada tekanan dari faktor eksternal yang mempengaruhi industri pariwisata.\n\n**4. REKOMENDASI PRIORITAS**\n- **[Prioritas Tinggi]** Pemantauan kondisi ekonomi global dan kebijakan pemerintah yang terkait dengan industri pariwisata → target indikator yang diperbaiki: skor krisis turun 3 poin dalam 2 bulan ke depan.\n- **[Prioritas Sedang]** Evaluasi dan penyesuaian strategi pemasaran untuk meningkatkan jumlah wisman → target indikator yang diperbaiki: jumlah wisman naik 5% dalam 3 bulan ke depan.\n- **[Prioritas Rendah]** Peningkatan layanan dan fasilitas pariwisata untuk meningkatkan tingkat kepuasan wisman → target indikator yang diperbaiki: sentimen wisman meningkat 10% dalam 6 bulan ke depan.",
+    "tokens": 1141,
+    "month": "2026-05",
+    "crisis_level": "WASPADA",
+    "report_type": "monthly",
+    "crisis_score": 42.1
   }
 }

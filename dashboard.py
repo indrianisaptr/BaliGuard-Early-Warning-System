@@ -459,10 +459,10 @@ def load_data():
 
 @st.cache_resource
 def load_models():
-    rf     = joblib.load('data/models/model_random_forest.pkl')
-    iso_f  = joblib.load('data/models/model_isolation_forest.pkl')
-    scaler = joblib.load('data/models/scaler.pkl')
-    le     = joblib.load('data/models/label_encoder.pkl')
+    rf     = joblib.load('models/label_encoder.pkl')
+    iso_f  = joblib.load('models/model_isolation_forest.pkl')
+    scaler = joblib.load('models/scaler.pkl')
+    le     = joblib.load('models/label_encoder.pkl')
     return rf, iso_f, scaler, le
 
 try:
@@ -823,7 +823,7 @@ with st.sidebar:
     #     else:
     #         st.caption("✅ API key aktif")
 
-    # st.divider()
+    st.divider()
     
     row_s = get_row(sel)
     lv_s  = str(row_s.get('crisis_level','WASPADA'))
@@ -3132,46 +3132,46 @@ if selected_nav == "Narasi AI":
         )
 
     # ─ API KEY + GENERATE ─────────────────────────────────
-    st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
-    if not groq_key:
-        st.markdown("""
-        <div style='background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);
-                    border-left:4px solid #f59e0b;border-radius:12px;padding:20px 22px;
-                    margin-top:12px;display:flex;align-items:center;gap:24px'>
-            <div style='flex:1'>
-                <div style='font-size:16px;font-weight:800;color:#fbbf24;margin-bottom:8px;
-                            letter-spacing:-.01em'>
-                    Groq API Key Diperlukan
-                </div>
-                <div style='font-size:14px;color:#d97706;line-height:1.75;font-weight:500'>
-                    Masukkan API Key di sidebar <strong style='color:#fbbf24'>(panel kiri)</strong>
-                    untuk mengaktifkan fitur Narasi AI.<br>
-                    Key 100% gratis dan bisa didapat dalam <strong style='color:#fbbf24'>30 detik</strong>
-                    — tidak butuh kartu kredit.
-                </div>
-            </div>
-            <div style='flex-shrink:0'>
-                <a href='https://console.groq.com/keys' target='_blank'
-                   style='display:inline-flex;align-items:center;gap:8px;
-                          background:linear-gradient(135deg,#f59e0b,#d97706);
-                          color:#0a0a0a;font-size:14px;font-weight:800;
-                          padding:12px 24px;border-radius:8px;text-decoration:none;
-                          box-shadow:0 4px 16px rgba(245,158,11,0.4);
-                          white-space:nowrap;letter-spacing:.01em'>
-                    Dapatkan Key Gratis →
-                </a>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div style='background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);
-                    border-radius:12px;padding:12px 16px;margin-top:12px'>
-            <div style='font-size:12px;color:#4ade80;font-weight:700'>API Key Terhubung</div>
-            <div style='font-size:10px;color:#475569;margin-top:3px'>Siap generate narasi</div>
-        </div>
-        """, unsafe_allow_html=True)
-
+    # st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
+    # if not groq_key:
+    #     st.markdown("""
+    #     <div style='background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);
+    #                 border-left:4px solid #f59e0b;border-radius:12px;padding:20px 22px;
+    #                 margin-top:12px;display:flex;align-items:center;gap:24px'>
+    #         <div style='flex:1'>
+    #             <div style='font-size:16px;font-weight:800;color:#fbbf24;margin-bottom:8px;
+    #                         letter-spacing:-.01em'>
+    #                 Groq API Key Diperlukan
+    #             </div>
+    #             <div style='font-size:14px;color:#d97706;line-height:1.75;font-weight:500'>
+    #                 Masukkan API Key di sidebar <strong style='color:#fbbf24'>(panel kiri)</strong>
+    #                 untuk mengaktifkan fitur Narasi AI.<br>
+    #                 Key 100% gratis dan bisa didapat dalam <strong style='color:#fbbf24'>30 detik</strong>
+    #                 — tidak butuh kartu kredit.
+    #             </div>
+    #         </div>
+    #         <div style='flex-shrink:0'>
+    #             <a href='https://console.groq.com/keys' target='_blank'
+    #                style='display:inline-flex;align-items:center;gap:8px;
+    #                       background:linear-gradient(135deg,#f59e0b,#d97706);
+    #                       color:#0a0a0a;font-size:14px;font-weight:800;
+    #                       padding:12px 24px;border-radius:8px;text-decoration:none;
+    #                       box-shadow:0 4px 16px rgba(245,158,11,0.4);
+    #                       white-space:nowrap;letter-spacing:.01em'>
+    #                 Dapatkan Key Gratis →
+    #             </a>
+    #         </div>
+    #     </div>
+    #     """, unsafe_allow_html=True)
+    # else:
+    #     st.markdown("""
+    #     <div style='background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);
+    #                 border-radius:12px;padding:12px 16px;margin-top:12px'>
+    #         <div style='font-size:12px;color:#4ade80;font-weight:700'>API Key Terhubung</div>
+    #         <div style='font-size:10px;color:#475569;margin-top:3px'>Siap generate narasi</div>
+    #     </div>
+    #     """, unsafe_allow_html=True)
+    groq_key = _get_groq_key()
     # ── Generate button — scoped CSS via unique container ─
     st.markdown("""
     <style>
