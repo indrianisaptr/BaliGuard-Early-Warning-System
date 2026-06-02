@@ -480,6 +480,14 @@ if not DATA_OK:
 # ══════════════════════════════════════════════════════
 # HELPERS
 # ══════════════════════════════════════════════════════
+def _get_groq_key() -> str:
+    try:
+        k = st.secrets.get("GROQ_API", "")
+        if k: return k
+    except Exception:
+        pass
+    return os.environ.get("GROQ_API", "")
+
 def sf(val, d=0.0):
     try: return float(val)
     except: return d
@@ -802,20 +810,21 @@ with st.sidebar:
 
     selected_nav = st.session_state.selected_nav
 
-    st.divider()
-    # ── Groq API Key (tersembunyi di expander) ────────────
-    with st.expander("✦ API untuk Aktifkan Narasi AI", expanded=False):
-        st.caption("Masukkan API key Groq Anda untuk mengaktifkan narasi AI.")
-        groq_key = st.text_input("API Key", type="password", placeholder="gsk_...",
-                                  label_visibility="collapsed",
-                                  help="Dapatkan gratis di console.groq.com")
-        if not groq_key:
-            st.caption("↵ Tekan Enter untuk menerapkan")
-            st.caption("💡 [Key gratis → console.groq.com](https://console.groq.com/keys)")
-        else:
-            st.caption("✅ API key aktif")
+    # st.divider()
+    # # ── Groq API Key (tersembunyi di expander) ────────────
+    # with st.expander("✦ API untuk Aktifkan Narasi AI", expanded=False):
+    #     st.caption("Masukkan API key Groq Anda untuk mengaktifkan narasi AI.")
+    #     groq_key = st.text_input("API Key", type="password", placeholder="gsk_...",
+    #                               label_visibility="collapsed",
+    #                               help="Dapatkan gratis di console.groq.com")
+    #     if not groq_key:
+    #         st.caption("↵ Tekan Enter untuk menerapkan")
+    #         st.caption("💡 [Key gratis → console.groq.com](https://console.groq.com/keys)")
+    #     else:
+    #         st.caption("✅ API key aktif")
 
-    st.divider()
+    # st.divider()
+    
     row_s = get_row(sel)
     lv_s  = str(row_s.get('crisis_level','WASPADA'))
     sc_s  = sf(row_s.get('crisis_score_100',0))
