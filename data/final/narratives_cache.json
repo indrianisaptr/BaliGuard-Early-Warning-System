@@ -1,0 +1,92 @@
+{
+  "2020-03": {
+    "success": true,
+    "narrative": "**PERINGATAN DARURAT**\n\nKondisi pariwisata Bali telah mencapai Level KRISIS dengan Crisis Score 83,7/100. Tiga indikator kritis yang menyebabkan kondisi ini adalah: \n1. Penurunan kunjungan wisatawan (167.461, turun dari rata-rata 484.551),\n2. Pangsa pasar Bali yang rendah (26,4% dari nasional),\n3. Tingkat pengisi hotel yang rendah (23,0%). \nRekomendasi: Lakukan kampanye promosi pariwisata darurat dalam 7 hari untuk meningkatkan kesadaran dan menarik wisatawan.",
+    "tokens": 572,
+    "month": "2020-03",
+    "crisis_level": "KRISIS",
+    "report_type": "alert",
+    "crisis_score": 83.7
+  },
+  "2020-04": {
+    "success": true,
+    "narrative": "**PERINGATAN DARURAT**\n\nKondisi pariwisata Bali saat ini berada pada Level KRISIS dengan Crisis Score 83.3/100. Tiga indikator kritis yang menyebabkan kondisi ini adalah:\n1. Penurunan kunjungan wisatawan yang signifikan (turun 3,3%),\n2. Pangsa pasar Bali yang menurun (Z-score -2,26),\n3. Sentimen wisatawan yang rendah (0,68).\n\nRekomendasi tindakan segera: Lakukan kampanye promosi pariwisata Bali dalam 7 hari untuk meningkatkan kesadaran dan minat wisatawan.",
+    "tokens": 567,
+    "month": "2020-04",
+    "crisis_level": "KRISIS",
+    "report_type": "alert",
+    "crisis_score": 83.3
+  },
+  "2020-07": {
+    "success": true,
+    "narrative": "PERINGATAN DARURAT: Kondisi pariwisata Bali dalam level KRISIS dengan Crisis Score 74,4/100. Penyebab utama adalah penurunan kunjungan wisatawan (16, turun dari rata-rata 153), inflasi yang meningkat (1,54%), dan sentimen yang rendah (0,574). Rekomendasi segera: lakukan kampanye promosi pariwisata dalam 7 hari untuk meningkatkan kunjungan wisatawan dan mengatasi krisis ini.",
+    "tokens": 528,
+    "month": "2020-07",
+    "crisis_level": "KRISIS",
+    "report_type": "alert",
+    "crisis_score": 74.4
+  },
+  "2020-05": {
+    "success": true,
+    "narrative": "**PERINGATAN DARURAT**\n\nKondisi pariwisata Bali saat ini berada pada **Level KRISIS** dengan Crisis Score 73,1/100. Tiga indikator kritis yang menyebabkan kondisi ini adalah: \n1. Penurunan kunjungan wisatawan (trend turun, rata-rata 3 bulan: 177.493) yang berdampak pada penurunan pendapatan.\n2. Pangsa pasar Bali yang menurun (26,4% dari nasional) yang menunjukkan kemerosotan daya saing.\n3. Tingkat pengisi hotel yang rendah (3,1%) yang mengindikasikan lesunya permintaan akomodasi.\n\nRekomendasi tindakan segera: **Lakukan kampanye promosi pariwisata Bali secara daring dan luring dalam 7 hari** untuk meningkatkan kesadaran dan menarik wisatawan.",
+    "tokens": 617,
+    "month": "2020-05",
+    "crisis_level": "KRISIS",
+    "report_type": "alert",
+    "crisis_score": 73.1
+  },
+  "2020-02": {
+    "success": true,
+    "narrative": "**PERINGATAN DARURAT**\n\nLevel Krisis dengan Crisis Score 70,5/100. Tiga indikator kritis yang menyebabkan kondisi ini adalah: \n1. Penurunan kunjungan wisatawan (trend turun, rata-rata 3 bulan terakhir 528.980 menjadi 364.639),\n2. Pangsa pasar Bali yang menurun (26,4% dari nasional),\n3. Tingkat pengisiian kamar hotel yang rendah (43,3%).\n\nRekomendasi: Lakukan kampanye promosi pariwisata darurat dalam 7 hari untuk meningkatkan kesadaran dan minat wisatawan.",
+    "tokens": 572,
+    "month": "2020-02",
+    "crisis_level": "KRISIS",
+    "report_type": "alert",
+    "crisis_score": 70.5
+  },
+  "2015-11": {
+    "success": true,
+    "narrative": "**PERINGATAN DARURAT**\n\nKondisi kritis pariwisata Bali telah terdeteksi dengan Level KRISIS dan Crisis Score 66,5/100. Tiga indikator kritis yang menyebabkan kondisi ini adalah: \n1. Penurunan kunjungan wisatawan (270.935, turun dari rata-rata 354.043),\n2. Inflasi yang meningkat (4,89%), dan \n3. Sentimen yang rendah (0,121). \nRekomendasi tindakan segera: Lakukan kampanye promosi pariwisata intensif dalam 7 hari untuk meningkatkan kunjungan wisatawan.",
+    "tokens": 564,
+    "month": "2015-11",
+    "crisis_level": "KRISIS",
+    "report_type": "alert",
+    "crisis_score": 66.5
+  },
+  "2020-08": {
+    "success": true,
+    "narrative": "**PERINGATAN DARURAT**\n\nKondisi pariwisata Bali saat ini berada pada Level KRISIS dengan Crisis Score 66,1/100. Tiga indikator kritis yang menyebabkan kondisi ini adalah: \n1) penurunan kunjungan wisatawan yang signifikan (turun 32% dalam 3 bulan terakhir), \n2) penurunan pangsa pasar pariwisata Bali secara nasional (26,4% dengan Z-score -1,03), \n3) inflasi yang meningkat (1,36%) yang dapat mempengaruhi daya beli wisatawan.\n\nRekomendasi tindakan segera: Implementasikan paket promo wisata spesial dalam 7 hari untuk meningkatkan kunjungan wisatawan dan memulihkan kepercayaan pasar.",
+    "tokens": 591,
+    "month": "2020-08",
+    "crisis_level": "KRISIS",
+    "report_type": "alert",
+    "crisis_score": 66.1
+  },
+  "2021-03": {
+    "success": true,
+    "narrative": "**PERINGATAN DARURAT**\n\nKondisi pariwisata Bali saat ini berada pada **Level KRISIS** dengan Crisis Score 65,2/100. Tiga indikator kritis yang menyebabkan kondisi ini adalah: \n1. Penurunan kunjungan wisatawan (trend turun, rata-rata 3 bulan: 57),\n2. Pangsa pasar Bali yang rendah (0,0% dari nasional), \n3. Tingkat pengisi hotel yang relatif rendah (9,7%).\n\nRekomendasi tindakan segera: **Luncurkan kampanye promosi pariwisata dalam 7 hari** untuk meningkatkan kesadaran dan minat wisatawan domestik dan internasional.",
+    "tokens": 578,
+    "month": "2021-03",
+    "crisis_level": "KRISIS",
+    "report_type": "alert",
+    "crisis_score": 65.2
+  },
+  "2020-09": {
+    "success": true,
+    "narrative": "**PERINGATAN DARURAT**\n\nKondisi pariwisata Bali saat ini berada pada **Level KRISIS** dengan Crisis Score 64,4/100. Tiga indikator kritis yang menyebabkan kondisi ini adalah:\n\n1. Penurunan kunjungan wisatawan (trend turun, rata-rata 3 bulan: 24).\n2. Pangsa pasar Bali yang relatif rendah (26,4% dari nasional).\n3. Tingkat pengisi hotel yang rendah (4,5%).\n\nRekomendasi tindakan segera: **Lakukan kampanye promosi pariwisata intensif dalam 7 hari** untuk meningkatkan kesadaran dan minat wisatawan domestik dan internasional.",
+    "tokens": 574,
+    "month": "2020-09",
+    "crisis_level": "KRISIS",
+    "report_type": "alert",
+    "crisis_score": 64.4
+  },
+  "2021-07": {
+    "success": true,
+    "narrative": "**PERINGATAN DARURAT**\n\nLevel krisis pariwisata Bali telah mencapai 61,8/100, menandakan kondisi kritis yang membutuhkan respons segera. Tiga indikator kritis yang menyebabkan kondisi ini adalah:\n\n1. Kunjungan wisatawan yang sangat rendah (0), \n2. Pangsa Bali di pasar nasional yang tidak signifikan (0,0%), \n3. TPK Hotel yang rendah (4,8%).\n\nRekomendasi tindakan segera: Lakukan kampanye promosi pariwisata Bali secara besar-besaran dalam 7 hari ke depan untuk meningkatkan kesadaran dan minat wisatawan.",
+    "tokens": 567,
+    "month": "2021-07",
+    "crisis_level": "KRISIS",
+    "report_type": "alert",
+    "crisis_score": 61.8
+  }
+}
