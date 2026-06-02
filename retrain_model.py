@@ -73,7 +73,7 @@ def load_data() -> pd.DataFrame:
 
 
 TARGET      = 'crisis_level'
-LABEL_ORDER = ['AMAN', 'WASPADA', 'SIAGA', 'KRISIS']
+LABEL_ORDER = ['AMAN', 'KRISIS', 'SIAGA', 'WASPADA']
 
 
 def prepare_model_data(df: pd.DataFrame):
