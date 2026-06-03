@@ -40,27 +40,18 @@ MDL_DIR  = BASE / 'models'
 for d in [DATA_RAW / 'updates', DATA_PRO, DATA_FIN, MDL_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
-# ── Crisis score weights — DARI NB04 Cell[17] ACTUAL CODE ──────────────────
-# CATATAN: NB04 Cell[16] COMMENT bilang "45/30/25" tapi CODE Cell[17] = 0.75/0.20/0.05
-# update_pipeline versi lama ikut comment → SALAH → sudah diperbaiki
-# (konstanta ini tidak dipakai langsung oleh compute_crisis_score() lagi,
-#  tapi disimpan di sini sebagai dokumentasi)
-W_TOURISM   = 0.75   # ← 0.75 sesuai NB04 Cell[17]
-W_ECONOMY   = 0.20
-W_SENTIMENT = 0.05
+# ── Crisis score weights (HARUS sama persis dengan NB04 FINAL) ──
+# NB04 cell 16: 0.45 tourism · 0.30 economy · 0.25 sentiment
+W_TOURISM   = 0.45
+W_ECONOMY   = 0.30
+W_SENTIMENT = 0.25
 
 # ── Level thresholds (HARUS sama persis dengan NB04 FINAL) ──
-THRESHOLD_KRISIS  = 60
-THRESHOLD_SIAGA   = 45
-THRESHOLD_WASPADA = 30
-
+# NB04: >= 60 KRISIS · >= 45 SIAGA · >= 30 WASPADA
 def level_from_score(s: float) -> str:
-    if s >= THRESHOLD_KRISIS:
-        return 'KRISIS'
-    if s >= THRESHOLD_SIAGA:
-        return 'SIAGA'
-    if s >= THRESHOLD_WASPADA:
-        return 'WASPADA'
+    if s >= 60: return 'KRISIS'
+    if s >= 45: return 'SIAGA'
+    if s >= 30: return 'WASPADA'
     return 'AMAN'
 
 
@@ -309,96 +300,72 @@ def rebuild_features(df: pd.DataFrame, usd_df: pd.DataFrame) -> pd.DataFrame:
 # ════════════════════════════════════════════════════════════
 
 def compute_crisis_score(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Hitung ulang crisis_score_100 — formula sama persis dengan NB04.
-
-    PERBEDAAN DARI VERSI LAMA (bug yang diperbaiki):
-    1. WEIGHTS: 0.75/0.20/0.05 (bukan 0.45/0.30/0.25)
-       → NB04 Cell[17] actual code, bukan comment-nya
-    2. NORMALISASI: MinMax pada wisman_growth_mom & usd sebelum dipakai
-       → NB04 Cell[14]: fit MinMax, clip outlier 5-95pct, normalize ke 0-1
-    3. SPECIAL RULE: wisman < 5% baseline → force SIAGA/KRISIS
-       → NB04 Cell[18] label_crisis()
-    """
-    from sklearn.preprocessing import MinMaxScaler
+    """Hitung ulang crisis_score_100 dan crisis_level."""
     df = df.copy()
 
-    # ── Step 1: MinMax normalisasi (NB04 Cell[14]) ──────────────────────────
-    # Kolom yang perlu dinormalisasi sebelum masuk ke komponen
-    cols_to_norm = ['wisman_growth_mom', 'wisman_growth_yoy',
-                    'usd_volatility_3m', 'usd_change_mom']
-    cols_avail   = [c for c in cols_to_norm if c in df.columns]
+    scores = pd.Series(np.zeros(len(df)), index=df.index)
+    weights_used = pd.Series(np.zeros(len(df)), index=df.index)
 
-    if cols_avail:
-        temp_norm = df[cols_avail].copy()
-        for col in cols_avail:
-            q05 = temp_norm[col].quantile(0.05)
-            q95 = temp_norm[col].quantile(0.95)
-            temp_norm[col] = temp_norm[col].clip(q05, q95)
-        normalized = MinMaxScaler().fit_transform(temp_norm.fillna(0))
-        for i, col in enumerate(cols_avail):
-            df[f'{col}_norm'] = normalized[:, i]
-
-    # ── Step 2: Tourism component (NB04 Cell[16]) ───────────────────────────
-    # growth_score = 1 - wisman_growth_mom_norm  (inverted: rendah = krisis)
-    # zscore_score = clip(-zscore, 0, 4) / 4
-    # tourism = 0.6 * growth_score + 0.4 * zscore_score
+    # ── Tourism component (75%) ──────────────────────────────
     tourism_score = pd.Series(np.zeros(len(df)), index=df.index)
-    if 'wisman_growth_mom_norm' in df.columns:
-        tourism_score += (1 - df['wisman_growth_mom_norm'].fillna(0)) * 0.6
+    t_parts = 0
+
     if 'wisman_zscore' in df.columns:
         z = df['wisman_zscore'].fillna(0)
-        tourism_score += (np.clip(-z, 0, 4) / 4) * 0.4
+        zscore_score = np.clip(-z, 0, 4) / 4
+        tourism_score += zscore_score * 0.5
+        t_parts += 0.5
+
+    if 'wisman_growth_mom' in df.columns:
+        g = df['wisman_growth_mom'].fillna(0)
+        growth_score = np.clip(-g, 0, 1)
+        tourism_score += growth_score * 0.3
+        t_parts += 0.3
+
+    if 'tpk_bintang' in df.columns:
+        tpk_norm = 1 - (df['tpk_bintang'].fillna(50) / 100)
+        tourism_score += tpk_norm * 0.2
+        t_parts += 0.2
+
+    if t_parts > 0:
+        tourism_score = tourism_score / t_parts
     df['crisis_component_tourism'] = tourism_score.clip(0, 1)
 
-    # ── Step 3: Economy component (NB04 Cell[16]) ───────────────────────────
-    # 0.4*usd_volatility_norm + 0.3*usd_change_norm + 0.3*tpk_score
+    # ── Economy component (20%) ──────────────────────────────
     economy_score = pd.Series(np.zeros(len(df)), index=df.index)
-    if 'usd_volatility_3m_norm' in df.columns:
-        economy_score += df['usd_volatility_3m_norm'].fillna(0) * 0.4
-    if 'usd_change_mom_norm' in df.columns:
-        economy_score += df['usd_change_mom_norm'].fillna(0) * 0.3
-    if 'tpk_bintang' in df.columns:
-        tpk_score = np.maximum(0, (60 - df['tpk_bintang'].fillna(50)) / 60)
-        economy_score += tpk_score * 0.3
+    e_parts = 0
+
+    if 'usd_change_mom' in df.columns:
+        usd_ch = df['usd_change_mom'].fillna(0)
+        usd_score = np.clip(usd_ch * 5, 0, 1)
+        economy_score += usd_score * 0.5
+        e_parts += 0.5
+
+    if 'inflasi_processed' in df.columns:
+        inf_score = np.clip(df['inflasi_processed'].fillna(3) / 10, 0, 1)
+        economy_score += inf_score * 0.5
+        e_parts += 0.5
+
+    if e_parts > 0:
+        economy_score = economy_score / e_parts
     df['crisis_component_economy'] = economy_score.clip(0, 1)
 
-    # ── Step 4: Sentiment component (NB04 Cell[16]) ─────────────────────────
-    # Sentimen -1..1 → inverted → 0-1 (negatif = skor tinggi = krisis)
+    # ── Sentiment component (5%) ─────────────────────────────
     sent_score = pd.Series(np.zeros(len(df)), index=df.index)
     if 'avg_sentiment_monthly' in df.columns:
+        # Sentimen -1..1 → dibalik (negatif = buruk = score tinggi)
         s = df['avg_sentiment_monthly'].fillna(0)
         sent_score = np.clip((-s + 1) / 2, 0, 1)
     df['crisis_component_sentiment'] = sent_score
 
-    # ── Step 5: Combined score — bobot BENAR dari NB04 Cell[17] ─────────────
-    # PERHATIAN: comment Cell[16] bilang "45/30/25" tapi CODE-nya "75/20/5"
-    # update_pipeline lama salah ikut comment, bukan code → bug!
-    WEIGHT_TOURISM   = 0.75   # ← 0.75 (bukan 0.45)
-    WEIGHT_ECONOMY   = 0.20   # ← 0.20 (bukan 0.30)
-    WEIGHT_SENTIMENT = 0.05   # ← 0.05 (bukan 0.25)
-
+    # ── Combined score ───────────────────────────────────────
     df['crisis_score'] = (
-        WEIGHT_TOURISM   * df['crisis_component_tourism'] +
-        WEIGHT_ECONOMY   * df['crisis_component_economy'] +
-        WEIGHT_SENTIMENT * df['crisis_component_sentiment']
+        W_TOURISM   * df['crisis_component_tourism'] +
+        W_ECONOMY   * df['crisis_component_economy'] +
+        W_SENTIMENT * df['crisis_component_sentiment']
     )
     df['crisis_score_100'] = (df['crisis_score'] * 100).clip(0, 100)
-
-    # ── Step 6: Label dengan special rule NB04 Cell[18] ─────────────────────
-    # Jika wisman < 5% baseline pre-COVID → force minimal SIAGA/KRISIS
-    PRECOVID_MEAN = 501206   # avg wisman Bali 2017-2019
-    baselines = df.get('wisman_precovid_mean', pd.Series(PRECOVID_MEAN, index=df.index))
-
-    def _label(row):
-        score  = row['crisis_score_100']
-        wisman = row.get('wisman', PRECOVID_MEAN)
-        base   = baselines.loc[row.name] if hasattr(baselines, 'loc') else PRECOVID_MEAN
-        if wisman < base * 0.05:
-            return 'KRISIS' if score >= THRESHOLD_KRISIS else 'SIAGA'
-        return level_from_score(score)
-
-    df['crisis_level'] = df.apply(_label, axis=1)
+    df['crisis_level']     = df['crisis_score_100'].apply(level_from_score)
 
     return df
 
@@ -545,16 +512,10 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
         rf_proba = rf_model.predict_proba(X_scaled)
         df_model['rf_predicted_level'] = le.inverse_transform(rf_pred)
         df_model['rf_confidence']      = rf_proba.max(axis=1)
-        # ✅ FIX: pakai rf_model.classes_ (kelas yang benar-benar diketahui model)
-        # bukan le.classes_ — kalau suatu saat KRISIS hilang dari data,
-        # le.classes_ tetap punya 4 entry tapi rf_proba hanya punya 3 kolom → IndexError
-        rf_classes = list(le.inverse_transform(rf_model.classes_))
+        classes = list(le.classes_)
         for cls in ['KRISIS', 'SIAGA', 'WASPADA', 'AMAN']:
             col = f'prob_{cls.lower()}'
-            if cls in rf_classes:
-                df_model[col] = rf_proba[:, rf_classes.index(cls)]
-            else:
-                df_model[col] = 0.0
+            df_model[col] = rf_proba[:, classes.index(cls)] if cls in classes else 0.0
     except Exception as e:
         print(f"  ⚠️  RandomForest predict gagal: {e}. Fallback rule-based.")
         return _rule_based(df)

@@ -50,7 +50,7 @@ def level_from_score(s: float) -> str:
 # ── Path config ──────────────────────────────────────────────
 BASE     = Path(__file__).parent
 DATA_FIN = BASE / 'data' / 'final'
-MDL_DIR  = BASE / 'data' / 'models'
+MDL_DIR  = BASE / 'models'
 MDL_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Model config (sama dengan notebook 05) ──────────────────
@@ -235,11 +235,15 @@ def generate_predictions(df: pd.DataFrame, df_model: pd.DataFrame,
     df_model['rf_predicted_level'] = le.inverse_transform(rf_pred)
     df_model['rf_confidence']      = rf_proba.max(axis=1)
 
-    classes = list(le.classes_)
+    # ✅ FIX: pakai rf.classes_ (kelas yang benar-benar diketahui model)
+    # bukan le.classes_ — kalau KRISIS hilang dari data training,
+    # le.classes_ tetap 4 entry tapi rf_proba hanya 3 kolom → IndexError
+    rf_classes = list(le.inverse_transform(rf.classes_))
     for cls in ['KRISIS', 'SIAGA', 'WASPADA', 'AMAN']:
         col = f'prob_{cls.lower()}'
-        if cls in classes:
-            df_model[col] = rf_proba[:, classes.index(cls)]
+        if cls in rf_classes:
+            idx = rf_classes.index(cls)
+            df_model[col] = rf_proba[:, idx]
         else:
             df_model[col] = 0.0
 
@@ -267,9 +271,52 @@ def generate_predictions(df: pd.DataFrame, df_model: pd.DataFrame,
 
 def save_outputs(df: pd.DataFrame, scaler, iso, rf, le, feat_cols):
     """Simpan model dan predictions."""
-    # ── Re-apply threshold sebelum simpan (aman kalau dipanggil standalone) ──
-    if 'crisis_score_100' in df.columns:
-        df['crisis_level'] = df['crisis_score_100'].apply(level_from_score)
+    # # ── Re-apply threshold sebelum simpan (aman kalau dipanggil standalone) ──
+    # if 'crisis_score_100' in df.columns:
+    #     df['crisis_level'] = df['crisis_score_100'].apply(level_from_score)
+
+    # Models
+    joblib.dump(scaler, MDL_DIR / 'scaler.pkl')
+    joblib.dump(iso,    MDL_DIR / 'model_isolation_forest.pkl')
+    joblib.dump(rf,     MDL_DIR / 'model_random_forest.pkl')
+    joblib.dump(le,     MDL_DIR / 'label_encoder.pkl')
+    print(f"\n  ✅ Models saved → {MDL_DIR}/")
+
+    # Predictions CSV — sertakan wisman_growth jika ada
+    pred_cols = [
+        'month', 'wisman', 'tpk_bintang', 'inflasi_processed',
+        'usd_idr_avg', 'avg_sentiment_monthly', 'bali_share_pct',
+        'wisman_zscore', 'wisman_growth_mom', 'wisman_growth_yoy',
+        'crisis_score_100', 'crisis_level',
+        'rf_predicted_level', 'rf_confidence', 'iso_anomaly',
+        'prob_krisis', 'prob_siaga', 'prob_waspada', 'prob_aman',
+        'crisis_component_tourism', 'crisis_component_economy', 'crisis_component_sentiment',
+    ]
+    pred_cols_avail = [c for c in pred_cols if c in df.columns]
+    pred_path = DATA_FIN / 'predictions_final.csv'
+    df[pred_cols_avail].to_csv(pred_path, index=False)
+    print(f"  ✅ predictions_final.csv ({len(df)} baris, {len(pred_cols_avail)} kolom)")
+
+    # Master parquet
+    df.to_parquet(DATA_FIN / 'master_dataset_clean.parquet', index=False)
+    print(f"  ✅ master_dataset_clean.parquet updated")
+
+    # Feature importance log
+    fi = pd.Series(rf.feature_importances_, index=feat_cols).sort_values(ascending=False)
+    fi.to_csv(MDL_DIR / 'feature_importance.csv')
+    print(f"\n  🌲 Top 5 features:")
+    for name, val in fi.head(5).items():
+        print(f"     {name:35s} {val:.4f}")
+
+
+def run_retrain(verbose: bool = True):
+    print("\n" + "═" * 60)
+    print("  🤖 BaliGuard — Model Retraining")
+    print(f"  📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("═" * 60)
+
+def save_outputs(df: pd.DataFrame, scaler, iso, rf, le, feat_cols):
+    """Simpan model dan predictions."""
 
     # Models
     joblib.dump(scaler, MDL_DIR / 'scaler.pkl')
@@ -315,10 +362,9 @@ def run_retrain(verbose: bool = True):
     print("\n[1/5] Loading data...")
     df = load_data()
 
-    # ── Auto-relabel crisis_level pakai threshold terbaru ──
-    print(f"\n  🔁 Re-labeling crisis_level dengan threshold {THRESHOLD_KRISIS}/{THRESHOLD_SIAGA}/{THRESHOLD_WASPADA}...")
-    df['crisis_level'] = df['crisis_score_100'].apply(level_from_score)
-    print(f"  Distribusi baru: {df['crisis_level'].value_counts().to_dict()}")
+    # ── Gunakan label dari master dataset ──
+    print("\n  📊 Menggunakan crisis_level dari master dataset...")
+    print(f"  Distribusi existing: {df['crisis_level'].value_counts().to_dict()}")
 
     # ── Pastikan wisman_growth_mom & yoy ada di df ─────────
     for col in ['wisman_growth_mom', 'wisman_growth_yoy']:
