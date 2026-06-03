@@ -32,6 +32,38 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+# ── LOADING STATE: skeleton flash + fade-in transition ──────────────────────
+def _inject_page_transition_css():
+    st.markdown("""
+<style>
+/* Fade-in animasi untuk seluruh main content saat page baru muncul */
+@keyframes _bg_fadein {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+[data-testid="stMainBlockContainer"] > div:first-child {
+    animation: _bg_fadein 0.10s ease-out both;
+}
+
+/* Skeleton shimmer keyframe */
+@keyframes _shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position:  600px 0; }
+}
+.bg-skeleton {
+    border-radius: 10px;
+    background: linear-gradient(90deg,
+        rgba(255,255,255,0.04) 25%,
+        rgba(255,255,255,0.09) 50%,
+        rgba(255,255,255,0.04) 75%);
+    background-size: 600px 100%;
+    animation: _shimmer 1.2s infinite linear;
+}
+</style>""", unsafe_allow_html=True)
+
+_inject_page_transition_css()
+
+
 
 # ══════════════════════════════════════════════════════
 # CSS — LUXURY DARK THEME
@@ -1502,13 +1534,40 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+
 # ══════════════════════════════════════════════════════
 # MAIN CONTENT — navigasi dari sidebar
 # ══════════════════════════════════════════════════════
 
+# ─── Loading state: deteksi nav change → skeleton placeholder ───────────────
+_prev_nav = st.session_state.get("_prev_nav", selected_nav)
+_nav_just_changed = (_prev_nav != selected_nav)
+st.session_state["_prev_nav"] = selected_nav
+
+# Skeleton placeholder — tampil sebentar saat nav baru dipilih
+_main_placeholder = st.empty()
+if _nav_just_changed:
+    with _main_placeholder.container():
+        st.markdown("""
+<div style='margin-top:20px'>
+  <div class='bg-skeleton' style='height:38px;width:55%;margin-bottom:20px'></div>
+  <div style='display:flex;gap:14px;margin-bottom:20px'>
+    <div class='bg-skeleton' style='height:110px;flex:1;border-radius:12px'></div>
+    <div class='bg-skeleton' style='height:110px;flex:1;border-radius:12px'></div>
+    <div class='bg-skeleton' style='height:110px;flex:1;border-radius:12px'></div>
+    <div class='bg-skeleton' style='height:110px;flex:1;border-radius:12px'></div>
+  </div>
+  <div class='bg-skeleton' style='height:340px;width:100%;border-radius:14px;margin-bottom:16px'></div>
+  <div style='display:flex;gap:14px'>
+    <div class='bg-skeleton' style='height:180px;flex:2;border-radius:12px'></div>
+    <div class='bg-skeleton' style='height:180px;flex:1;border-radius:12px'></div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
 # ─── TAB 1: OVERVIEW ─────────────────────────────────
 if selected_nav == "Overview & Timeline":
     _tick("nav_start_overview")
+    _main_placeholder.empty()  # hapus skeleton, render konten asli
     fig = _build_overview_fig(str(sel))
     st.plotly_chart(fig, use_container_width=True)
 
@@ -1569,6 +1628,7 @@ if selected_nav == "Overview & Timeline":
 # ─── TAB 2: ANALISIS DETAIL ───────────────────────────
 if selected_nav == "Analisis Detail":
     _tick("nav_start_analisis")
+    _main_placeholder.empty()  # hapus skeleton, render konten asli
 
     # CSS override untuk st.container(border=True) — ini satu-satunya cara
     # yang benar-benar membungkus st.plotly_chart() di Streamlit
@@ -1754,6 +1814,7 @@ if selected_nav == "Analisis Detail":
 # ─── TAB 3: SENTIMEN ─────────────────────────────────
 if selected_nav == "Sentimen":
     _tick("nav_start_sentimen")
+    _main_placeholder.empty()  # hapus skeleton, render konten asli
 
     st.markdown("""
     <style>
@@ -2090,6 +2151,7 @@ if selected_nav == "Sentimen":
 # ─── TAB 4: PREDIKSI & PROYEKSI ──────────────────────
 if selected_nav == "Prediksi & Proyeksi":
     _tick("nav_start_prediksi")
+    _main_placeholder.empty()  # hapus skeleton, render konten asli
 
     # ══════════════════════════════════════════════════════
     # CSS TAMBAHAN — REDESIGN PREDIKSI TAB
@@ -2700,6 +2762,7 @@ if selected_nav == "Prediksi & Proyeksi":
 # ─── TAB 5: NARASI AI ─────────────────────────────────
 if selected_nav == "Narasi AI":
     _tick("nav_start_narasi")
+    _main_placeholder.empty()  # hapus skeleton, render konten asli
 
     # ── Hero banner ──────────────────────────────────────
     st.markdown("""

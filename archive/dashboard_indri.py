@@ -19,16 +19,15 @@ def _tick(label):
 # ── Cache logo agar tidak dibaca ulang setiap rerun ──
 @st.cache_resource
 def _load_logo():
-    img = Image.open("images/FIX.webp")
-    with open("images/FIX.webp", "rb") as f:
+    with open("images/FIX.png", "rb") as f:
         b64 = base64.b64encode(f.read()).decode()
-    return img, f"data:image/webp;base64,{b64}"
+    return f"data:image/png;base64,{b64}"
 
-_logo, _logo_html = _load_logo()
+_logo_html = _load_logo()
 
 st.set_page_config(
     page_title="BaliGuard — Early Warning Pariwisata",
-    page_icon=_logo,
+    page_icon="images/FIX.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -547,7 +546,7 @@ def level_from_score(s):
     return 'AMAN'
 
 # ── Live USD/IDR ──────────────────────────────────────────────
-@st.cache_data(ttl=3600)
+@st.cache_resource
 def fetch_live_usd_idr() -> float | None:
     """Ambil kurs USD/IDR live dari Frankfurter → Open ER. Cache 1 jam."""
     sources = [
@@ -857,18 +856,15 @@ with st.sidebar:
     st.markdown(st.session_state['_sidebar_logo_html'], unsafe_allow_html=True)
     st.divider()
 
-    avail_hist = sorted(predictions['month'].unique(), reverse=True)
-    _last_data = predictions['month'].iloc[-1]
-    _now_month = datetime.now().strftime('%Y-%m')
-    # Tambahkan bulan masa depan sampai 2 tahun ke depan
-    _future = []
-    _p = pd.Period(_last_data, freq='M')
-    for i in range(1, 25):
-        _p2 = _p + i
-        _future.append(str(_p2))
-    # Future: urutan terbaru di atas (descending), lalu historical terbaru ke terlama
-    _future_filtered = sorted([m for m in _future if m > _last_data], reverse=True)
-    avail = _future_filtered + avail_hist
+    if '_avail_months' not in st.session_state:
+        _avail_hist = sorted(predictions['month'].unique(), reverse=True)
+        _ld = predictions['month'].iloc[-1]
+        _p  = pd.Period(_ld, freq='M')
+        _fut = sorted([str(_p + i) for i in range(1, 25) if str(_p + i) > _ld], reverse=True)
+        st.session_state['_avail_months'] = _fut + _avail_hist
+        st.session_state['_last_data_sb'] = _ld
+    avail      = st.session_state['_avail_months']
+    _last_data = st.session_state['_last_data_sb']
     # Format label: tambah tag [PROYEKSI] untuk masa depan
     def _month_label(m):
         if m > _last_data:
@@ -899,32 +895,65 @@ with st.sidebar:
     if "selected_nav" not in st.session_state:
         st.session_state.selected_nav = "Overview & Timeline"
 
-    st.markdown("""
-    <div style='font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;
-                letter-spacing:.12em;margin-bottom:6px;font-family:"DM Sans"'>NAVIGASI</div>
-    """, unsafe_allow_html=True)
+    _cur_nav = st.session_state.selected_nav
 
+    # ── Render semua nav item sekaligus + JS highlight instan di browser ──
+    _nav_items_html = []
     for _lbl in NAV_OPTIONS:
-        _active = st.session_state.selected_nav == _lbl
-        _img    = NAV_ICONS_B64.get(_lbl, "")
+        _active  = _cur_nav == _lbl
+        _img     = NAV_ICONS_B64.get(_lbl, "")
         _bg      = "rgba(59,130,246,0.18)" if _active else "transparent"
         _border  = "1px solid rgba(59,130,246,0.50)" if _active else "1px solid transparent"
         _color   = "#e2e8f0" if _active else "#94a3b8"
         _opacity = "1" if _active else "0.6"
         _fw      = "700" if _active else "500"
-        st.markdown(
-            f"<div style='display:flex;align-items:center;gap:10px;padding:8px 12px;"
+        _id      = _lbl.replace(' ', '_').replace('&', 'n')
+        _nav_items_html.append(
+            f"<div id='nav-item-{_id}' data-nav='{_lbl}' "
+            f"style='display:flex;align-items:center;gap:10px;padding:8px 12px;"
             f"border-radius:8px;background:{_bg};border:{_border};"
-            f"margin-bottom:3px;cursor:pointer'>"
+            f"margin-bottom:3px;cursor:pointer;transition:background 0.12s,border 0.12s'>"
             f"<img src='{_img}' style='width:18px;height:18px;object-fit:contain;opacity:{_opacity}'>"
             f"<span style='font-size:13px;font-weight:{_fw};color:{_color}'>{_lbl}</span>"
-            f"</div>",
-            unsafe_allow_html=True
+            f"</div>"
         )
-        if st.button(_lbl, key=f"nav_{_lbl}", use_container_width=True,
-                     type="primary" if _active else "secondary"):
-            st.session_state.selected_nav = _lbl
-            st.rerun()
+    st.markdown(
+        "<div style='font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;"
+        "letter-spacing:.12em;margin-bottom:6px;font-family:"DM Sans"'>NAVIGASI</div>"
+        + "".join(_nav_items_html)
+        + """<script>
+(function(){
+  var items = document.querySelectorAll('[data-nav]');
+  items.forEach(function(el){
+    el.addEventListener('mousedown', function(){
+      // Update highlight instan di browser — sebelum Python rerun dimulai
+      items.forEach(function(x){
+        x.style.background = 'transparent';
+        x.style.border = '1px solid transparent';
+        var sp = x.querySelector('span');
+        if(sp){ sp.style.color='#94a3b8'; sp.style.fontWeight='500'; }
+        var img = x.querySelector('img');
+        if(img){ img.style.opacity='0.6'; }
+      });
+      el.style.background = 'rgba(59,130,246,0.18)';
+      el.style.border = '1px solid rgba(59,130,246,0.50)';
+      var sp = el.querySelector('span');
+      if(sp){ sp.style.color='#e2e8f0'; sp.style.fontWeight='700'; }
+      var img = el.querySelector('img');
+      if(img){ img.style.opacity='1'; }
+    });
+  });
+})();
+</script>""",
+        unsafe_allow_html=True
+    )
+
+    # Button invisible (1 baris) — hanya trigger rerun Python untuk ganti konten halaman
+    _btn_cols = st.columns(len(NAV_OPTIONS))
+    for i, _lbl in enumerate(NAV_OPTIONS):
+        with _btn_cols[i]:
+            if st.button("·", key=f"nav_{_lbl}", help=_lbl):
+                st.session_state.selected_nav = _lbl
 
     selected_nav = st.session_state.selected_nav
     _tick("sidebar_render")

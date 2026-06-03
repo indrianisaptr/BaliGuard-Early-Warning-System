@@ -22,7 +22,7 @@ _logo, _logo_html = _load_logo()
 
 st.set_page_config(
     page_title="BaliGuard — Early Warning Pariwisata",
-    page_icon=_logo,
+    page_icon="images/FIX.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
