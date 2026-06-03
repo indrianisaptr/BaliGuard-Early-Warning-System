@@ -76,7 +76,7 @@ def fetch_usd_idr_monthly(start_date: str, end_date: str = None) -> pd.DataFrame
     start_month = start_date[:7]
     is_current  = (start_month == curr_month)
 
-    print(f"  📡 Fetching USD/IDR: {start_date} → {end_date}")
+    print(f"  Fetching USD/IDR: {start_date} → {end_date}")
 
     # ── Bulan berjalan: pakai ExchangeRate-API dulu (real-time) ──
     if is_current:
@@ -88,10 +88,10 @@ def fetch_usd_idr_monthly(start_date: str, end_date: str = None) -> pd.DataFrame
                 data = json.loads(r.read())
             rate   = float(data['rates']['IDR'])    # ← 'rates', bukan 'conversion_rates'
             result = pd.DataFrame([{'month': curr_month, 'usd_idr_avg': rate}])
-            print(f"  ✅ ExchangeRate-API (real-time): {rate:,.0f}")
+            print(f"  ✓ ExchangeRate-API (real-time): {rate:,.0f}")
             return result
         except Exception as e:
-            print(f"  ⚠️  ExchangeRate-API gagal: {e}, fallback ke Frankfurter")
+            print(f"  ⚠ ExchangeRate-API gagal: {e}, fallback ke Frankfurter")
 
     # ── Historis (atau fallback): Frankfurter ────────────────────
     try:
@@ -108,18 +108,18 @@ def fetch_usd_idr_monthly(start_date: str, end_date: str = None) -> pd.DataFrame
         df['month'] = df['date'].dt.to_period('M').astype(str)
         result = df.groupby('month')['usd_idr'].mean().reset_index()
         result.columns = ['month', 'usd_idr_avg']
-        print(f"  ✅ Frankfurter: {len(result)} bulan")
+        print(f"  ✓ Frankfurter: {len(result)} bulan")
         return result
     except Exception as e:
-        print(f"  ⚠️  Frankfurter gagal: {e}")
+        print(f"  ⚠  Frankfurter gagal: {e}")
 
     # ── Fallback: cache lokal ─────────────────────────────────
     cache_path = DATA_PRO / 'usd_idr_cache.csv'
     if cache_path.exists():
-        print(f"  ⚠️  Menggunakan cache lokal: {cache_path}")
+        print(f"  ⚠  Menggunakan cache lokal: {cache_path}")
         return pd.read_csv(cache_path)
 
-    print("  ❌ Semua sumber USD/IDR gagal.")
+    print("  ✗ Semua sumber USD/IDR gagal.")
     return pd.DataFrame(columns=['month', 'usd_idr_avg'])
 
 
@@ -152,7 +152,7 @@ def update_usd_idr() -> pd.DataFrame:
 
     combined.to_csv(usd_path, index=False)
     combined.to_csv(DATA_PRO / 'usd_idr_cache.csv', index=False)
-    print(f"  ✅ USD/IDR updated: {len(combined)} bulan, terakhir {combined['month'].max()}")
+    print(f"  ✓ USD/IDR updated: {len(combined)} bulan, terakhir {combined['month'].max()}")
     return combined
 
 
@@ -183,7 +183,7 @@ def load_bps_updates():
             df = pd.read_csv(fpath)
             df['month'] = df['month'].astype(str).str[:7]
             updates[col] = df
-            print(f"  📂 Update ditemukan: {fname} ({len(df)} baris)")
+            print(f"   Update ditemukan: {fname} ({len(df)} baris)")
 
     return updates
 
@@ -202,7 +202,7 @@ def merge_bps_updates(master: pd.DataFrame, updates: dict) -> pd.DataFrame:
     new_months = sorted(all_new_months - existing_months)
 
     if not new_months:
-        print("  ℹ️  Tidak ada bulan baru dari BPS updates.")
+        print("    Tidak ada bulan baru dari BPS updates.")
         # Update existing rows
         for col, df in updates.items():
             df = df.set_index('month')
@@ -211,7 +211,7 @@ def merge_bps_updates(master: pd.DataFrame, updates: dict) -> pd.DataFrame:
                     master.loc[master['month'].astype(str) == m, col] = df.loc[m, col]
         return master
 
-    print(f"  ➕ Bulan baru dari BPS: {new_months}")
+    print(f"  Bulan baru dari BPS: {new_months}")
     last_row = dict(master.iloc[-1])
 
     new_rows = []
@@ -459,7 +459,7 @@ def _build_feature_matrix(df_model: pd.DataFrame,
         bad = [(cols_used[i], int(nan_mask[:, i].sum()))
                for i in range(len(cols_used)) if nan_mask[:, i].any()]
         if bad:
-            print(f"  ⚠️  NaN/inf diimputasi: {bad}")
+            print(f"  ⚠  NaN/inf diimputasi: {bad}")
         X[nan_mask] = np.take(col_medians, np.where(nan_mask)[1])
 
     return X, cols_used
@@ -487,7 +487,7 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     if not all(p.exists() for p in [scaler_path, rf_path, iso_path, le_path]):
-        print("  ⚠️  Model files tidak ditemukan. Menggunakan rule-based predictions.")
+        print("  ⚠  Model files tidak ditemukan. Menggunakan rule-based predictions.")
         return _rule_based(df)
 
     scaler   = joblib.load(scaler_path)
@@ -496,7 +496,7 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
     le       = joblib.load(le_path)
 
     expected_n = scaler.n_features_in_
-    print(f"  ℹ️  Model expects {expected_n} features "
+    print(f"  Model expects {expected_n} features "
           f"(scaler={scaler.n_features_in_}, iso={iso.n_features_in_}, "
           f"rf={rf_model.n_features_in_})")
 
@@ -518,17 +518,17 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
     X, cols_used = _build_feature_matrix(df_model, feat_list, expected_n)
 
     if X is None:
-        print(f"  ⚠️  Fitur tidak cukup ({len(cols_used)}/{expected_n}). "
+        print(f"  ⚠  Fitur tidak cukup ({len(cols_used)}/{expected_n}). "
               "Menggunakan rule-based predictions.")
         return _rule_based(df)
 
-    print(f"  ✅ Feature matrix: {X.shape} — {cols_used}")
+    print(f"  ✓ Feature matrix: {X.shape} — {cols_used}")
 
     # Scale
     try:
         X_scaled = scaler.transform(X)
     except ValueError as e:
-        print(f"  ⚠️  scaler.transform gagal ({e}). Refitting scaler pada data ini.")
+        print(f"  ⚠  scaler.transform gagal ({e}). Refitting scaler pada data ini.")
         X_scaled = scaler.fit_transform(X)
 
     # Isolation Forest
@@ -536,7 +536,7 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
         iso_pred = iso.predict(X_scaled)
         df_model['iso_anomaly'] = (iso_pred == -1).astype(int)
     except Exception as e:
-        print(f"  ⚠️  IsolationForest predict gagal: {e}")
+        print(f"  ⚠  IsolationForest predict gagal: {e}")
         df_model['iso_anomaly'] = 0
 
     # Random Forest
@@ -545,7 +545,7 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
         rf_proba = rf_model.predict_proba(X_scaled)
         df_model['rf_predicted_level'] = le.inverse_transform(rf_pred)
         df_model['rf_confidence']      = rf_proba.max(axis=1)
-        # ✅ FIX: pakai rf_model.classes_ (kelas yang benar-benar diketahui model)
+        # ✓ FIX: pakai rf_model.classes_ (kelas yang benar-benar diketahui model)
         # bukan le.classes_ — kalau suatu saat KRISIS hilang dari data,
         # le.classes_ tetap punya 4 entry tapi rf_proba hanya punya 3 kolom → IndexError
         rf_classes = list(le.inverse_transform(rf_model.classes_))
@@ -556,7 +556,7 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
             else:
                 df_model[col] = 0.0
     except Exception as e:
-        print(f"  ⚠️  RandomForest predict gagal: {e}. Fallback rule-based.")
+        print(f"  ⚠  RandomForest predict gagal: {e}. Fallback rule-based.")
         return _rule_based(df)
 
     # Merge back ke df utama
@@ -572,7 +572,7 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
     df['rf_confidence']      = df.get('rf_confidence', 0.7).fillna(0.7)
     df['iso_anomaly']        = df.get('iso_anomaly', 0).fillna(0).astype(int)
 
-    print(f"  ✅ Model predictions selesai: {len(df_model)} baris diprediksi")
+    print(f"  ✓ Model predictions selesai: {len(df_model)} baris diprediksi")
     return df
 
 
@@ -582,8 +582,8 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
 
 def run_pipeline(verbose: bool = True):
     print("\n" + "═" * 60)
-    print("  🛡️  BaliGuard — Update Pipeline")
-    print(f"  📅  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("   BaliGuard — Update Pipeline")
+    print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("═" * 60)
 
     # ── Load master dataset ──────────────────────────────────
@@ -591,13 +591,13 @@ def run_pipeline(verbose: bool = True):
     pred_path   = DATA_FIN / 'predictions_final.csv'
 
     if not master_path.exists():
-        print("❌ master_dataset_clean.parquet tidak ditemukan.")
+        print("✗ master_dataset_clean.parquet tidak ditemukan.")
         print("   Jalankan notebook 01-04 terlebih dahulu.")
         sys.exit(1)
 
     df = pd.read_parquet(master_path)
     df['month'] = df['month'].astype(str).str[:7]
-    print(f"\n✅ Master dataset: {len(df)} baris, {df['month'].min()} → {df['month'].max()}")
+    print(f"\n ✓ Master dataset: {len(df)} baris, {df['month'].min()} → {df['month'].max()}")
 
     # ── Step 1: Update USD/IDR live ──────────────────────────
     print("\n[1/5] Mengambil data USD/IDR terbaru...")
@@ -624,11 +624,11 @@ def run_pipeline(verbose: bool = True):
     df = run_model_predictions(df)
 
     # ── Save outputs ─────────────────────────────────────────
-    print("\n💾 Menyimpan output...")
+    print("\n Menyimpan output...")
 
     # Simpan master dataset (parquet)
     df.to_parquet(master_path, index=False)
-    print(f"  ✅ master_dataset_clean.parquet ({len(df)} baris)")
+    print(f"  ✓ master_dataset_clean.parquet ({len(df)} baris)")
 
     # Simpan predictions CSV
     pred_cols = [
@@ -641,16 +641,16 @@ def run_pipeline(verbose: bool = True):
     ]
     pred_cols_avail = [c for c in pred_cols if c in df.columns]
     df[pred_cols_avail].to_csv(pred_path, index=False)
-    print(f"  ✅ predictions_final.csv ({len(df)} baris)")
+    print(f"  ✓ predictions_final.csv ({len(df)} baris)")
 
     # ── Summary ──────────────────────────────────────────────
     latest = df.iloc[-1]
     print("\n" + "═" * 60)
-    print(f"  🏁 Pipeline selesai!")
-    print(f"  📊 Bulan terbaru  : {latest['month']}")
-    print(f"  🎯 Crisis Score   : {latest['crisis_score_100']:.1f}/100")
-    print(f"  📍 Level          : {latest['crisis_level']}")
-    print(f"  💱 USD/IDR        : Rp {latest.get('usd_idr_avg', 0):,.0f}")
+    print(f"  Pipeline selesai!")
+    print(f"  Bulan terbaru  : {latest['month']}")
+    print(f"  Crisis Score   : {latest['crisis_score_100']:.1f}/100")
+    print(f"  Level          : {latest['crisis_level']}")
+    print(f"  USD/IDR        : Rp {latest.get('usd_idr_avg', 0):,.0f}")
     print("═" * 60 + "\n")
 
     return df
