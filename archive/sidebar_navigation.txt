@@ -1,0 +1,161 @@
+                bgcolor='rgba(5,13,26,0.7)', borderpad=2,
+                row=1, col=1
+            )
+        except Exception:
+            pass
+
+    _fig.update_layout(height=820, showlegend=True,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1,
+                    bgcolor='rgba(5,13,26,0.85)', bordercolor='rgba(255,255,255,0.12)',
+                    borderwidth=1, font=dict(size=11, color='#e2e8f0')),
+        plot_bgcolor='rgba(5,13,26,0.7)', paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=0, r=55, t=50, b=10),
+        font=dict(family='DM Sans', size=11, color='#94a3b8'))
+
+    _title_colors = ['#93c5fd', '#7dd3fc', '#fbbf24']
+    for i, ann in enumerate(_fig.layout.annotations[:3]):
+        ann.update(
+            font=dict(size=17, color=_title_colors[i], family='DM Sans'),
+            x=0.5, xanchor='center', yshift=18
+        )
+    for r in [1, 2, 3]:
+        _fig.update_xaxes(gridcolor='rgba(255,255,255,0.06)', showline=True,
+                          linecolor='rgba(255,255,255,0.1)', row=r, col=1)
+        _fig.update_yaxes(gridcolor='rgba(255,255,255,0.06)', showline=True,
+                          linecolor='rgba(255,255,255,0.1)', row=r, col=1)
+    return _fig
+
+# ══════════════════════════════════════════════════════
+# SIDEBAR
+# ══════════════════════════════════════════════════════
+with st.sidebar:
+    # Logo HTML di-cache agar tidak rebuild string base64 besar setiap rerun
+    if '_sidebar_logo_html' not in st.session_state:
+        st.session_state['_sidebar_logo_html'] = (
+            "<div style='text-align:center;padding:20px 0 8px'>"
+            f"<img src='{_logo_html}' style='width:130px;height:130px;object-fit:contain;margin-bottom:8px;border-radius:16px'/>"
+            "<div style='font-family:DM Serif Display;font-size:30px;color:#f1f5f9;letter-spacing:-.01em'>BaliGuard</div>"
+            "<div style='font-size:11px;color:#64748b;margin-top:5px;letter-spacing:.1em;font-weight:700'>EARLY WARNING SYSTEM</div>"
+            "</div>"
+        )
+    st.markdown(st.session_state['_sidebar_logo_html'], unsafe_allow_html=True)
+    st.divider()
+
+    avail_hist = sorted(predictions['month'].unique(), reverse=True)
+    _last_data = predictions['month'].iloc[-1]
+    _now_month = datetime.now().strftime('%Y-%m')
+    # Tambahkan bulan masa depan sampai 2 tahun ke depan
+    _future = []
+    _p = pd.Period(_last_data, freq='M')
+    for i in range(1, 25):
+        _p2 = _p + i
+        _future.append(str(_p2))
+    # Future: urutan terbaru di atas (descending), lalu historical terbaru ke terlama
+    _future_filtered = sorted([m for m in _future if m > _last_data], reverse=True)
+    avail = _future_filtered + avail_hist
+    # Format label: tambah tag [PROYEKSI] untuk masa depan
+    def _month_label(m):
+        if m > _last_data:
+            return f"{m}  "
+        return m
+    st.markdown(
+        "<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;font-size:13px;font-weight:600;color:#e2e8f0'>"
+        "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;"
+        "background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0'></span>"
+        "Pilih Periode Analisis</div>",
+        unsafe_allow_html=True)
+        
+    nama_bulan_id = {
+        '01': 'Januari', '02': 'Februari', '03': 'Maret', '04': 'April',
+        '05': 'Mei', '06': 'Juni', '07': 'Juli', '08': 'Agustus',
+        '09': 'September', '10': 'Oktober', '11': 'November', '12': 'Desember'
+    }
+
+    # Ambil daftar tahun dari variabel avail yang ada
+    list_tahun = sorted(list(set([m.split('-')[0] for m in avail])), reverse=True)
+    selected_year = st.selectbox("Tahun", list_tahun)
+    
+    # Filter bulan berdasarkan tahun yang dipilih
+    avail_months = sorted([m for m in avail if m.startswith(selected_year)], reverse=True)
+    
+    # Konversi label bulan menjadi Bahasa Indonesia
+    format_bulan = {}
+    for m in avail_months:
+        bulan_angka = m.split('-')[1]
+        label = nama_bulan_id[bulan_angka]
+        # Tambahkan indikator jika itu adalah bulan proyeksi
+        if m > _last_data:
+            label += " [PROYEKSI]"
+        format_bulan[m] = label
+        
+    # Pilih bulan
+    sel = st.selectbox("Bulan", avail_months, format_func=lambda x: format_bulan[x])
+    sel_dt = pd.to_datetime(sel)
+
+    st.divider()
+    # ── Navigasi Halaman ──────────────────────────────────
+    NAV_ICONS_B64 = _build_nav_icons()  # ✅ FIX: pakai cached version
+    NAV_OPTIONS = [
+        "Overview & Timeline",
+        "Analisis Detail",
+        "Sentimen",
+        "Prediksi & Proyeksi",
+        "Narasi AI",
+    ]
+    if "selected_nav" not in st.session_state:
+        st.session_state.selected_nav = "Overview & Timeline"
+
+    st.markdown("""
+    <div style='font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;
+                letter-spacing:.12em;margin-bottom:6px;font-family:"DM Sans"'>NAVIGASI</div>
+    """, unsafe_allow_html=True)
+
+    for _lbl in NAV_OPTIONS:
+        _active = st.session_state.selected_nav == _lbl
+        _img    = NAV_ICONS_B64.get(_lbl, "")
+        _bg      = "rgba(59,130,246,0.18)" if _active else "transparent"
+        _border  = "1px solid rgba(59,130,246,0.50)" if _active else "1px solid transparent"
+        _color   = "#e2e8f0" if _active else "#94a3b8"
+        _opacity = "1" if _active else "0.6"
+        _fw      = "700" if _active else "500"
+        st.markdown(
+            f"<div style='display:flex;align-items:center;gap:10px;padding:8px 12px;"
+            f"border-radius:8px;background:{_bg};border:{_border};"
+            f"margin-bottom:3px;cursor:pointer'>"
+            f"<img src='{_img}' style='width:18px;height:18px;object-fit:contain;opacity:{_opacity}'>"
+            f"<span style='font-size:13px;font-weight:{_fw};color:{_color}'>{_lbl}</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+        if st.button(_lbl, key=f"nav_{_lbl}", use_container_width=True,
+                     type="primary" if _active else "secondary"):
+            st.session_state.selected_nav = _lbl
+            st.rerun()
+
+    selected_nav = st.session_state.selected_nav
+    _tick("sidebar_render")
+
+    # st.divider()
+    # # ── Groq API Key (tersembunyi di expander) ────────────
+    # with st.expander("✦ API untuk Aktifkan Narasi AI", expanded=False):
+    #     st.caption("Masukkan API key Groq Anda untuk mengaktifkan narasi AI.")
+    #     groq_key = st.text_input("API Key", type="password", placeholder="gsk_...",
+    #                               label_visibility="collapsed",
+    #                               help="Dapatkan gratis di console.groq.com")
+    #     if not groq_key:
+    #         st.caption("↵ Tekan Enter untuk menerapkan")
+    #         st.caption("💡 [Key gratis → console.groq.com](https://console.groq.com/keys)")
+    #     else:
+    #         st.caption("✅ API key aktif")
+
+    st.divider()
+    
+    row_s = get_row(sel)
+    lv_s  = str(row_s.get('crisis_level','WASPADA'))
+    sc_s  = sf(row_s.get('crisis_score_100',0))
+    an_s  = int(sf(row_s.get('iso_anomaly',0)))
+    st.markdown(f"""
+    <div style='background:rgba(255,255,255,0.04);border-radius:12px;padding:14px 16px;
+                border:1px solid rgba(255,255,255,0.07)'>
+        <div style='font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;
+                    letter-spacing:.1em;margin-bottom:10px'>STATUS DIPILIH</div>

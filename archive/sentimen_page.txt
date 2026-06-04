@@ -1,0 +1,296 @@
+if selected_nav == "Sentimen":
+    _tick("nav_start_sentimen")
+
+    st.markdown("""
+    <style>
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: rgba(255,255,255,0.035) !important;
+        border: none !important;
+        border-radius: 16px !important;
+        box-shadow: none !important;
+        padding: 12px 16px 16px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    sent_color = '#4ade80' if sent >= 0.3 else ('#f87171' if sent < -0.3 else '#fbbf24')
+    sent_label = 'POSITIF' if sent >= 0.3 else ('NEGATIF' if sent < -0.3 else 'NETRAL')
+    sent_pct   = int((sent + 1) / 2 * 100)
+
+    mr_pct_rows = master[master['month']==sel]
+
+    # ── Proyeksi: tidak ada data review nyata ────────────────
+    if _is_proj:
+        # Gunakan sentimen proyeksi, tapi tandai review sebagai N/A
+        pct_neg         = 0.0
+        pct_pos         = 0.0
+        pct_netral      = 0.0
+        _review_is_proj = True
+        _netral_estimated = False
+        # Ambil sentimen terakhir yang diketahui dari data historis
+        _last_real_sent  = float(predictions[predictions['month'] <= _last_data_month]['avg_sentiment_monthly'].iloc[-1])
+        _last_real_month = predictions['month'].iloc[-1]
+    else:
+        _review_is_proj  = False
+        _last_real_sent  = None
+        _last_real_month = None
+        pct_neg = sf(mr_pct_rows['pct_negative_monthly'].iloc[0] if len(mr_pct_rows) > 0
+                     and 'pct_negative_monthly' in master.columns
+                     else row_data.get('pct_negative_monthly', 0))
+
+        # pct_positive & pct_neutral tidak ada di master (NB04 hanya simpan pct_negative)
+        _avg_sent_raw = float(mr_pct_rows['avg_sentiment_monthly'].iloc[0]
+                              if len(mr_pct_rows) > 0 and 'avg_sentiment_monthly' in master.columns
+                              else sent)
+        _sentiment_est = min(1.0, max(0.0, _avg_sent_raw))
+
+        _nonneg = max(0.0, 100.0 - pct_neg)
+        if 'pct_positive_monthly' in master.columns and len(mr_pct_rows) > 0:
+            pct_pos    = sf(mr_pct_rows['pct_positive_monthly'].iloc[0])
+            pct_netral = max(0.0, round(100.0 - pct_pos - pct_neg, 1))
+            _netral_estimated = False
+        else:
+            _s_norm       = min(1.0, _sentiment_est / 0.8)
+            _netral_frac  = 0.30 - 0.20 * _s_norm
+            pct_netral    = round(_nonneg * _netral_frac, 1)
+            pct_pos       = round(_nonneg - pct_netral, 1)
+            _netral_estimated = True
+
+    # ── Hero: pakai kolom native Streamlit, bukan HTML kompleks ──
+    h1, h2, h3, h4, h5 = st.columns([2, 1, 1, 1, 1], gap="medium")
+    with h1:
+        st.markdown(
+            f"<div style='padding:16px 0'>"
+            f"<div style='font-size:11px;font-weight:700;letter-spacing:.12em;color:#475569;text-transform:uppercase;margin-bottom:6px'>Sentimen Bulan Ini · {sel}</div>"
+            f"<div style='font-family:DM Serif Display,serif;font-size:36px;color:{sent_color};line-height:1'>{sent_label}</div>"
+            f"<div style='font-family:JetBrains Mono,monospace;font-size:20px;color:{sent_color};margin-top:4px'>{sent:+.3f}</div>"
+            + (f"<div style='font-size:10px;color:#a78bfa;margin-top:6px'>🔮 proyeksi — data terakhir {_last_real_month}</div>" if _review_is_proj else "")
+            + f"</div>",
+            unsafe_allow_html=True
+        )
+
+    if _review_is_proj:
+        # Bulan proyeksi: tampilkan 3 kolom info, bukan angka palsu
+        with h2:
+            st.markdown(
+                f"<div style='text-align:center;padding:16px 0'>"
+                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Positif</div>"
+                f"<div style='font-size:22px;color:#475569'>—</div>"
+                f"<div style='font-size:10px;color:#334155;margin-top:6px'>tidak tersedia</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        with h3:
+            st.markdown(
+                f"<div style='text-align:center;padding:16px 0'>"
+                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Negatif</div>"
+                f"<div style='font-size:22px;color:#475569'>—</div>"
+                f"<div style='font-size:10px;color:#334155;margin-top:6px'>tidak tersedia</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        with h4:
+            st.markdown(
+                f"<div style='text-align:center;padding:16px 0'>"
+                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Netral</div>"
+                f"<div style='font-size:22px;color:#475569'>—</div>"
+                f"<div style='font-size:10px;color:#334155;margin-top:6px'>tidak tersedia</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        with h5:
+            st.markdown(
+                f"<div style='text-align:center;padding:16px 0'>"
+                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Sentimen Terakhir</div>"
+                f"<div style='font-family:JetBrains Mono,monospace;font-size:20px;color:{sent_color}'>{_last_real_sent:+.3f}</div>"
+                f"<div style='font-size:10px;color:#a78bfa;margin-top:4px'>{_last_real_month}</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        st.markdown(
+            "<div style='background:rgba(167,139,250,0.07);border:1px solid rgba(167,139,250,0.2);"
+            "border-radius:10px;padding:10px 16px;margin:8px 0 16px;font-size:11px;color:#a78bfa'>"
+            f"🔮 <b>Bulan proyeksi</b> — data review wisatawan belum tersedia. "
+            f"Sentimen ditampilkan berdasarkan proyeksi tren dari data terakhir ({_last_real_month}: {_last_real_sent:+.3f})."
+            "</div>",
+            unsafe_allow_html=True
+        )
+    else:
+        with h2:
+            st.markdown(
+                f"<div style='text-align:center;padding:16px 0'>"
+                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Positif</div>"
+                f"<div style='font-family:DM Serif Display,serif;font-size:28px;color:#4ade80'>{pct_pos:.1f}%</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f"<div style='text-align:center;margin-top:-8px'>"
+                f"<span style='background:rgba(74,222,128,0.15);color:#4ade80;font-size:11px;font-weight:700;"
+                f"padding:3px 10px;border-radius:20px;border:1px solid rgba(74,222,128,0.3)'>"
+                f"{'↑ Baik' if pct_pos > 60 else '↓ Perhatian'}</span></div>",
+                unsafe_allow_html=True
+            )
+        with h3:
+            st.markdown(
+                f"<div style='text-align:center;padding:16px 0'>"
+                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Negatif</div>"
+                f"<div style='font-family:DM Serif Display,serif;font-size:28px;color:#f87171'>{pct_neg:.1f}%</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+            neg_ok = pct_neg < 30
+            st.markdown(
+                f"<div style='text-align:center;margin-top:-8px'>"
+                f"<span style='background:{'rgba(74,222,128,0.15)' if neg_ok else 'rgba(239,68,68,0.15)'};"
+                f"color:{'#4ade80' if neg_ok else '#f87171'};font-size:11px;font-weight:700;"
+                f"padding:3px 10px;border-radius:20px;border:1px solid {'rgba(74,222,128,0.3)' if neg_ok else 'rgba(239,68,68,0.3)'}'>{'↓ Rendah' if neg_ok else '↑ Tinggi'}</span></div>",
+                unsafe_allow_html=True
+            )
+        with h4:
+            st.markdown(
+                f"<div style='text-align:center;padding:16px 0'>"
+                f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Review Netral{'  ~est' if _netral_estimated else ''}</div>"
+                f"<div style='font-family:DM Serif Display,serif;font-size:28px;color:#fbbf24'>{pct_netral:.1f}%</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+            netral_ok = pct_netral < 20
+            st.markdown(
+                f"<div style='text-align:center;margin-top:-8px'>"
+                f"<span style='background:{'rgba(74,222,128,0.15)' if netral_ok else 'rgba(251,191,36,0.15)'};"
+                f"color:{'#4ade80' if netral_ok else '#fbbf24'};font-size:11px;font-weight:700;"
+                f"padding:3px 10px;border-radius:20px;border:1px solid {'rgba(74,222,128,0.3)' if netral_ok else 'rgba(251,191,36,0.3)'}'>{'→ Normal' if netral_ok else '↑ Tinggi'}</span></div>",
+                unsafe_allow_html=True
+            )
+    with h5:
+        st.markdown(
+            "<div style='text-align:center;padding:16px 0'>"
+            "<div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#475569;margin-bottom:8px'>Model</div>"
+            "<div style='font-size:13px;font-weight:700;color:#7dd3fc'>XLM-RoBERTa</div>"
+            "<div style='font-size:10px;color:#475569;margin-top:2px'>EN / ID / ZH</div>"
+            "</div>",
+            unsafe_allow_html=True
+        )
+
+    st.divider()
+
+    # ── Dua kolom bawah ───────────────────────────────────
+    sc1, sc2 = st.columns([3, 2], gap="medium")
+
+    with sc1:
+        # ── Box: Tren Sentimen Historis ───────────────────
+        with st.container(border=True):
+            st.markdown('<div class="accent-green"></div>', unsafe_allow_html=True)
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:8px;padding:4px 0 10px;"
+                "border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px'>"
+                "<span style='font-family:DM Sans,sans-serif;font-size:15px;font-weight:700;"
+                "letter-spacing:.05em;text-transform:uppercase;color:#4ade80;"
+                "border-left:3px solid #22c55e;padding-left:10px'>Tren Sentimen Historis</span></div>",
+                unsafe_allow_html=True
+            )
+            if 'avg_sentiment_monthly' in master.columns:
+                m_dt = pd.to_datetime(master['month'].astype(str))
+                fig_s = go.Figure()
+                fig_s.add_trace(go.Scatter(
+                    x=m_dt, y=[min(float(v),0) for v in master['avg_sentiment_monthly']],
+                    fill='tozeroy', fillcolor='rgba(239,68,68,0.08)',
+                    line=dict(width=0), showlegend=False, hoverinfo='skip'))
+                fig_s.add_trace(go.Scatter(
+                    x=m_dt, y=master['avg_sentiment_monthly'],
+                    mode='lines', name='Sentimen',
+                    line=dict(color='#4ade80', width=2),
+                    fill='tozeroy', fillcolor='rgba(74,222,128,0.05)',
+                    hovertemplate='<b>%{x|%b %Y}</b><br>Sentimen: %{y:+.3f}<extra></extra>'))
+                fig_s.add_hline(y=0, line_dash='dash', line_color='rgba(255,255,255,0.12)', line_width=1)
+                fig_s.add_vrect(x0='2020-03-01', x1='2021-12-01',
+                    fillcolor='rgba(239,68,68,0.05)', line_width=0,
+                    annotation_text='COVID-19', annotation_font_color='#ef4444',
+                    annotation_font_size=10)
+                fig_s.add_vline(x=sel_dt.timestamp() * 1000, line_dash='dot', line_color='#60a5fa', line_width=1.5,
+                    annotation_text=sel, annotation_font_color='#60a5fa', annotation_font_size=9)
+                fig_s.add_hrect(y0=0.3, y1=1,   fillcolor='rgba(74,222,128,0.03)', line_width=0)
+                fig_s.add_hrect(y0=-1,  y1=-0.3, fillcolor='rgba(239,68,68,0.03)', line_width=0)
+                fig_s.update_layout(
+                    yaxis=dict(title='Sentimen (−1 → +1)', range=[-1,1],
+                               gridcolor='rgba(255,255,255,0.04)', color='#64748b',
+                               tickvals=[-1,-0.5,0,0.5,1]),
+                    xaxis=dict(gridcolor='rgba(255,255,255,0.03)', color='#64748b'),
+                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                    height=310, margin=dict(l=0,r=10,t=10,b=0),
+                    showlegend=False,
+                    font=dict(family='DM Sans', size=11, color='#94a3b8'))
+                st.plotly_chart(fig_s, use_container_width=True)
+
+        # ── Box: 6 Bulan Terakhir ──────────────────────────
+        with st.container(border=True):
+            st.markdown('<div class="accent-green"></div>', unsafe_allow_html=True)
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:8px;padding:4px 0 10px;"
+                "border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px'>"
+                "<span style='font-family:DM Sans,sans-serif;font-size:15px;font-weight:700;"
+                "letter-spacing:.05em;text-transform:uppercase;color:#4ade80;"
+                "border-left:3px solid #22c55e;padding-left:10px'>6 Bulan Terakhir</span></div>",
+                unsafe_allow_html=True
+            )
+            if 'avg_sentiment_monthly' in predictions.columns:
+                last6 = predictions.tail(6)[['month','avg_sentiment_monthly']].copy()
+                colors_bar = ['#4ade80' if v>0.1 else ('#f87171' if v<-0.1 else '#fbbf24')
+                              for v in last6['avg_sentiment_monthly']]
+                fig_6 = go.Figure(go.Bar(
+                    x=last6['month'], y=last6['avg_sentiment_monthly'],
+                    marker_color=colors_bar, marker_line_color='rgba(0,0,0,0)',
+                    text=[f'{v:+.3f}' for v in last6['avg_sentiment_monthly']],
+                    textposition='outside', textfont=dict(color='#e2e8f0', size=11),
+                    hovertemplate='<b>%{x}</b><br>Sentimen: %{y:.3f}<extra></extra>'
+                ))
+                fig_6.add_hline(y=0, line_dash='dash', line_color='rgba(255,255,255,0.12)', line_width=1)
+                fig_6.update_layout(
+                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                    height=220, margin=dict(l=0,r=0,t=16,b=0),
+                    yaxis=dict(gridcolor='rgba(255,255,255,0.04)', color='#64748b', range=[-0.2, last6['avg_sentiment_monthly'].max()*1.25]),
+                    xaxis=dict(color='#64748b'),
+                    font=dict(family='DM Sans', size=11, color='#94a3b8'))
+                st.plotly_chart(fig_6, use_container_width=True)
+
+    with sc2:
+        # ── Box Gauge Sentimen — satu box utuh (judul + gauge + legenda + distribusi) ──
+        bg_pos  = "rgba(74,222,128,0.10)"  if sent >= 0.3          else "rgba(255,255,255,0.03)"
+        bd_pos  = "rgba(74,222,128,0.25)"  if sent >= 0.3          else "rgba(255,255,255,0.06)"
+        bg_net  = "rgba(245,158,11,0.10)"  if -0.3 <= sent < 0.3   else "rgba(255,255,255,0.03)"
+        bd_net  = "rgba(245,158,11,0.25)"  if -0.3 <= sent < 0.3   else "rgba(255,255,255,0.06)"
+        bg_neg  = "rgba(239,68,68,0.10)"   if sent < -0.3          else "rgba(255,255,255,0.03)"
+        bd_neg  = "rgba(239,68,68,0.25)"   if sent < -0.3          else "rgba(255,255,255,0.06)"
+
+        with st.container(border=True):
+            st.markdown('<div class="accent-teal"></div>', unsafe_allow_html=True)
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:8px;padding:4px 0 12px'>"
+                "<span style='font-family:DM Sans,sans-serif;font-size:15px;font-weight:700;"
+                "letter-spacing:.05em;text-transform:uppercase;color:#2dd4bf;"
+                "border-left:3px solid #14b8a6;padding-left:10px'>Gauge Sentimen</span></div>",
+                unsafe_allow_html=True
+            )
+
+            fig_g = go.Figure(go.Indicator(
+                mode="gauge+number+delta", value=round(sent, 3),
+                delta={'reference': 0, 'valueformat': '.3f'},
+                number={'valueformat': '+.3f',
+                        'font': {'size': 32, 'color': sent_color, 'family': 'JetBrains Mono'}},
+                title={'text': f"<span style='font-size:11px;color:#64748b;letter-spacing:.08em'>SENTIMEN · {sel}</span>",
+                       'font': {'size': 11}},
+                gauge={
+                    'axis': {'range': [-1, 1], 'tickcolor': '#334155', 'tickwidth': 1,
+                             'tickvals': [-1, -0.5, 0, 0.5, 1]},
+                    'bar': {'color': sent_color, 'thickness': 0.28},
+                    'bgcolor': 'rgba(0,0,0,0)',
+                    'borderwidth': 0,
+                    'steps': [
+                        {'range': [-1, -0.3],  'color': 'rgba(239,68,68,0.12)'},
+                        {'range': [-0.3, 0.3], 'color': 'rgba(245,158,11,0.08)'},
+                        {'range': [0.3, 1],    'color': 'rgba(74,222,128,0.12)'},
+                    ],
+                }))
+            fig_g.update_layout(
+                height=240, margin=dict(l=20, r=20, t=50, b=0),
