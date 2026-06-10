@@ -62,107 +62,101 @@ def render(ctx: dict) -> None:
     FEATURES = [f for f in FEATURES_CORE + FEATURES_LAG if f in master.columns]
     _tick("nav_start_analisis")
 
-    # CSS override untuk st.container(border=True) — ini satu-satunya cara
-    # yang benar-benar membungkus st.plotly_chart() di Streamlit
-    
+    # ── CSS override — flat/divider style ──
     st.markdown("""
     <style>
-    /* Override border container Streamlit → jadi styled box */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: rgba(255,255,255,0.04) !important;
-        border: 1px solid rgba(255,255,255,0.10) !important;
-        border-radius: 18px !important;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06) !important;
-        padding: 4px 8px 8px !important;
+        background: transparent !important;
+        border: none !important;
+        border-top: 1px solid rgba(255,255,255,0.07) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        padding: 20px 0 !important;
+        margin-bottom: 0 !important;
     }
-    /* Accent top-border per warna — ditaruh di elemen pertama dalam container */
-    .accent-blue   { border-top: 3px solid #3b82f6 !important; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
-    .accent-orange { border-top: 3px solid #f97316 !important; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
-    .accent-purple { border-top: 3px solid #a855f7 !important; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
-    .accent-green  { border-top: 3px solid #22c55e !important; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
     .box-heading {
         font-family: 'DM Sans', sans-serif;
-        font-size: 15px;
+        font-size: 11px;
         font-weight: 700;
-        letter-spacing: .05em;
+        letter-spacing: .10em;
         text-transform: uppercase;
-        margin-bottom: 4px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid rgba(255,255,255,0.06);
+        color: #64748b;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
     }
     </style>
     """, unsafe_allow_html=True)
 
-    cl, cr = st.columns([1, 1], gap="medium")
+    cl, cr = st.columns([1, 1], gap="large")
 
     with cl:
-        # ── Box 1: Komponen Crisis Score ──────────────────
-        with st.container(border=True):
-            st.markdown('<div class="accent-blue"></div>', unsafe_allow_html=True)
-            st.markdown('<div class="box-heading sec-blue">Komponen Crisis Score</div>', unsafe_allow_html=True)
+        # ── Panel 1: Komponen Crisis Score ─────────────────
+        st.markdown('<div class="box-heading sec-blue">Komponen Crisis Score</div>',
+                    unsafe_allow_html=True)
 
-            mr_rows = master[master['month']==sel]
-            if len(mr_rows) > 0:
-                mr = mr_rows.iloc[0]
-                comp_vals = {
-                    'Kunjungan Wisatawan': sf(mr.get('crisis_component_tourism',0)),
-                    'Kondisi Ekonomi':     sf(mr.get('crisis_component_economy',0)),
-                    'Sentimen Ulasan':     sf(mr.get('crisis_component_sentiment',0)),
-                }
-                _comp_proj = False
-            elif _is_proj:
-                # Proyeksi: estimasi komponen dari crisis_score_100
-                _sc = score / 100.0
-                comp_vals = {
-                    'Kunjungan Wisatawan': round(_sc * 0.45, 4),
-                    'Kondisi Ekonomi':     round(_sc * 0.30, 4),
-                    'Sentimen Ulasan':     round(_sc * 0.25, 4),
-                }
-                _comp_proj = True
-            else:
-                comp_vals = None
-                _comp_proj = False
+        mr_rows = master[master['month']==sel]
+        if len(mr_rows) > 0:
+            mr = mr_rows.iloc[0]
+            comp_vals = {
+                'Kunjungan Wisatawan': sf(mr.get('crisis_component_tourism',0)),
+                'Kondisi Ekonomi':     sf(mr.get('crisis_component_economy',0)),
+                'Sentimen Ulasan':     sf(mr.get('crisis_component_sentiment',0)),
+            }
+            _comp_proj = False
+        elif _is_proj:
+            _sc = score / 100.0
+            comp_vals = {
+                'Kunjungan Wisatawan': round(_sc * 0.45, 4),
+                'Kondisi Ekonomi':     round(_sc * 0.30, 4),
+                'Sentimen Ulasan':     round(_sc * 0.25, 4),
+            }
+            _comp_proj = True
+        else:
+            comp_vals = None
+            _comp_proj = False
 
-            if comp_vals is not None:
-                fig_c = go.Figure(go.Bar(
-                    x=list(comp_vals.keys()),
-                    y=[v*100 for v in comp_vals.values()],
-                    marker_color=['#D90000','#f59e0b','#3b82f6'],
-                    marker_line_color='rgba(0,0,0,0)',
-                    text=[f'{v*100:.1f}%' for v in comp_vals.values()],
-                    textposition='outside',
-                    textfont=dict(size=12, color='#f1f5f9')
-                ))
-                fig_c.update_layout(
-                    # Menambahkan font size pada title axis
-                    yaxis=dict(
-                        range=[0,115], 
-                        title=dict(text='Kontribusi (%)', font=dict(size=12)),
-                        gridcolor='rgba(255,255,255,0.06)', 
-                        color='#94a3b8',
-                        tickfont=dict(size=12) # Memastikan tick label juga membesar
-                    ),
-                    xaxis=dict(
-                        color='#cbd5e1', 
-                        tickfont=dict(size=12)
-                    ),
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    height=300,
-                    margin=dict(l=10,r=10,t=10,b=10),
-                    font=dict(family='DM Sans', size=12, color='#cbd5e1')
+        if comp_vals is not None:
+            fig_c = go.Figure(go.Bar(
+                x=list(comp_vals.keys()),
+                y=[v*100 for v in comp_vals.values()],
+                marker_color=['#D90000','#f59e0b','#3b82f6'],
+                marker_line_color='rgba(0,0,0,0)',
+                text=[f'{v*100:.1f}%' for v in comp_vals.values()],
+                textposition='outside',
+                textfont=dict(size=12, color='#94a3b8')
+            ))
+            fig_c.update_layout(
+                yaxis=dict(
+                    range=[0,115],
+                    title=dict(text='Kontribusi (%)', font=dict(size=11, color='#64748b')),
+                    gridcolor='rgba(255,255,255,0.04)',
+                    color='#64748b',
+                    tickfont=dict(size=11),
+                    showline=False,
+                ),
+                xaxis=dict(color='#94a3b8', tickfont=dict(size=11), showline=False),
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                height=280,
+                margin=dict(l=0,r=10,t=10,b=10),
+                font=dict(family='DM Sans', size=11, color='#94a3b8')
+            )
+            st.plotly_chart(fig_c, use_container_width=True, config={'displayModeBar': False})
+            if _comp_proj:
+                st.markdown(
+                    "<div style='font-size:11px;color:#64748b;margin-top:-6px'>"
+                    "Estimasi proporsi berbasis crisis score proyeksi</div>",
+                    unsafe_allow_html=True
                 )
-                st.plotly_chart(fig_c, use_container_width=True, config={'displayModeBar': False})
-                if _comp_proj:
-                    st.markdown(
-                        "<div style='font-size:12px;color:#ffffff;text-align:center;margin-top:-8px'>"
-                        "Estimasi proporsi berbasis crisis score proyeksi — bukan data historis</div>",
-                        unsafe_allow_html=True
-                    )
-            else:
-                st.info("Data komponen tidak tersedia untuk bulan ini.")
+        else:
+            st.info("Data komponen tidak tersedia untuk bulan ini.")
 
-        # ── Box 2: Indikator Detail ───────────────────────
+        # ── Panel 2: Indikator Detail ───────────────────────
+        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+        st.markdown('<div class="box-heading sec-purple">Indikator Detail</div>',
+                    unsafe_allow_html=True)
+
         indicators = [
             ("Wisman", f"{int(round(wisman)):,} orang"),
             ("Recovery vs 2017–2019", f"{ctx.get('recovery_pct', sf(row_data.get('wisman_recovery_pct', 0))):.1f}%"),
@@ -184,82 +178,76 @@ def render(ctx: dict) -> None:
             f'<span class="risk-val">{v}</span></div>'
             for k, v in indicators
         )
-        with st.container(border=True):
-            st.markdown(
-                '<div class="accent-purple"></div>'
-                '<div class="box-heading sec-purple">Indikator Detail</div>'
-                + rows_html,
-                unsafe_allow_html=True
-            )
+        st.markdown(rows_html, unsafe_allow_html=True)
 
     with cr:
-        # ── Box 3: Probabilitas RF ────────────────────────
-        with st.container(border=True):
-            st.markdown('<div class="accent-orange"></div>', unsafe_allow_html=True)
-            st.markdown('<div class="box-heading sec-orange">Probabilitas Prediksi Random Forest</div>', unsafe_allow_html=True)
+        # ── Panel 3: Probabilitas RF ──────────────────────
+        st.markdown('<div class="box-heading sec-orange">Probabilitas Prediksi Random Forest</div>',
+                    unsafe_allow_html=True)
 
-            prob_labels = ['AMAN','WASPADA','SIAGA','KRISIS']
-            prob_vals   = [sf(row_data.get(f'prob_{l.lower()}',0))*100 for l in prob_labels]
-            fig_p = go.Figure(go.Bar(
-                y=prob_labels, x=prob_vals, orientation='h',
-                marker_color=['#00C794', '#F9F871', '#FF6C43', '#D90000'],
-                marker_line_color='rgba(0,0,0,0)',
-                text=[f'{v:.1f}%' for v in prob_vals],
+        prob_labels = ['AMAN','WASPADA','SIAGA','KRISIS']
+        prob_vals   = [sf(row_data.get(f'prob_{l.lower()}',0))*100 for l in prob_labels]
+        fig_p = go.Figure(go.Bar(
+            y=prob_labels, x=prob_vals, orientation='h',
+            marker_color=['#00C794', '#F9F871', '#FF6C43', '#D90000'],
+            marker_line_color='rgba(0,0,0,0)',
+            text=[f'{v:.1f}%' for v in prob_vals],
+            textposition='outside',
+            textfont=dict(size=12, color='#94a3b8')
+        ))
+        fig_p.update_layout(
+            xaxis=dict(
+                range=[0, 100],
+                title=dict(text='Probabilitas (%)', font=dict(size=11, color='#64748b')),
+                gridcolor='rgba(255,255,255,0.04)',
+                color='#64748b',
+                tickfont=dict(size=11),
+                showline=False,
+            ),
+            yaxis=dict(
+                color='#94a3b8',
+                categoryorder='total ascending',
+                tickfont=dict(size=12),
+                showline=False,
+            ),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            height=280,
+            margin=dict(l=0, r=50, t=10, b=10),
+            font=dict(family='DM Sans', size=11, color='#94a3b8')
+        )
+        st.plotly_chart(fig_p, use_container_width=True, config={'displayModeBar': False})
+
+        # ── Panel 4: Feature Importance ───────────────────
+        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+        st.markdown('<div class="box-heading sec-green">Feature Importance — Random Forest</div>',
+                    unsafe_allow_html=True)
+
+        try:
+            fi_available = [f for f in FEATURES if f in master.columns]
+            fi = pd.DataFrame({
+                'Fitur': fi_available[:len(rf_model.feature_importances_)],
+                'Importance': rf_model.feature_importances_[:len(fi_available)]
+            })
+            fi = fi.sort_values('Importance', ascending=True).tail(8)
+            fig_fi = go.Figure(go.Bar(
+                x=fi['Importance'], y=fi['Fitur'], orientation='h',
+                marker_color='#3b82f6', marker_line_color='rgba(0,0,0,0)',
+                text=[f'{v:.3f}' for v in fi['Importance']],
                 textposition='outside',
-                textfont=dict(size=12,color='#f1f5f9')
+                textfont=dict(size=11, color='#94a3b8')
             ))
-            fig_p.update_layout(
-                xaxis=dict(
-                    range=[0, 100], 
-                    title=dict(text='Probabilitas (%)', font=dict(size=12)),
-                    gridcolor='rgba(255,255,255,0.06)', 
-                    color='#94a3b8',
-                    tickfont=dict(size=12)
-                ),
-                yaxis=dict(
-                    color='#f1f5f9', 
-                    categoryorder='total ascending',
-                    tickfont=dict(size=12)
-                ),
+            fig_fi.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                height=300,
-                margin=dict(l=10, r=50, t=10, b=10),
-                font=dict(family='DM Sans', size=12, color='#cbd5e1')
+                height=370,
+                margin=dict(l=0,r=80,t=10,b=10),
+                xaxis=dict(range=[0, fi['Importance'].max()*1.35],
+                           gridcolor='rgba(255,255,255,0.04)',
+                           color='#64748b', showline=False),
+                yaxis=dict(color='#94a3b8', tickfont=dict(size=11), showline=False),
+                font=dict(family='DM Sans', size=11, color='#94a3b8')
             )
-            st.plotly_chart(fig_p, use_container_width=True, config={'displayModeBar': False})
-
-        # ── Box 4: Feature Importance ─────────────────────
-        with st.container(border=True):
-            st.markdown('<div class="accent-green"></div>', unsafe_allow_html=True)
-            st.markdown('<div class="box-heading sec-green">Feature Importance — Random Forest</div>', unsafe_allow_html=True)
-
-            try:
-                fi_available = [f for f in FEATURES if f in master.columns]
-                fi = pd.DataFrame({
-                    'Fitur': fi_available[:len(rf_model.feature_importances_)],
-                    'Importance': rf_model.feature_importances_[:len(fi_available)]
-                })
-                fi = fi.sort_values('Importance', ascending=True).tail(8)
-                fig_fi = go.Figure(go.Bar(
-                    x=fi['Importance'], y=fi['Fitur'], orientation='h',
-                    marker_color='#3b82f6', marker_line_color='rgba(0,0,0,0)',
-                    text=[f'{v:.3f}' for v in fi['Importance']],
-                    textposition='outside',
-                    textfont=dict(size=12,color='#f1f5f9')
-                ))
-                fig_fi.update_layout(
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    height=390,
-                    margin=dict(l=10,r=80,t=10,b=10),
-                    xaxis=dict(range=[0, fi['Importance'].max()*1.35],
-                               gridcolor='rgba(255,255,255,0.06)', color='#94a3b8'),
-                    yaxis=dict(color='#f1f5f9', tickfont=dict(size=12)),
-                    font=dict(family='DM Sans',size=12,color='#cbd5e1')
-                )
-                st.plotly_chart(fig_fi, use_container_width=True, config={'displayModeBar': False})
-            except Exception:
-                st.info("Feature importance tidak tersedia.")
-
-    # ─── TAB 3: SENTIMEN ─────────────────────────────────
+            st.plotly_chart(fig_fi, use_container_width=True, config={'displayModeBar': False})
+        except Exception:
+            st.info("Feature importance tidak tersedia.")
