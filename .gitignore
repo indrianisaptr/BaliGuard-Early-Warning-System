@@ -3,3 +3,11 @@
 # Ignore a specific file
 .env
 .streamlit/secrets.toml
+/secrets/
+
+# Log files
+scraping_scripts/logs/
+
+# Runtime files
+.last_attempt
+.last_ip
