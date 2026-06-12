@@ -879,10 +879,10 @@ def render(ctx: dict) -> None:
                     'prob_siaga'   : round(float(_narasi_row_data.get('prob_siaga', 0)) * 100, 1),
                     'bali_share'   : round(float(_narasi_row_data.get('bali_share_pct', 0)), 1),
                     'wisman_zscore'  : round(float(_narasi_row_data.get('wisman_zscore', 0)), 2),
-                    'physical_risk'  : round(float(_narasi_row_data.get('physical_risk_score', 0)), 1),
-                    'media_risk'     : round(float(_narasi_row_data.get('media_risk_score', 0)), 1),
-                    'tourist_percep' : round(float(_narasi_row_data.get('tourist_perception_score', 0)), 1),
-                    'external_risk'  : round(float(_narasi_row_data.get('external_risk_score', 0)), 1),
+                    'physical_risk'  : round(float(_narasi_row_data.get('physical_risk_score', 0)) * 100, 1),
+                    'media_risk'     : round(float(_narasi_row_data.get('media_risk_score', 0)) * 100, 1),
+                    'tourist_percep' : round(float(_narasi_row_data.get('tourist_perception_score', 0)) * 100, 1),
+                    'external_risk'  : round(float(_narasi_row_data.get('external_risk_score', 0)) * 100, 1),
                 }
                 if _history:
                     _avg3 = _np.mean([r.get('wisman', 0) for r in _history[-3:]])
@@ -931,6 +931,11 @@ def render(ctx: dict) -> None:
                 elif _ctx['score_delta'] > 5 and _ctx['sent_delta'] > 0.1:
                     _contradiction = "KONTRADIKSI: Crisis score memburuk tapi sentimen publik positif — tekanan mungkin struktural, bukan persepsi."
 
+                def _risk_label(v: float) -> str:
+                    if v <= 33:   return "Rendah"
+                    elif v <= 66: return "Sedang"
+                    else:         return "Tinggi"
+
                 _data_block = (
                     f"DATA PARIWISATA BALI - {_ctx['month']}\n"
                     f"Crisis Score: {_ctx['crisis_score']}/100 -> Level {_ctx['crisis_level']} ({_lv_text})\n"
@@ -948,6 +953,34 @@ def render(ctx: dict) -> None:
                     f"Histori level: {_prev}\n"
                     + (f"⚠️ {_contradiction}\n" if _contradiction else "")
                 )
+                
+                _narasi_rule = (
+                    "\n\nATURAN NARASI WAJIB (berlaku untuk SELURUH indikator risk score):\n"
+                    "Jangan hanya menyebut nilai angka. Setiap indikator risk score WAJIB dijelaskan dengan pola berikut:\n"
+                    "  [Nama indikator] berada pada level [Rendah/Sedang/Tinggi] ([nilai]/100), "
+                    "yang menunjukkan [arti indikator tersebut], sehingga [dampak konkret terhadap pariwisata Bali].\n\n"
+                    "Contoh BENAR:\n"
+                    "  'Media Risk berada pada level sedang (50/100), yang menunjukkan adanya risiko pemberitaan "
+                    "negatif di media internasional, sehingga dapat menekan kepercayaan wisatawan mancanegara "
+                    "terhadap Bali sebagai destinasi yang aman.'\n\n"
+                    "  'Tourist Perception berada pada level tinggi (80/100), yang menunjukkan bahwa wisatawan "
+                    "memiliki persepsi positif terhadap Bali, sehingga mendukung pertumbuhan kunjungan dan "
+                    "belanja wisata dalam jangka pendek.'\n\n"
+                    "  'External Risk berada pada level sedang (50/100), yang menunjukkan tekanan eksternal "
+                    "masih dalam batas terkendali, namun perlu dipantau karena dapat memengaruhi kestabilan "
+                    "kunjungan dalam beberapa bulan ke depan.'\n\n"
+                    "Contoh SALAH (DILARANG):\n"
+                    "  'Media Risk sebesar 50/100.'\n"
+                    "  'Physical Risk Score: 40/100.'\n"
+                    "  'External Risk berada di angka 50.'\n\n"
+                    "Panduan makna tiap indikator:\n"
+                    "  - Physical Risk → risiko dari bencana alam, cuaca ekstrem, dan gangguan fisik destinasi\n"
+                    "  - Media Risk → risiko dari pemberitaan negatif global yang merusak citra Bali\n"
+                    "  - Tourist Perception → tingkat kepercayaan dan persepsi positif wisatawan terhadap Bali\n"
+                    "  - External Risk → tekanan eksternal komposit (ekonomi global, geopolitik, dll) yang memengaruhi pariwisata\n"
+                )
+                # ────────────────────────────────────────────────────────────────────────
+
 
                 if report_type == 'summary':
                     _prompt = (
@@ -961,6 +994,7 @@ def render(ctx: dict) -> None:
                         "- Jika ada kontradiksi antar indikator, soroti itu\n"
                         "- Hindari kalimat seperti 'data menunjukkan' — langsung ke analisis\n"
                         "Format: cocok untuk KPI card eksekutif, padat, berbasis data."
+                        + _narasi_rule
                     )
                 elif report_type == 'alert':
                     _prompt = (
@@ -972,6 +1006,7 @@ def render(ctx: dict) -> None:
                         "KONTEKS: [apakah ini anomali? konsisten atau tiba-tiba?]\n"
                         "TINDAKAN: [1 rekomendasi segera yang spesifik dan actionable]\n"
                         "Gaya: tegas, langsung, tidak bertele-tele."
+                        + _narasi_rule
                     )
                 elif report_type == 'predict':
                     _prompt = (
@@ -993,39 +1028,37 @@ def render(ctx: dict) -> None:
                         "   - Tindakan preventif yang perlu disiapkan SEKARANG sebelum risiko terjadi\n"
                         "   - Tiap poin: [Urgensi] Tindakan spesifik → dampak yang diantisipasi\n\n"
                         "Gaya: forward-looking, actionable, berbasis angka dan tren nyata."
+                        + _narasi_rule
                     )
                 # ── PATCH A3: SWOT prompt ──────────────────────────────────
                 elif report_type == 'swot':
                     _prompt = (
-                        "Kamu adalah analis strategis pariwisata Bali.\n"
+                        "Kamu adalah analis pariwisata profesional dan strategis untuk Bali.\n"
                         + _data_block +
                         f"\nTugas: Buat ANALISIS SWOT pariwisata Bali bulan {_ctx['month']} "
-                        "dalam Bahasa Indonesia yang tajam dan berbasis data.\n\n"
+                        "dalam Bahasa Indonesia yang tajam, analitis, dan strategis.\n\n"
+                        "==================================================\n"
+                        "ATURAN COMPARATIVE REASONING (WAJIB DIPATUHI):\n"
+                        "==================================================\n"
+                        "1. DILARANG HANYA MEMBACA DATA. Jangan membuat pola mekanis seperti 'Physical Risk adalah 34/100' lalu dijelaskan satu kalimat. Ini bukan analisis.\n"
+                        "2. BANDINGKAN INDIKATOR: Selalu bandingkan indikator satu sama lain (misal: Media Risk vs Physical Risk, atau Tourist Perception vs External Risk).\n"
+                        "3. IDENTIFIKASI FAKTOR DOMINAN: Tentukan secara eksplisit indikator risiko eksternal mana yang paling tinggi dan apa implikasinya.\n"
+                        "4. HUBUNGAN SEBAB-AKIBAT: Jelaskan bagaimana satu indikator memengaruhi indikator lain (misal: 'Peningkatan Physical Risk dapat memicu Media Risk jika diekspos besar-besaran').\n"
+                        "5. INTERPRETASI STRATEGIS: Jelaskan dampak nyata terhadap kunjungan wisatawan, okupansi hotel, dan reputasi Bali.\n\n"
                         "Format output WAJIB menggunakan struktur berikut:\n\n"
                         "KEKUATAN (Strengths)\n"
-                        "- [poin 1: berbasis data positif yang tersedia]\n"
-                        "- [poin 2]\n"
-                        "- [poin 3]\n\n"
+                        "- [Analisis faktor internal/persepsi yang paling kuat secara komparatif. Jika Tourist Perception tinggi, jelaskan bagaimana hal ini menjadi penyangga utama ketahanan sektor pariwisata Bali.]\n"
+                        "- [Kaitkan dengan data operasional positif seperti tren Wisman atau TPK Hotel.]\n\n"
                         "KELEMAHAN (Weaknesses)\n"
-                        "- [poin 1: indikator yang underperform atau menurun]\n"
-                        "- [poin 2]\n"
-                        "- [poin 3]\n\n"
+                        "- [Analisis faktor internal yang mulai melemah. Kaitkan dengan fluktuasi Crisis Score, penurunan Sentimen, atau tekanan dari Inflasi.]\n"
+                        "- [Identifikasi kerentanan internal yang berpotensi memperburuk persepsi jika tidak ditangani.]\n\n"
                         "PELUANG (Opportunities)\n"
-                        "- [poin 1: kondisi eksternal yang bisa dimanfaatkan]\n"
-                        "- [poin 2]\n"
-                        "- [poin 3]\n\n"
+                        "- [WAJIB bandingkan Tourist Perception vs External Risk. Jelaskan peluang dan ruang pertumbuhan yang muncul karena persepsi wisatawan lebih tinggi dari tekanan eksternal yang ada.]\n"
+                        "- [Berikan rekomendasi strategis promosi atau peningkatan kualitas layanan untuk memanfaatkan momentum ini.]\n\n"
                         "ANCAMAN (Threats)\n"
-                        "- [poin 1: cerminkan faktor eksternal dominan — bencana, media global, atau persepsi wisatawan]\n"
-                        "- [poin 2]\n"
-                        "- [poin 3]\n\n"
-                        "Panduan:\n"
-                        "- Setiap poin harus menyebut angka atau perubahan MoM yang konkret\n"
-                        f"- Physical Risk Score ({_ctx['physical_risk']:.1f}/100): gunakan sebagai ANCAMAN bencana/cuaca di bagian Threats\n"
-                        f"- Media Risk Score ({_ctx['media_risk']:.1f}/100): gunakan sebagai ANCAMAN reputasi media global di bagian Threats\n"
-                        f"- Tourist Perception Score ({_ctx['tourist_percep']:.1f}/100): jika <40 masuk Threats, jika >60 masuk Opportunities\n"
-                        f"- External Risk Score ({_ctx['external_risk']:.1f}/100): jadikan faktor strategis utama di Threats atau Opportunities\n"
-                        "- Hindari generalisasi — tiap poin harus bisa di-trace ke data yang diberikan\n"
-                        "- Panjang tiap poin: 1–2 kalimat, padat dan actionable"
+                        "- [WAJIB bandingkan Media Risk vs Physical Risk. Tentukan mana yang memberikan tekanan paling dominan saat ini, dan jelaskan dampaknya terhadap keputusan berkunjung wisatawan.]\n"
+                        "- [Sebutkan indikator eksternal paling berisiko dan potensi efek dominonya (sebab-akibat) terhadap reputasi destinasi.]\n\n"
+                        "Gaya Bahasa: Layaknya seorang pakar strategis. Tuliskan dalam bentuk paragraf analitis untuk tiap bagian (bukan sekadar poin-poin pendek) agar alur komparasinya terasa natural."
                     )
                 # ───────────────────────────────────────────────────────────
 
@@ -1047,6 +1080,7 @@ def render(ctx: dict) -> None:
                         "   - Apakah tekanan berasal dari faktor internal (layanan) atau eksternal (ekonomi, akses)?\n\n"
                         "4. REKOMENDASI PRIORITAS (3 poin konkret dengan urgensi jelas)\n"
                         "   - Tiap poin: [Prioritas] Tindakan spesifik → target indikator yang diperbaiki"
+                        + _narasi_rule
                     )
 
                 _client   = _Groq(api_key=groq_key)
