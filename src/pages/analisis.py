@@ -102,14 +102,16 @@ def render(ctx: dict) -> None:
                 'Kunjungan Wisatawan': sf(mr.get('crisis_component_tourism',0)),
                 'Kondisi Ekonomi':     sf(mr.get('crisis_component_economy',0)),
                 'Sentimen Ulasan':     sf(mr.get('crisis_component_sentiment',0)),
+                'External Risk':       sf(ctx.get('external_risk', 0)),
             }
             _comp_proj = False
         elif _is_proj:
             _sc = score / 100.0
             comp_vals = {
-                'Kunjungan Wisatawan': round(_sc * 0.45, 4),
-                'Kondisi Ekonomi':     round(_sc * 0.30, 4),
-                'Sentimen Ulasan':     round(_sc * 0.25, 4),
+                'Kunjungan Wisatawan': round(_sc * 0.40, 4),
+                'Kondisi Ekonomi':     round(_sc * 0.25, 4),
+                'Sentimen Ulasan':     round(_sc * 0.20, 4),
+                'External Risk':       round(sf(ctx.get('external_risk', 0)), 4),
             }
             _comp_proj = True
         else:
@@ -120,7 +122,7 @@ def render(ctx: dict) -> None:
             fig_c = go.Figure(go.Bar(
                 x=list(comp_vals.keys()),
                 y=[v*100 for v in comp_vals.values()],
-                marker_color=['#D90000','#f59e0b','#3b82f6'],
+                marker_color=['#D90000','#f59e0b','#3b82f6','#a78bfa'],
                 marker_line_color='rgba(0,0,0,0)',
                 text=[f'{v*100:.1f}%' for v in comp_vals.values()],
                 textposition='outside',

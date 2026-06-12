@@ -9,7 +9,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
-import json, os, time, requests
+import json, os, time, requests, sys
 from datetime import datetime
 from src.services.llm_service import call_groq, get_or_generate, build_narrative_prompt
 from src.services.forecast import forecast_months
@@ -30,11 +30,11 @@ EMOJI_MAP = {
 def _get_groq_key() -> str:
     """Ambil Groq API key dari st.secrets atau environment variable."""
     try:
-        return st.secrets.get("GROQ_API_KEY", "") or st.secrets.get("groq_api_key", "")
+        return st.secrets.get("GROQ_API", "") or st.secrets.get("groq_api", "")
     except Exception:
         pass
     import os
-    return os.getenv("GROQ_API_KEY", "")
+    return os.getenv("GROQ_API", "")
 
 def render(ctx: dict) -> None:
     """Render halaman Narasi AI."""
@@ -117,22 +117,22 @@ def render(ctx: dict) -> None:
     <div style='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px'>
         <div style='background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);
                     border-radius:12px;padding:20px 16px 16px'>
-            <div style='font-size:16px;font-weight:800;color:#93c5fd;margin-bottom:6px;text-align:center'>Laporan Dinas / Rapat</div>
-            <div style='font-size:13px;color:#e2e8f0;line-height:1.6;text-align:center'>
+            <div style='font-size:18px;font-weight:800;color:#93c5fd;margin-bottom:6px;text-align:center'>Laporan Dinas / Rapat</div>
+            <div style='font-size:15px;color:#e2e8f0;line-height:1.6;text-align:center'>
                 Draft laporan bulanan siap presentasi ke kepala dinas atau DPRD tanpa tulis manual.
             </div>
         </div>
         <div style='background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);
                     border-radius:12px;padding:20px 16px 16px'>
-            <div style='font-size:16px;font-weight:800;color:#d90000;margin-bottom:6px;text-align:center'>Peringatan Dini Krisis</div>
-            <div style='font-size:13px;color:#e2e8f0;line-height:1.6;text-align:center'>
+            <div style='font-size:18px;font-weight:800;color:#d90000;margin-bottom:6px;text-align:center'>Peringatan Dini Krisis</div>
+            <div style='font-size:15px;color:#e2e8f0;line-height:1.6;text-align:center'>
                 Saat SIAGA/KRISIS terdeteksi, sistem menyusun teks peringatan + rekomendasi untuk stakeholder.
             </div>
         </div>
         <div style='background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);
                     border-radius:12px;padding:20px 16px 16px'>
-            <div style='font-size:16px;font-weight:800;color:#fcd34d;margin-bottom:6px;text-align:center'>Press Release / Media</div>
-            <div style='font-size:13px;color:#e2e8f0;line-height:1.6;text-align:center'>
+            <div style='font-size:18px;font-weight:800;color:#fcd34d;margin-bottom:6px;text-align:center'>Press Release / Media</div>
+            <div style='font-size:15px;color:#e2e8f0;line-height:1.6;text-align:center'>
                 Ringkasan berbasis data sebagai bahan siaran pers atau infografis pariwisata Bali.
             </div>
         </div>
@@ -145,7 +145,7 @@ def render(ctx: dict) -> None:
     # ══════════════════════════════════════════════════════
     # CONFIG COLUMNS
     # ══════════════════════════════════════════════════════
-    # ─ 1. TIPE LAPORAN — FULL WIDTH 4 CARDS ──────────────
+    # ─ 1. TIPE LAPORAN — FULL WIDTH 5 CARDS ──────────────
     st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-top:28px;margin-bottom:18px'>
         <div style='flex:1;height:1px;background:#1119FF'></div>
         <div style='padding:0 20px;font-size:15px;font-weight:700;color:#1119FF;text-transform:uppercase;
@@ -174,12 +174,19 @@ def render(ctx: dict) -> None:
             'detail':'Prediksi 3–6 bulan ke depan berbasis tren ML, faktor risiko, dan rekomendasi antisipatif.',
             'color':'#FF6C43','bg':'rgba(251,146,60,0.12)','border':'rgba(255,108,67,0.30)',
         },
+        # ── PATCH A1: SWOT report type ──────────────────────────────
+        'swot': {
+            'icon':'🧭','title':'Analisis SWOT','desc':'Kekuatan · Kelemahan · Peluang · Ancaman',
+            'detail':'Peta strategis kondisi pariwisata Bali: 4 kuadran SWOT berbasis data ML & indikator terkini.',
+            'color':'#fcd34d','bg':'rgba(245,158,11,0.08)','border': 'rgba(245,158,11,0.30)',
+        },
+        # ────────────────────────────────────────────────────────────
     }
 
     if 'report_type_sel' not in st.session_state:
         st.session_state['report_type_sel'] = 'summary'
 
-    _rt_cols = st.columns(4)
+    _rt_cols = st.columns(5)
     for _i, (_key, _card) in enumerate(REPORT_CARDS.items()):
         with _rt_cols[_i]:
             _is_sel = st.session_state['report_type_sel'] == _key
@@ -188,16 +195,32 @@ def render(ctx: dict) -> None:
             _opac   = "1" if _is_sel else "0.90"
             st.markdown(
                 "<div style='background:" + _card['bg'] + ";border:" + _bdr + ";"
-                "border-radius:12px;padding:20px 16px 16px;min-height:140px;margin-bottom:6px;"
+                "border-radius:12px;padding:14px 10px 12px;"
+                "height:150px;"                                      # ← fixed height, semua card sama
+                "display:flex;flex-direction:column;"                # ← flexbox vertikal
+                "justify-content:flex-start;align-items:center;"    # ← konten rata atas, tengah
+                "margin-bottom:6px;box-sizing:border-box;"
                 "opacity:" + _opac + ";" + _shad + ";transition:opacity .2s'>"
-                "<div style='font-size:16px;font-weight:800;color:" + _card['color'] + ";margin-bottom:4px;text-align:center'>"
+                # ── Icon ──
+                #"<div style='font-size:20px;margin-bottom:4px;line-height:1'>" + _card['icon'] + "</div>"
+                # ── Title ──
+                "<div style='font-size:18px;font-weight:800;color:" + _card['color'] + ";"
+                "margin-bottom:3px;text-align:center;line-height:1.3'>"
                 + _card['title'] + "</div>"
-                "<div style='font-size:13px;color:#cbd5e1;font-weight:700;margin-bottom:6px;text-align:center'>"
+                # ── Desc (badge style) ──
+                "<div style='font-size:11px;font-weight:700;color:" + _card['color'] + ";"
+                "background:" + _card['bg'] + ";border:1px solid " + _card['border'] + ";"
+                "border-radius:20px;padding:2px 8px;margin-bottom:6px;text-align:center;"
+                "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%'>"
                 + _card['desc'] + "</div>"
-                "<div style='font-size:13px;color:#e2e8f0;line-height:1.6;text-align:center'>" + _card['detail'] + "</div>"
+                # ── Detail ──
+                "<div style='font-size:15px;color:#FAEBD7;line-height:1.5;text-align:center;"
+                "overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical'>"
+                + _card['detail'] + "</div>"
                 "</div>",
                 unsafe_allow_html=True
             )
+            
             if st.button(_card['title'], key="rt_" + _key, width="stretch"):
                 st.session_state['report_type_sel'] = _key
                 st.rerun()
@@ -338,11 +361,11 @@ def render(ctx: dict) -> None:
                 "border-radius:10px;padding:12px 14px;opacity:" + _m_opac + ";" + _m_shad + ";margin-bottom:6px;"
                 "transition:opacity .2s,border .2s,box-shadow .2s'>"
                 "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>"
-                "<div style='font-size:16px;font-weight:800;color:" + _pc + "'>" + _mcard['label'] + "</div>"
+                "<div style='font-size:18px;font-weight:800;color:" + _pc + "'>" + _mcard['label'] + "</div>"
                 "<span style='font-size:11px;font-weight:700;background:" + _pc + "22;"
                 "color:" + _pc + ";padding:3px 9px;border-radius:10px'>"
                 + _mcard['tag'] + "</span></div>"
-                "<div style='font-size:13px;color:#cbd5e1;line-height:1.5'>" + _mcard['desc'] + "</div>"
+                "<div style='font-size:15px;color:#cbd5e1;line-height:1.5'>" + _mcard['desc'] + "</div>"
                 "</div>",
                 unsafe_allow_html=True
             )
@@ -489,6 +512,13 @@ def render(ctx: dict) -> None:
         st.session_state['narasi_month_sel'] = _sel_month
 
     narasi_target   = st.session_state['narasi_month_sel']
+
+    # ── PATCH: get_row helper ──────────────────────────────────
+    def get_row(month: str) -> dict:
+        rows = predictions[predictions['month'] == month]
+        return dict(rows.iloc[0]) if not rows.empty else {}
+    # ──────────────────────────────────────────────────────────
+
     _is_fc_month    = narasi_target not in _avail_months_hist
     if _is_fc_month:
         _narasi_level = _fc_level_map.get(narasi_target, 'WASPADA')
@@ -802,6 +832,39 @@ def render(ctx: dict) -> None:
                         "   - Tiap poin: [Urgensi] Tindakan spesifik → dampak yang diantisipasi\n\n"
                         "Gaya: forward-looking, actionable, berbasis angka dan tren nyata."
                     )
+                # ── PATCH A3: SWOT prompt ──────────────────────────────────
+                elif report_type == 'swot':
+                    _prompt = (
+                        "Kamu adalah analis strategis pariwisata Bali.\n"
+                        + _data_block +
+                        f"\nTugas: Buat ANALISIS SWOT pariwisata Bali bulan {_ctx['month']} "
+                        "dalam Bahasa Indonesia yang tajam dan berbasis data.\n\n"
+                        "Format output WAJIB menggunakan struktur berikut:\n\n"
+                        "💪 KEKUATAN (Strengths)\n"
+                        "- [poin 1: berbasis data positif yang tersedia]\n"
+                        "- [poin 2]\n"
+                        "- [poin 3]\n\n"
+                        "⚠️ KELEMAHAN (Weaknesses)\n"
+                        "- [poin 1: indikator yang underperform atau menurun]\n"
+                        "- [poin 2]\n"
+                        "- [poin 3]\n\n"
+                        "🚀 PELUANG (Opportunities)\n"
+                        "- [poin 1: kondisi eksternal yang bisa dimanfaatkan]\n"
+                        "- [poin 2]\n"
+                        "- [poin 3]\n\n"
+                        "🔴 ANCAMAN (Threats)\n"
+                        "- [poin 1: cerminkan faktor eksternal dominan — bencana, media global, atau persepsi wisatawan]\n"
+                        "- [poin 2]\n"
+                        "- [poin 3]\n\n"
+                        "Panduan:\n"
+                        "- Setiap poin harus menyebut angka atau perubahan MoM yang konkret\n"
+                        "- Bagian Ancaman harus menjelaskan APAKAH ancaman dominan berasal dari "
+                        "faktor fisik, media, atau ekonomi wisatawan berdasarkan data di atas\n"
+                        "- Hindari generalisasi — tiap poin harus bisa di-trace ke data yang diberikan\n"
+                        "- Panjang tiap poin: 1–2 kalimat, padat dan actionable"
+                    )
+                # ───────────────────────────────────────────────────────────
+
                 else:
                     _prompt = (
                         "Kamu adalah analis senior BaliGuard.\n"

@@ -7,15 +7,24 @@ from src.components.badges import LEVEL_COLORS, LEVEL_BG, status_dot
 
 
 def kpi_card(label: str, value: str, sub: str = '',
-             level: str = None, width: str = '100%') -> str:
-    """Card KPI dengan border warna level di atas."""
-    border = f"border-top:3px solid {LEVEL_COLORS.get(level,'#3b82f6')};" if level else ''
+             level: str = None, width: str = '100%',
+             color: str = None) -> str:                          # ← tambah param
+    """Card KPI dengan border warna level di atas.
+
+    Args:
+        color: Override warna eksplisit (hex/rgba). Bila diisi, mengabaikan `level`.
+               Berguna untuk kasus di mana warna ditentukan oleh logika non-level
+               (mis. threshold persentase di External Risk Monitor).
+    """
+    _color = color or (LEVEL_COLORS.get(level, '#3b82f6') if level else None)  # ← resolusi warna
+    border = f"border-top:3px solid {_color};" if _color else ''
+    val_color = _color or '#f1f5f9'                                             # ← value ikut warna
     return (
         f"<div style='background:rgba(255,255,255,.04);border-radius:10px;"
         f"padding:14px 16px;{border}text-align:center;width:{width}'>"
         f"<div style='font-size:11px;color:#64748b;letter-spacing:.08em;"
         f"margin-bottom:4px;font-weight:600'>{label}</div>"
-        f"<div style='font-size:22px;font-weight:700;color:#f1f5f9;"
+        f"<div style='font-size:22px;font-weight:700;color:{val_color};"    # ← pakai val_color
         f"font-family:\"DM Serif Display\"'>{value}</div>"
         f"<div style='font-size:12px;color:#94a3b8;margin-top:3px'>{sub}</div>"
         f"</div>"

@@ -187,6 +187,11 @@ def render(ctx: dict) -> None:
     _pct_krisis      = ctx['pct_krisis']
     _avg_score       = ctx['avg_score']
     color            = ctx['color']
+    #revisi/tambahan — sesuai kunci yang disediakan src/shared.build_context()
+    physical_risk_score      = ctx.get('physical_risk', row_data.get('physical_risk_score'))
+    media_risk_score         = ctx.get('media_risk', row_data.get('media_risk_score'))
+    tourist_perception_score = ctx.get('tourist_percept', row_data.get('tourist_perception_score'))
+    external_risk_score      = ctx.get('external_risk', row_data.get('external_risk_score'))
 
     _tick("nav_start_overview")
 
@@ -220,6 +225,68 @@ def render(ctx: dict) -> None:
 
     st.plotly_chart(_build_overview_fig1(str(sel), predictions),
                     use_container_width=True, config={'displayModeBar': False})
+
+    #Revisi + Tambahan
+    # ── External Risk Monitor ──────────────────────────────
+    def _risk_pct(val):
+        if val is None:
+            return None
+        val = float(val)
+        return val * 100 if val <= 1 else val
+
+    def _risk_color(pct):
+        if pct is None:
+            return '#64748b'
+        if pct < 30:
+            return '#00c794'
+        if pct < 60:
+            return '#fbbf24'
+        return '#d90000'
+
+    def _fmt_pct(pct):
+        return f"{pct:.1f}%" if pct is not None else "N/A"
+
+    _phys_pct = _risk_pct(physical_risk_score)
+    _media_pct = _risk_pct(media_risk_score)
+    _tourist_pct = _risk_pct(tourist_perception_score)
+    _ext_pct = _risk_pct(external_risk_score)
+
+    _risk_cards = [
+        ("Physical Risk", _phys_pct, "BMKG + Gempa + Cuaca"),
+        ("Media Risk", _media_pct, "GDELT + Tone Berita"),
+        ("Tourist Perception", _tourist_pct, "Google Trends + Economic Risk"),
+        ("External Risk", _ext_pct, "Gabungan ketiga komponen di atas"),
+    ]
+    
+    _risk_cards_html = "".join(f"""
+      <div style='flex:1;text-align:center;padding:14px 16px;
+                  {'border-right:1px solid rgba(255,255,255,0.06)' if i < 3 else ''}'>
+        <div style='font-size:10px;font-weight:700;text-transform:uppercase;
+                    letter-spacing:.12em;color:#64748b;margin-bottom:8px;font-family:"DM Sans"'>
+            {label}
+        </div>
+        <div style='font-family:"DM Serif Display";font-size:26px;font-weight:700;
+                    color:{_risk_color(pct)};line-height:1;margin-bottom:8px'>
+            {_fmt_pct(pct)}
+        </div>
+        <div style='font-size:11px;color:#94a3b8;font-family:"DM Sans";line-height:1.4'>
+            {desc}
+        </div>
+      </div>
+    """ for i, (label, pct, desc) in enumerate(_risk_cards))
+
+    st.markdown(f"""
+    <div style='margin-top:32px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.07)'>
+      <div style='text-align:center;font-family:"DM Sans";font-size:25px;font-weight:700;
+                  color:#ff6c43;margin-bottom:16px'>
+          External Risk Monitor
+      </div>
+      <div style='display:flex;justify-content:center;gap:0'>
+        {_risk_cards_html}
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 
     # ── Summary Stats Strip ───────────────────────────────
     _pct_aman   = (predictions['crisis_level']=='AMAN').mean()*100

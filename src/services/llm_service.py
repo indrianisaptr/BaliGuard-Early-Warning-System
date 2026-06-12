@@ -79,7 +79,9 @@ INDIKATOR UTAMA (MoM):
             "Anda adalah analis risiko pariwisata senior Bali. "
             "Berdasarkan data berikut, tulis EXECUTIVE SUMMARY dalam Bahasa Indonesia "
             "yang padat (3-4 paragraf). Fokus pada: (1) kondisi terkini, "
-            "(2) faktor pendorong utama, (3) tren yang perlu diwaspadai. "
+            "(2) faktor pendorong utama termasuk risiko eksternal yang paling dominan, "
+            "(3) apakah risiko berasal dari bencana/cuaca, pemberitaan media global, "
+            "atau penurunan persepsi wisatawan, dan dampaknya terhadap pariwisata Bali. "
             "Gunakan bahasa formal namun mudah dipahami pejabat pariwisata.\n\n"
             + base_context
         )
@@ -88,7 +90,9 @@ INDIKATOR UTAMA (MoM):
             "Anda adalah sistem peringatan dini pariwisata Bali. "
             f"Level saat ini adalah {level}. "
             "Buat EMERGENCY ALERT dalam Bahasa Indonesia yang singkat (2-3 paragraf). "
-            "Sertakan: kondisi kritis, penyebab utama, dan tindakan mendesak. "
+            "Sertakan: kondisi kritis, identifikasi apakah ancaman utama berasal dari "
+            "risiko fisik (bencana/cuaca), risiko media (pemberitaan negatif global), "
+            "atau penurunan persepsi wisatawan, serta tindakan mendesak yang spesifik. "
             "Gunakan bahasa tegas dan to-the-point.\n\n"
             + base_context
         )
@@ -97,6 +101,9 @@ INDIKATOR UTAMA (MoM):
             "Anda adalah konsultan strategi pariwisata Bali. "
             "Berdasarkan data berikut, berikan REKOMENDASI KEBIJAKAN dalam Bahasa Indonesia "
             "(minimal 4 poin spesifik) untuk Dinas Pariwisata Bali. "
+            "Sertakan rekomendasi yang merespons faktor eksternal dominan — "
+            "apakah itu mitigasi bencana, manajemen reputasi media internasional, "
+            "atau strategi menarik wisatawan dari negara yang ekonominya sedang melemah. "
             "Setiap rekomendasi harus actionable dan berbasis data.\n\n"
             + base_context
         )
@@ -104,7 +111,9 @@ INDIKATOR UTAMA (MoM):
         return (
             "Anda adalah analis strategis pariwisata. "
             "Buat ANALISIS SWOT pariwisata Bali berdasarkan data berikut dalam Bahasa Indonesia. "
-            "Format: Kekuatan | Kelemahan | Peluang | Ancaman, masing-masing 2-3 poin.\n\n"
+            "Format: Kekuatan | Kelemahan | Peluang | Ancaman, masing-masing 2-3 poin. "
+            "Pastikan bagian Ancaman mencerminkan faktor eksternal yang paling dominan "
+            "(bencana/cuaca, media global, atau persepsi wisatawan) berdasarkan skor yang tersedia.\n\n"
             + base_context
         )
     return base_context

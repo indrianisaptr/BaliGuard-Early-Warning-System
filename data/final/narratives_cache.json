@@ -88,5 +88,14 @@
     "crisis_level": "KRISIS",
     "report_type": "alert",
     "crisis_score": 62.2
+  },
+  "2025-04": {
+    "success": true,
+    "narrative": "STATUS: WASPADA (37.3/100, +1.5 poin MoM)  \nPEMICU UTAMA: Wisman stabil (551,100), TPK hotel 61.9% flat, inflasi naik ke 1.57%  \nKONTEKS: Tidak anomali, tren konsisten dari bulan lalu  \nTINDAKAN: Percepat kampanye promosi digital internasional untuk menarik wisatawan dan stabilkan inflasi melalui subsidi bahan pokok.",
+    "tokens": 544,
+    "month": "2025-04",
+    "crisis_level": "WASPADA",
+    "report_type": "alert",
+    "crisis_score": 37.3
   }
 }

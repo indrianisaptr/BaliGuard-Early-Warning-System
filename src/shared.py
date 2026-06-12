@@ -52,6 +52,11 @@ def build_context(
         'inflasi':  sf(row_data.get('inflasi_processed', 0)),
         'sent':     sf(row_data.get('avg_sentiment_monthly', 0)),
         'bali_shr': sf(row_data.get('bali_share_pct', 0)),
+        # ── 4 indikator risiko baru ──────────────────────────────────
+        'physical_risk':      sf(row_data.get('physical_risk_score', 0)),
+        'media_risk':         sf(row_data.get('media_risk_score', 0)),
+        'tourist_perception': sf(row_data.get('tourist_perception_score', 0)),
+        'external_risk':      sf(row_data.get('external_risk_score', 0)),
     })
     ctx['color'] = LEVEL_COLORS.get(ctx['level'], '#64748b')
 
