@@ -67,9 +67,9 @@ def _build_overview_fig1(sel_month_str: str, _predictions: pd.DataFrame) -> go.F
                 hovertemplate=f'<b>{lv}</b><br>%{{x|%b %Y}}<br>Score: %{{y:.1f}}<extra></extra>'
             ))
     for thr, lbl, col in [(60,'KRISIS','#d90000'),(45,'SIAGA','#ff6c43'),(30,'WASPADA','#F9F871')]:
-        fig.add_hline(y=thr, line_dash='dot', line_color=col, line_width=0.8, opacity=0.5,
+        fig.add_hline(y=thr, line_dash='dot', line_color=col, line_width=0.6, opacity=0.5,
                       annotation_text=lbl, annotation_position='right',
-                      annotation_font_size=9, annotation_font_color=col,
+                      annotation_font_size=7, annotation_font_color=col,
                       annotation_xanchor='left', annotation_xshift=-52)
     fig.add_vrect(x0='2020-03-01', x1='2021-12-01',
                   fillcolor='rgba(239,68,68,0.04)', line_width=0,
@@ -97,11 +97,13 @@ def _build_overview_fig1(sel_month_str: str, _predictions: pd.DataFrame) -> go.F
                       title=dict(text='Crisis Score & Level Krisis', x=0.5, xanchor='center',
                                  font=dict(size=25, color='#ff6c43', family='DM Sans')),
                       legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1,
-                                  bgcolor='rgba(0,0,0,0)', bordercolor='rgba(255,255,255,0.08)',
-                                  borderwidth=1, font=dict(size=11, color='#e2e8f0')),
+                                bgcolor='rgba(15,15,25,0.6)', bordercolor='rgba(255,255,255,0.08)',
+                                borderwidth=1, font=dict(size=9, color='#e2e8f0'),
+                                itemsizing='constant'),
                       **_OVERVIEW_LAYOUT_BASE)
     fig.update_xaxes(**_OVERVIEW_AXIS_STYLE)
     fig.update_yaxes(**_OVERVIEW_AXIS_STYLE)
+    fig.update_layout(margin=dict(l=0, r=55, t=90, b=10))
     return fig
 
 
@@ -190,7 +192,7 @@ def render(ctx: dict) -> None:
     #revisi/tambahan — sesuai kunci yang disediakan src/shared.build_context()
     physical_risk_score      = ctx.get('physical_risk', row_data.get('physical_risk_score'))
     media_risk_score         = ctx.get('media_risk', row_data.get('media_risk_score'))
-    tourist_perception_score = ctx.get('tourist_percept', row_data.get('tourist_perception_score'))
+    tourist_perception_score = ctx.get('tourist_perception', row_data.get('tourist_perception_score'))
     external_risk_score      = ctx.get('external_risk', row_data.get('external_risk_score'))
 
     _tick("nav_start_overview")
@@ -286,7 +288,94 @@ def render(ctx: dict) -> None:
       </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # ── [SISIPKAN DI SINI] Metodologi External Risk ───────────────────
+    with st.expander("Metodologi External Risk Score", expanded=False):
+        st.markdown("""
+        <div style='font-size:13px;color:#94a3b8;line-height:1.9;font-family:"DM Sans"'>
 
+          <div style='margin-bottom:14px;color:#cbd5e1;font-size:13px;line-height:1.7'>
+            External Risk Score merupakan indeks komposit yang mengintegrasikan tiga
+            dimensi risiko eksterior pariwisata Bali melalui pembobotan tertimbang
+            (<em>weighted composite index</em>). Setiap komponen dinormalisasi ke skala
+            0–100 sebelum diagregasi.
+          </div>
+
+          <!-- Tabel Komponen -->
+          <table style='width:100%;border-collapse:collapse;margin-bottom:16px;font-size:12px'>
+            <thead>
+              <tr style='border-bottom:1px solid rgba(255,255,255,0.08)'>
+                <th style='text-align:left;padding:6px 10px;color:#64748b;
+                           font-weight:700;letter-spacing:.06em;text-transform:uppercase'>
+                  Komponen
+                </th>
+                <th style='text-align:left;padding:6px 10px;color:#64748b;
+                           font-weight:700;letter-spacing:.06em;text-transform:uppercase'>
+                  Sumber Data
+                </th>
+                <th style='text-align:center;padding:6px 10px;color:#64748b;
+                           font-weight:700;letter-spacing:.06em;text-transform:uppercase'>
+                  Bobot
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style='border-bottom:1px solid rgba(255,255,255,0.05)'>
+                <td style='padding:8px 10px;color:#e2e8f0;font-weight:600'>Physical Risk</td>
+                <td style='padding:8px 10px;color:#94a3b8'>
+                  BMKG · Frekuensi Gempa · Indeks Cuaca Ekstrem
+                </td>
+                <td style='padding:8px 10px;text-align:center;
+                           color:#fbbf24;font-weight:700;font-family:"DM Serif Display"'>
+                  35%
+                </td>
+              </tr>
+              <tr style='border-bottom:1px solid rgba(255,255,255,0.05)'>
+                <td style='padding:8px 10px;color:#e2e8f0;font-weight:600'>Media Risk</td>
+                <td style='padding:8px 10px;color:#94a3b8'>
+                  GDELT · Tone Rata-rata Berita · Event Risiko Terpublikasi
+                </td>
+                <td style='padding:8px 10px;text-align:center;
+                           color:#fbbf24;font-weight:700;font-family:"DM Serif Display"'>
+                  35%
+                </td>
+              </tr>
+              <tr>
+                <td style='padding:8px 10px;color:#e2e8f0;font-weight:600'>Tourist Perception</td>
+                <td style='padding:8px 10px;color:#94a3b8'>
+                  Google Trends · Economic Risk Index
+                </td>
+                <td style='padding:8px 10px;text-align:center;
+                           color:#fbbf24;font-weight:700;font-family:"DM Serif Display"'>
+                  30%
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Formula -->
+          <div style='background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);
+                      border-radius:8px;padding:12px 16px;margin-bottom:12px'>
+            <div style='font-size:10px;font-weight:700;text-transform:uppercase;
+                        letter-spacing:.1em;color:#64748b;margin-bottom:8px'>
+              Fungsi Agregasi
+            </div>
+            <div style='font-family:monospace;font-size:13px;color:#e2e8f0;line-height:1.8'>
+              <span style='color:#fbbf24'>External Risk</span> =
+              0.35 × <span style='color:#f87171'>Physical Risk</span> +
+              0.35 × <span style='color:#fb923c'>Media Risk</span> +
+              0.30 × <span style='color:#a78bfa'>Tourist Perception</span>
+            </div>
+          </div>
+
+          <div style='font-size:11px;color:#475569;font-style:italic'>
+            Pembobotan ditentukan melalui expert judgment dan validasi korelasi terhadap
+            data historis krisis pariwisata Bali (2002–2024). Total bobot = 1.00.
+          </div>
+
+        </div>
+        """, unsafe_allow_html=True)
+    # ── [AKHIR SISIPAN] ────────────────────────────────────────────────
 
     # ── Summary Stats Strip ───────────────────────────────
     _pct_aman   = (predictions['crisis_level']=='AMAN').mean()*100
@@ -294,8 +383,10 @@ def render(ctx: dict) -> None:
     _avg_score  = predictions['crisis_score_100'].mean()
     _peak_wis   = predictions['wisman'].max()
 
+    # AFTER
     st.markdown(f"""
-    <div style='margin-top:32px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.07);
+    <div style='margin-top:32px;padding-top:20px;padding-bottom:20px;margin-bottom:48px;
+                border-top:1px solid rgba(255,255,255,0.07);
                 display:flex;justify-content:center;gap:0'>
       <div style='flex:1;text-align:center;padding:12px 16px;
                   border-right:1px solid rgba(255,255,255,0.06)'>

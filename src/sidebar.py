@@ -215,15 +215,32 @@ def render_sidebar(ctx: dict) -> tuple:
         # ── Data Sumber, Model, Narasi ────────────────────
         st.markdown("""
 <div style='font-size:11px;color:#64748b;line-height:1.9'>
-    <b style='color:#64748b'>DATA SUMBER</b><br>
-    BPS Bali · Bank Indonesia<br>
-    Google Hotels Review · Kaggle<br><br>
-    <b style='color:#64748b'>MODEL</b><br>
+    <b>DATA SUMBER</b><br>
+    BPS Bali<br>
+    Bank Indonesia<br>
+    BMKG & USGS<br>
+    GDELT<br>
+    Google Trends<br>
+    World Bank<br>
+    Hotel Reviews<br>
+    Tourist Reviews
+</div>""", unsafe_allow_html=True)
+        
+        st.markdown("""
+<div style='font-size:11px;color:#64748b;line-height:1.9'>
+    <b>MODEL</b><br>
     Isolation Forest<br>
-    Random Forest Classifier<br>
-    XLM-RoBERTa Sentiment<br><br>
-    <b style='color:#64748b'>NARASI</b><br>
-    Groq · Multi-Model LLM
+    Random Forest<br>
+    XLM-RoBERTa<br>
+    External Risk Engine
+</div>""", unsafe_allow_html=True)
+        
+        st.markdown("""
+<div style='font-size:11px;color:#64748b;line-height:1.9'>
+    <b>AI & ANALYTICS</b><br>
+    Groq LLM<br>
+    SWOT Generator<br>
+    Narrative Engine
 </div>""", unsafe_allow_html=True)
 
     return selected_nav, sel
