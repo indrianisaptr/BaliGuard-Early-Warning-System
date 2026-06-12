@@ -28,7 +28,11 @@ def build_context(pred_row: dict, history_rows: list = None,
         'prob_siaga'   : round(float(pred_row.get('prob_siaga', 0)) * 100, 1),
         'bali_share'   : round(float(pred_row.get('bali_share_pct', 0)), 1),
         'wisman_zscore': round(float(pred_row.get('wisman_zscore', 0)), 2),
-        'recovery_pct' : round(float(pred_row.get('wisman_recovery_pct', 0)), 1),
+        'recovery_pct'   : round(float(pred_row.get('wisman_recovery_pct', 0)), 1),
+        'physical_risk'  : round(float(pred_row.get('physical_risk_score', 0)), 1),
+        'media_risk'     : round(float(pred_row.get('media_risk_score', 0)), 1),
+        'tourist_percep' : round(float(pred_row.get('tourist_perception_score', 0)), 1),
+        'external_risk'  : round(float(pred_row.get('external_risk_score', 0)), 1),
     }
     if history_rows and len(history_rows) >= 2:
         avg3 = np.mean([r.get('wisman', 0) for r in history_rows[-3:]])
@@ -85,6 +89,8 @@ def build_prompt(ctx: dict, report_type: str = 'summary') -> str:
         f"TPK Hotel: {ctx['tpk_bintang']}% | USD/IDR: Rp {int(ctx['usd_idr']):,}\n"
         f"Inflasi: {ctx['inflasi']}% | Sentimen: {ctx['sentiment']}\n"
         f"Histori: {prev}\n"
+        f"Physical Risk: {ctx['physical_risk']:.1f}/100 | Media Risk: {ctx['media_risk']:.1f}/100\n"
+        f"Tourist Perception: {ctx['tourist_percep']:.1f}/100 | External Risk (komposit): {ctx['external_risk']:.1f}/100\n"
     )
     if ctx.get('last_month_summary'):
         data_block += f"Konteks bulan lalu: {ctx['last_month_summary']}\n"

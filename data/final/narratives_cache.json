@@ -97,5 +97,14 @@
     "crisis_level": "WASPADA",
     "report_type": "alert",
     "crisis_score": 37.3
+  },
+  "2026-05": {
+    "success": true,
+    "narrative": "**ANALISIS SWOT PARIWISATA BALI BULAN 2026-05**\n\n**KEKUATAN (Strengths)**\n\n- **Pengunjung Wisman yang Stabil**: Jumlah wisman yang berkunjung ke Bali pada bulan Mei 2026 mencapai 551.100 orang, dengan pertumbuhan sebesar 0,0% MoM dan rata-rata 3 bulan sebelumnya adalah 527.970 orang.\n- **Pengembangan Industri Pariwisata yang Solid**: Pangsa Bali dalam industri pariwisata Indonesia mencapai 45,6%, menunjukkan ketepatan strategi dan efektivitas pengembangan industri pariwisata di Bali.\n- **Kestabilan Pengembalian Investasi**: TPK Hotel di Bali mencapai 61,9%, dengan tidak ada perubahan MoM, menunjukkan ketepatan strategi investasi dan pengelolaan hotel di Bali.\n\n**KELEMAHAN (Weaknesses)**\n\n- **Kesadaran Risiko yang Rendah**: P(Krisis) pada bulan Mei 2026 mencapai 9,3%, menunjukkan bahwa masih ada risiko yang rendah akan terjadi krisis, sehingga perlu diantisipasi dan dipersiapkan.\n- **Kurangnya Perhatian Media Global**: Media Risk Score pada bulan Mei 2026 mencapai 0,4/100, menunjukkan bahwa masih ada potensi kurangnya perhatian media global terhadap Bali.\n- **Ketergantungan pada Sumber Daya Alam**: Physical Risk Score pada bulan Mei 2026 mencapai 0,3/100, menunjukkan bahwa masih ada potensi bencana alam yang dapat mempengaruhi industri pariwisata di Bali.\n\n**PELUANG (Opportunities)**\n\n- **Peningkatan Sentimen Wisman**: Sentimen wisman pada bulan Mei 2026 mencapai 0,546, dengan perubahan sebesar 0,000 MoM, menunjukkan bahwa masih ada potensi peningkatan sentimen wisman dan meningkatkan kunjungan wisman ke Bali.\n- **Peningkatan Pengembangan Ekonomi**: Inflasi pada bulan Mei 2026 mencapai 1,57%, menunjukkan bahwa masih ada potensi peningkatan pengembangan ekonomi di Bali dan meningkatkan industri pariwisata.\n- **Peningkatan Pengembangan Teknologi**: External Risk Score pada bulan Mei 2026 mencapai 0,4/100, menunjukkan bahwa masih ada potensi peningkatan pengembangan teknologi dan meningkatkan efisiensi industri pariwisata di Bali.\n\n**ANCAMAN (Threats)**\n\n- **Bencana Alam yang Mungkin Terjadi**: Physical Risk Score pada bulan Mei 2026 mencapai 0,3/100, menunjukkan bahwa masih ada potensi bencana alam yang dapat mempengaruhi industri pariwisata di Bali.\n- **Kurangnya Perhatian Media Global**: Media Risk Score pada bulan Mei 2026 mencapai 0,4/100, menunjukkan bahwa masih ada potensi kurangnya perhatian media global terhadap Bali.\n- **Risiko Kepanikan Wisman**: Tourist Perception Score pada bulan Mei 2026 mencapai 0,4/100, menunjukkan bahwa masih ada potensi risiko kepanikan wisman dan meningkatkan ancaman terhadap industri pariwisata di Bali.",
+    "tokens": 1533,
+    "month": "2026-05",
+    "crisis_level": "WASPADA",
+    "report_type": "swot",
+    "crisis_score": 42.1
   }
 }

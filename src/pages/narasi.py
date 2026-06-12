@@ -9,7 +9,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
-import json, os, time, requests, sys
+import json, os, time, requests, sys, re
 from datetime import datetime
 from src.services.llm_service import call_groq, get_or_generate, build_narrative_prompt
 from src.services.forecast import forecast_months
@@ -27,6 +27,50 @@ EMOJI_MAP = {
     'KRISIS':  '🔴',
 }
 
+def _render_narasi_actions(narrative_text: str, month: str, report_type: str) -> None:
+    """Render tombol Copy dan Download TXT untuk narasi yang sudah dibuat."""
+    import base64
+
+    _clean = narrative_text.strip()
+    _rt_label = {
+        'summary': 'QuickSummary', 'alert': 'EmergencyAlert',
+        'monthly': 'LaporanBulanan', 'predict': 'PrediksiAI', 'swot': 'AnalisisSWOT',
+    }.get(report_type, 'Narasi')
+    _filename = f"BaliGuard_{_rt_label}_{month.replace('-','')}.txt"
+    _b64 = base64.b64encode(_clean.encode('utf-8')).decode()
+    _data_uri = f"data:text/plain;charset=utf-8;base64,{_b64}"
+    _js_text = _clean.replace('\\', '\\\\').replace('`', '\\`').replace('${', '\\${')
+
+    components.html(f"""
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <button id="btn-copy-narasi"
+            onclick="(function(){{
+                navigator.clipboard.writeText(`{_js_text}`)
+                    .then(function(){{
+                        var b=document.getElementById('btn-copy-narasi');
+                        b.innerText='Tersalin!';
+                        b.style.background='#16a34a';
+                        setTimeout(function(){{b.innerText='📋 Copy Teks';b.style.background='#1e3a5f';}},2000);
+                    }})
+                    .catch(function(){{alert('Gagal copy. Coba select manual.');}});
+            }})();"
+        style="background:rgb(19,23,32);color:rgb(250,250,250);border:1px solid rgba(250,250,250,0.2);border-radius:8px;
+                   padding:8px 18px;font-size:13px;font-weight:400;cursor:pointer;letter-spacing:.03em;transition:border-color .2s,color .2s"
+            onmouseenter="this.style.borderColor='rgb(250,250,250)';this.style.color='rgb(250,250,250)';"
+            onmouseleave="this.style.borderColor='rgba(250,250,250,0.2)';this.style.color='rgb(250,250,250)';">
+            📋 Copy Teks
+        </button>
+        <a href="{_data_uri}" download="{_filename}"
+            style="background:rgb(19,23,32);color:rgb(250,250,250);border:1px solid rgba(250,250,250,0.2);border-radius:8px;
+                   padding:8px 18px;font-size:13px;font-weight:400;text-decoration:none;
+                   display:inline-flex;align-items:center;gap:6px;letter-spacing:.03em;transition:border-color .2s,color .2s"
+            onmouseenter="this.style.borderColor='rgb(250,250,250)';this.style.color='rgb(250,250,250)';"
+            onmouseleave="this.style.borderColor='rgba(250,250,250,0.2)';this.style.color='rgb(250,250,250)';">
+            ⬇️ Download TXT
+        </a>
+    </div>
+    """, height=60)
+
 def _get_groq_key() -> str:
     """Ambil Groq API key dari st.secrets atau environment variable."""
     try:
@@ -35,6 +79,108 @@ def _get_groq_key() -> str:
         pass
     import os
     return os.getenv("GROQ_API", "")
+
+# ── Helper: bold judul section SWOT ────────────────────────
+_SWOT_HEADINGS = [
+    # SWOT
+    r'KEKUATAN\s*\(Strengths\)',
+    r'KELEMAHAN\s*\(Weaknesses\)',
+    r'PELUANG\s*\(Opportunities\)',
+    r'ANCAMAN\s*\(Threats\)',
+    # Laporan Bulanan (monthly)
+    r'(?:\d+\.\s*)?RINGKASAN EKSEKUTIF',
+    r'(?:\d+\.\s*)?ANALISIS INDIKATOR',
+    r'(?:\d+\.\s*)?ANALISIS KAUSAL[^<\n]*',
+    r'(?:\d+\.\s*)?REKOMENDASI PRIORITAS',
+    # Prediksi AI (predict)
+    r'(?:\d+\.\s*)?RINGKASAN EKSEKUTIF',
+    r'(?:\d+\.\s*)?ANALISIS INDIKATOR',
+    r'(?:\d+\.\s*)?ANALISIS KAUSAL[^<\n]*',
+    r'(?:\d+\.\s*)?REKOMENDASI PRIORITAS',
+    r'(?:\d+\.\s*)?PROYEKSI KONDISI',
+    r'(?:\d+\.\s*)?FAKTOR RISIKO UTAMA',
+    r'(?:\d+\.\s*)?SKENARIO RISIKO',
+    r'(?:\d+\.\s*)?REKOMENDASI ANTISIPATIF',
+    # Alert (tanpa nomor)
+    r'STATUS',
+    r'PEMICU UTAMA',
+    r'KONTEKS',
+    r'TINDAKAN',
+]
+_SWOT_PATTERN = re.compile(
+    r'(' + '|'.join(_SWOT_HEADINGS) + r')[ \t]*:?[ \t]*\n?',
+    re.IGNORECASE
+)
+
+def _bold_swot_headings(text: str) -> str:
+    first = [True]
+    def _replacer(m):
+        mt = '0px' if first[0] else '24px'
+        first[0] = False
+        heading = re.sub(r'^\d+\.\s*', '', m.group(1))
+        return f'<b style="color:#ffffff;font-size:16px;display:block;margin-top:{mt};margin-bottom:0">{heading}</b>'
+    return _SWOT_PATTERN.sub(_replacer, text)
+
+def _render_markdown_bold(text: str) -> str:
+    """Convert **teks** menjadi <b>teks</b> untuk render HTML."""
+    return re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+
+def _format_narasi_html(text: str) -> str:
+    """
+    Format teks narasi LLM menjadi HTML yang rapi:
+    - Heading section menempel langsung ke paragrafnya (margin-bottom: 4px)
+    - Spasi antar section 24px (margin-top pada heading, kecuali heading pertama)
+    - Bullet list (- poin) dirender dengan <ul><li>
+    - Tidak memakai replace('\\n','<br>') secara global
+    """
+    lines = text.strip().splitlines()
+    html_parts = []
+    first_heading = True
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+
+        # --- Deteksi heading (cocok dengan _SWOT_PATTERN) ---
+        if _SWOT_PATTERN.match(stripped.rstrip(':').strip()):
+            heading_text = re.sub(r'^\d+\.\s*', '', stripped.rstrip(':').strip())
+            heading_text = _render_markdown_bold(heading_text)
+            mt = '0px' if first_heading else '24px'
+            first_heading = False
+            html_parts.append(
+                f'<b style="color:#ffffff;font-size:16px;display:block;'
+                f'margin-top:{mt};margin-bottom:4px">{heading_text}</b>'
+            )
+            i += 1
+            continue
+
+        # --- Deteksi blok bullet list ---
+        if stripped.startswith('- '):
+            bullets = []
+            while i < len(lines) and lines[i].strip().startswith('- '):
+                bullet_text = _render_markdown_bold(lines[i].strip()[2:].strip())
+                bullets.append(f'<li style="margin-bottom:4px">{bullet_text}</li>')
+                i += 1
+            html_parts.append(
+                '<ul style="margin:4px 0 8px 18px;padding:0;list-style:disc">'
+                + ''.join(bullets) + '</ul>'
+            )
+            continue
+
+        # --- Baris kosong: abaikan (spasi diurus margin heading) ---
+        if stripped == '':
+            i += 1
+            continue
+
+        # --- Paragraf biasa ---
+        para_text = _render_markdown_bold(stripped)
+        html_parts.append(
+            f'<p style="margin:0 0 8px 0;line-height:1.75">{para_text}</p>'
+        )
+        i += 1
+
+    return ''.join(html_parts)
 
 def render(ctx: dict) -> None:
     """Render halaman Narasi AI."""
@@ -483,13 +629,15 @@ def render(ctx: dict) -> None:
         base = _MONTH_ID[int(m[5:7])-1]
         return base
 
+        # ── Judul section: full-width, sebelum kolom ──────────────
+    st.markdown("""<div style='font-size:15px;font-weight:700;color:#FF0000;text-transform:uppercase;
+            letter-spacing:.12em;margin-bottom:12px'>BULAN DAN TAHUN YANG DIANALISIS</div>""",
+            unsafe_allow_html=True)
+
     # 4 kolom sejajar: Tahun | Bulan | Status | Cache
     _c_year, _c_month, _c_status, _c_cache = st.columns([1, 1, 1, 1])
 
     with _c_year:
-        st.markdown("""<div style='font-size:15px;font-weight:700;color:#FF0000;text-transform:uppercase;
-                    letter-spacing:.12em;margin-bottom:12px'>BULAN DAN TAHUN YANG DIANALISIS</div>""",
-                    unsafe_allow_html=True)
         _ny_idx  = _avail_years.index(st.session_state['narasi_year_sel']) \
                    if st.session_state['narasi_year_sel'] in _avail_years else 0
         st.markdown(
@@ -500,7 +648,6 @@ def render(ctx: dict) -> None:
     _months_for_year = [m for m in _all_months if m.startswith(_sel_year)]
 
     with _c_month:
-        st.markdown("<div style='height:36px'></div>", unsafe_allow_html=True)
         st.markdown(
             "<div style='display:flex;align-items:center;gap:0;font-size:16px;font-weight:600;color:#1119FF;margin-bottom:4px'>" "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0;margin-right:7px'></span>Bulan</div>", unsafe_allow_html=True)
         _prev_nm = st.session_state.get('narasi_month_sel', sel)
@@ -540,7 +687,9 @@ def render(ctx: dict) -> None:
 
     with _c_status:
         _status_clr = COLOR_MAP.get(_narasi_level, '#fff')
-        st.markdown("<div style='font-size:15px;font-weight:600;color:#e2e8f0;margin-top:31px;margin-bottom:4px'>Status Bulan</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='font-size:16px;font-weight:600;color:#e2e8f0;margin-bottom:4px'>Status Bulan</div>",
+            unsafe_allow_html=True)
         st.markdown(
             "<div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);"
             "border-radius:8px;padding:0 14px;display:flex;align-items:center;gap:12px;"
@@ -562,7 +711,9 @@ def render(ctx: dict) -> None:
         ) if _has_cache else (
             "<span style='font-size:14px;color:#94a3b8'>Belum ada cache untuk bulan ini</span>"
         )
-        st.markdown("<div style='font-size:15px;font-weight:600;color:#e2e8f0;margin-top:31px;margin-bottom:4px'>Cache Narasi</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='font-size:16px;font-weight:600;color:#e2e8f0;margin-bottom:4px'>Cache Narasi</div>",
+            unsafe_allow_html=True)
         st.markdown(
             "<div style='background:" + _cache_bg + ";border:1px solid " + _cache_bdr + ";"
             "border-radius:8px;padding:0 14px;display:flex;align-items:center;gap:6px;"
@@ -678,8 +829,13 @@ def render(ctx: dict) -> None:
             "<div style='background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);"
             "border-radius:14px;padding:26px 30px;line-height:1.95;font-size:14px;"
             "color:#cbd5e1;border-top:3px solid " + _clr + "'>"
-            + cached_n["narrative"].replace('\n', '<br>') + "</div>",
+            + "<div style='font-size:15px;line-height:1.75'>" + _format_narasi_html(cached_n["narrative"]) + "</div></div>",
             unsafe_allow_html=True
+        )
+        _render_narasi_actions(
+            cached_n["narrative"],
+            cached_n.get('month', narasi_target),
+            cached_n.get('report_type', report_type),
         )
 
     if gen_btn and groq_key:
@@ -722,7 +878,11 @@ def render(ctx: dict) -> None:
                     'prob_krisis'  : round(float(_narasi_row_data.get('prob_krisis', 0)) * 100, 1),
                     'prob_siaga'   : round(float(_narasi_row_data.get('prob_siaga', 0)) * 100, 1),
                     'bali_share'   : round(float(_narasi_row_data.get('bali_share_pct', 0)), 1),
-                    'wisman_zscore': round(float(_narasi_row_data.get('wisman_zscore', 0)), 2),
+                    'wisman_zscore'  : round(float(_narasi_row_data.get('wisman_zscore', 0)), 2),
+                    'physical_risk'  : round(float(_narasi_row_data.get('physical_risk_score', 0)), 1),
+                    'media_risk'     : round(float(_narasi_row_data.get('media_risk_score', 0)), 1),
+                    'tourist_percep' : round(float(_narasi_row_data.get('tourist_perception_score', 0)), 1),
+                    'external_risk'  : round(float(_narasi_row_data.get('external_risk_score', 0)), 1),
                 }
                 if _history:
                     _avg3 = _np.mean([r.get('wisman', 0) for r in _history[-3:]])
@@ -783,6 +943,8 @@ def render(ctx: dict) -> None:
                     f"USD/IDR: Rp {int(_ctx['usd_idr']):,} ({_ctx['usd_delta_pct']:+.1f}% MoM)\n"
                     f"Inflasi: {_ctx['inflasi']}% | Sentimen: {_ctx['sentiment']} ({_ctx['sent_delta']:+.3f} MoM)\n"
                     f"Pangsa Bali: {_ctx['bali_share']}% | Z-score: {_ctx['wisman_zscore']}\n"
+                    f"Physical Risk: {_ctx['physical_risk']:.1f}/100 | Media Risk: {_ctx['media_risk']:.1f}/100\n"
+                    f"Tourist Perception: {_ctx['tourist_percep']:.1f}/100 | External Risk (komposit): {_ctx['external_risk']:.1f}/100\n"
                     f"Histori level: {_prev}\n"
                     + (f"⚠️ {_contradiction}\n" if _contradiction else "")
                 )
@@ -840,26 +1002,28 @@ def render(ctx: dict) -> None:
                         f"\nTugas: Buat ANALISIS SWOT pariwisata Bali bulan {_ctx['month']} "
                         "dalam Bahasa Indonesia yang tajam dan berbasis data.\n\n"
                         "Format output WAJIB menggunakan struktur berikut:\n\n"
-                        "💪 KEKUATAN (Strengths)\n"
+                        "KEKUATAN (Strengths)\n"
                         "- [poin 1: berbasis data positif yang tersedia]\n"
                         "- [poin 2]\n"
                         "- [poin 3]\n\n"
-                        "⚠️ KELEMAHAN (Weaknesses)\n"
+                        "KELEMAHAN (Weaknesses)\n"
                         "- [poin 1: indikator yang underperform atau menurun]\n"
                         "- [poin 2]\n"
                         "- [poin 3]\n\n"
-                        "🚀 PELUANG (Opportunities)\n"
+                        "PELUANG (Opportunities)\n"
                         "- [poin 1: kondisi eksternal yang bisa dimanfaatkan]\n"
                         "- [poin 2]\n"
                         "- [poin 3]\n\n"
-                        "🔴 ANCAMAN (Threats)\n"
+                        "ANCAMAN (Threats)\n"
                         "- [poin 1: cerminkan faktor eksternal dominan — bencana, media global, atau persepsi wisatawan]\n"
                         "- [poin 2]\n"
                         "- [poin 3]\n\n"
                         "Panduan:\n"
                         "- Setiap poin harus menyebut angka atau perubahan MoM yang konkret\n"
-                        "- Bagian Ancaman harus menjelaskan APAKAH ancaman dominan berasal dari "
-                        "faktor fisik, media, atau ekonomi wisatawan berdasarkan data di atas\n"
+                        f"- Physical Risk Score ({_ctx['physical_risk']:.1f}/100): gunakan sebagai ANCAMAN bencana/cuaca di bagian Threats\n"
+                        f"- Media Risk Score ({_ctx['media_risk']:.1f}/100): gunakan sebagai ANCAMAN reputasi media global di bagian Threats\n"
+                        f"- Tourist Perception Score ({_ctx['tourist_percep']:.1f}/100): jika <40 masuk Threats, jika >60 masuk Opportunities\n"
+                        f"- External Risk Score ({_ctx['external_risk']:.1f}/100): jadikan faktor strategis utama di Threats atau Opportunities\n"
                         "- Hindari generalisasi — tiap poin harus bisa di-trace ke data yang diberikan\n"
                         "- Panjang tiap poin: 1–2 kalimat, padat dan actionable"
                     )
@@ -907,7 +1071,7 @@ def render(ctx: dict) -> None:
 
                 _rlv  = _narasi_level
                 _rclr = COLOR_MAP.get(_rlv, '#94a3b8')
-                _fc_tag = " · 🔮 Proyeksi" if _is_fc_month else ""
+                _fc_tag = " · Proyeksi" if _is_fc_month else ""
                 _model_short = GROQ_MODELS.get(selected_model, {}).get('label', selected_model)
                 st.markdown(
                     "<div style='display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap'>"
@@ -921,9 +1085,10 @@ def render(ctx: dict) -> None:
                     "<div style='background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);"
                     "border-radius:14px;padding:26px 30px;line-height:1.95;font-size:14px;"
                     "color:#cbd5e1;border-top:3px solid " + _rclr + "'>"
-                    + _narr_text.replace('\n','<br>') + "</div>",
+                    + "<div style='font-size:15px;line-height:1.75'>" + _format_narasi_html(_narr_text) + "</div></div>",
                     unsafe_allow_html=True
                 )
+                _render_narasi_actions(_narr_text, narasi_target, report_type)
                 narratives_cache[narasi_target] = result
                 os.makedirs('data/final', exist_ok=True)
                 with open('data/final/narratives_cache.json', 'w', encoding='utf-8') as f:
