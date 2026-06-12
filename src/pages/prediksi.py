@@ -87,6 +87,10 @@ def render(ctx: dict) -> None:
     _avg_score       = ctx['avg_score']
     color            = ctx['color']
     sel_dt           = pd.to_datetime(str(sel))
+    physical_risk      = ctx['physical_risk']
+    media_risk         = ctx['media_risk']
+    tourist_perception = ctx['tourist_perception']
+    external_risk      = ctx['external_risk']
 
     _tick("nav_start_prediksi")
 
@@ -471,6 +475,99 @@ def render(ctx: dict) -> None:
                 sc=f"{sim_sc:.1f}", clr=_sclr, lv=sim_lv,
                 base=score, dc=_sdcol, d=_sdelta),
             unsafe_allow_html=True)
+        
+    # --- Helper Function untuk Konversi Risiko ---
+        def get_risk_ui(score):
+            val = float(score) if score is not None else 0.0
+            pct = round(val * 100)
+            if val < 0.33:
+                return pct, "RENDAH", "#10b981"
+            elif val < 0.66:
+                return pct, "SEDANG", "#f59e0b"
+            else:
+                return pct, "TINGGI", "#ef4444"
+
+        # Terapkan konversi ke setiap metrik risiko
+        pr_pct, pr_cat, pr_col = get_risk_ui(physical_risk)
+        mr_pct, mr_cat, mr_col = get_risk_ui(media_risk)
+        tp_pct, tp_cat, tp_col = get_risk_ui(tourist_perception)
+        er_pct, er_cat, er_col = get_risk_ui(external_risk)
+
+        # Komponen UI External Risk Outlook Redesign (DIPERBAIKI TANPA SPASI AWAL)
+        html_outlook = (
+            f"<div class='bd-panel' style='margin-top:12px; background:rgba(255,255,255,0.015); border:1px solid rgba(255,255,255,0.05);'>"
+            f"<div class='bd-panel-title' style='margin-bottom:10px; font-size:18px; letter-spacing:.1em;'>"
+            f"<span style='display:inline-block;width:6px;height:6px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #e2e8f0;margin-right:4px;color:#e2e8f0;'></span>"
+            f"EXTERNAL RISK SCORE"
+            f"</div>"
+            f"<div style='display:grid; grid-template-columns:1fr 1fr; gap:8px;'>"
+            
+            # Card 1: Physical Risk
+            f"<div style='background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:12px; text-align:left;'>"
+            f"<div style='font-size:11px; color:#e2e8f0; text-transform:uppercase; letter-spacing:.06em; font-weight:700;'>Physical Risk</div>"
+            f"<div style='margin-top:4px; display:flex; align-items:baseline; gap:6px;'>"
+            f"<span style='font-family:\"JetBrains Mono\",monospace; font-size:22px; font-weight:800; color:#e8e4c9;'>{pr_pct}</span>"
+            f"<span style='font-size:12px; color:#64748b; font-weight:600;'>/ 100</span>"
+            f"</div>"
+            f"<div style='height:4px; width:100%; background:rgba(255,255,255,0.05); border-radius:2px; margin:8px 0;'>"
+            f"<div style='height:100%; width:{pr_pct}%; background:{pr_col}; border-radius:2px;'></div>"
+            f"</div>"
+            f"<div style='display:inline-block; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:800; letter-spacing:.05em; background:{pr_col}22; color:{pr_col}; border:1px solid {pr_col}44;'>"
+            f"{pr_cat}"
+            f"</div>"
+            f"</div>"
+
+            # Card 2: Media Risk
+            f"<div style='background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:12px; text-align:left;'>"
+            f"<div style='font-size:11px; color:#e2e8f0; text-transform:uppercase; letter-spacing:.06em; font-weight:700;'>Media Risk</div>"
+            f"<div style='margin-top:4px; display:flex; align-items:baseline; gap:6px;'>"
+            f"<span style='font-family:\"JetBrains Mono\",monospace; font-size:22px; font-weight:800; color:#e8e4c9;'>{mr_pct}</span>"
+            f"<span style='font-size:12px; color:#64748b; font-weight:600;'>/ 100</span>"
+            f"</div>"
+            f"<div style='height:4px; width:100%; background:rgba(255,255,255,0.05); border-radius:2px; margin:8px 0;'>"
+            f"<div style='height:100%; width:{mr_pct}%; background:{mr_col}; border-radius:2px;'></div>"
+            f"</div>"
+            f"<div style='display:inline-block; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:800; letter-spacing:.05em; background:{mr_col}22; color:{mr_col}; border:1px solid {mr_col}44;'>"
+            f"{mr_cat}"
+            f"</div>"
+            f"</div>"
+
+            # Card 3: Tourist Perception
+            f"<div style='background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:12px; text-align:left;'>"
+            f"<div style='font-size:11px; color:#e2e8f0; text-transform:uppercase; letter-spacing:.06em; font-weight:700;'>Tourist Perception</div>"
+            f"<div style='margin-top:4px; display:flex; align-items:baseline; gap:6px;'>"
+            f"<span style='font-family:\"JetBrains Mono\",monospace; font-size:22px; font-weight:800; color:#e8e4c9;'>{tp_pct}</span>"
+            f"<span style='font-size:12px; color:#64748b; font-weight:600;'>/ 100</span>"
+            f"</div>"
+            f"<div style='height:4px; width:100%; background:rgba(255,255,255,0.05); border-radius:2px; margin:8px 0;'>"
+            f"<div style='height:100%; width:{tp_pct}%; background:{tp_col}; border-radius:2px;'></div>"
+            f"</div>"
+            f"<div style='display:inline-block; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:800; letter-spacing:.05em; background:{tp_col}22; color:{tp_col}; border:1px solid {tp_col}44;'>"
+            f"{tp_cat}"
+            f"</div>"
+            f"</div>"
+
+            # Card 4: Composite External Risk Index
+            f"<div style='background:rgba(59,130,246,0.03); border:1px solid rgba(59,130,246,0.15); border-radius:10px; padding:12px; text-align:left;'>"
+            f"<div style='font-size:11px; color:#3b82f6; text-transform:uppercase; letter-spacing:.06em; font-weight:800;'>External Risk Index</div>"
+            f"<div style='margin-top:4px; display:flex; align-items:baseline; gap:6px;'>"
+            f"<span style='font-family:\"JetBrains Mono\",monospace; font-size:22px; font-weight:800; color:#3b82f6;'>{er_pct}</span>"
+            f"<span style='font-size:12px; color:#3b82f6; font-weight:600; opacity:0.7;'>/ 100</span>"
+            f"</div>"
+            f"<div style='height:4px; width:100%; background:rgba(59,130,246,0.1); border-radius:2px; margin:8px 0;'>"
+            f"<div style='height:100%; width:{er_pct}%; background:{er_col}; border-radius:2px;'></div>"
+            f"</div>"
+            f"<div style='display:inline-block; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:800; letter-spacing:.05em; background:{er_col}22; color:{er_col}; border:1px solid {er_col}44;'>"
+            f"{er_cat}"
+            f"</div>"
+            f"</div>"
+
+            f"</div>"
+            f"</div>"
+        )
+        st.markdown(html_outlook, unsafe_allow_html=True)
+        
+        # ─────────────────────────────────────────────────────────────
 
         # Peta Risiko Historis dipindah ke bawah tab (full-width) — lihat bagian _active_chart == 'scatter'
 
