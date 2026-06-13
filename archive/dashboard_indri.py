@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 import joblib, json, os, sys, urllib.request, time
+import io
 from datetime import datetime
 from PIL import Image
 import base64
@@ -19,15 +20,16 @@ def _tick(label):
 # ── Cache logo agar tidak dibaca ulang setiap rerun ──
 @st.cache_resource
 def _load_logo():
-    with open("images/FIX.png", "rb") as f:
+    img = Image.open("images/FIX.webp")
+    with open("images/FIX.webp", "rb") as f:
         b64 = base64.b64encode(f.read()).decode()
-    return f"data:image/png;base64,{b64}"
+    return img, f"data:image/webp;base64,{b64}"
 
-_logo_html = _load_logo()
+_logo, _logo_html = _load_logo()
 
 st.set_page_config(
     page_title="BaliGuard — Early Warning Pariwisata",
-    page_icon="images/FIX.png",
+    page_icon=_logo,
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -46,10 +48,10 @@ st.markdown("""
   --c-text:      #e2e8f0;
   --c-muted:     #64748b;
   --c-dimmer:    #334155;
-  --c-aman:      #22c55e;
-  --c-waspada:   #f59e0b;
-  --c-siaga:     #f97316;
-  --c-krisis:    #ef4444;
+  --c-aman:      #00c794;
+  --c-waspada:   #F9F871;
+  --c-siaga:     #ff6c43;
+  --c-krisis:    #d90000;
   --c-accent:    #3b82f6;
   --c-accent-lt: #93c5fd;
   --radius-lg:   18px;
@@ -156,11 +158,11 @@ html, body, [class*="css"] {
   margin-top: 0;
 }
 .sec-blue   { color: #60a5fa !important; border-left: 3px solid var(--c-accent);  padding-left: 10px !important; }
-.sec-orange { color: #fb923c !important; border-left: 3px solid var(--c-siaga);   padding-left: 10px !important; }
-.sec-green  { color: #4ade80 !important; border-left: 3px solid var(--c-aman);    padding-left: 10px !important; }
-.sec-purple { color: #c084fc !important; border-left: 3px solid #a855f7;          padding-left: 10px !important; }
-.sec-amber  { color: #fcd34d !important; border-left: 3px solid var(--c-waspada); padding-left: 10px !important; }
-.sec-red    { color: #f87171 !important; border-left: 3px solid var(--c-krisis);  padding-left: 10px !important; }
+.sec-orange { color: #ff6c43 !important; border-left: 3px solid var(--c-siaga);   padding-left: 10px !important; }
+.sec-green  { color: #236A26 !important; border-left: 3px solid var(--c-aman);    padding-left: 10px !important; }
+.sec-purple { color: #c084fc !important; border-left: 3px solid #FF6C43;          padding-left: 10px !important; }
+.sec-amber  { color: #F9F871 !important; border-left: 3px solid var(--c-waspada); padding-left: 10px !important; }
+.sec-red    { color: #d90000 !important; border-left: 3px solid var(--c-krisis);  padding-left: 10px !important; }
 .sec-teal   { color: #2dd4bf !important; border-left: 3px solid #14b8a6;          padding-left: 10px !important; }
 .sec-sky    { color: #38bdf8 !important; border-left: 3px solid #0ea5e9;          padding-left: 10px !important; }
 .sec-gap-sm { margin-top: 16px; }
@@ -198,9 +200,9 @@ html, body, [class*="css"] {
   align-items: center;
   padding: 9px 0;
   border-bottom: 1px solid rgba(255,255,255,0.05);
-  font-size: 13px;
+  font-size: 12px;
 }
-.risk-name { color: #94a3b8; }
+.risk-name { color: #FF6C43; }
 .risk-val  { color: #e2e8f0; font-weight: 700; font-family: 'JetBrains Mono'; font-size: 12px; }
 
 /* ── Tabs ── */
@@ -372,17 +374,17 @@ html, body, [class*="css"] {
   gap: 5px;
   font-size: 10px;
   font-weight: 700;
-  background: rgba(74,222,128,0.12);
-  color: #4ade80;
+  background: rgba(239,68,68,0.15);
+  color: #EF4444;
   padding: 3px 8px;
   border-radius: 20px;
-  border: 1px solid rgba(74,222,128,0.25);
+  border: 1px solid rgba(239,68,68,0.3);
   letter-spacing: .04em;
 }
 .live-pulse {
   width: 6px; height: 6px;
   border-radius: 50%;
-  background: #4ade80;
+  background: #EF4444;
   animation: pulse 1.5s infinite;
   flex-shrink: 0;
 }
@@ -412,17 +414,44 @@ html, body, [class*="css"] {
 
 /* ── Accent top-border (global — berlaku di semua tab) ── */
 .accent-blue   { display:block; border-top: 3px solid #3b82f6; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
+.accent-blue2  { display:block; border-top: 3px solid #1119ff; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
 .accent-orange { display:block; border-top: 3px solid #f97316; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
 .accent-purple { display:block; border-top: 3px solid #a855f7; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
 .accent-green  { display:block; border-top: 3px solid #22c55e; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
 .accent-teal   { display:block; border-top: 3px solid #14b8a6; border-radius: 18px 18px 0 0; margin: -4px -8px 10px; padding: 0; height: 3px; }
+.accent-overview-1 {
+    display:block;
+    border-top: 3px solid #93c5fd;
+    border-radius: 18px 18px 0 0;
+    margin: -4px -8px 10px;
+    padding: 0;
+    height: 3px;
+}
+
+.accent-overview-2 {
+    display:block;
+    border-top: 3px solid #7dd3fc;
+    border-radius: 18px 18px 0 0;
+    margin: -4px -8px 10px;
+    padding: 0;
+    height: 3px;
+}
+
+.accent-overview-3 {
+    display:block;
+    border-top: 3px solid #fbbf24;
+    border-radius: 18px 18px 0 0;
+    margin: -4px -8px 10px;
+    padding: 0;
+    height: 3px;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════
 # CONSTANTS
 # ══════════════════════════════════════════════════════
-COLOR_MAP  = {'AMAN':'#22c55e','WASPADA':'#f59e0b','SIAGA':'#f97316','KRISIS':'#ef4444'}
+COLOR_MAP  = {'AMAN':'#236A26','WASPADA':'#F9F871','SIAGA':'#ff6c43','KRISIS':'#d90000'}
 EMOJI_MAP  = {'AMAN':'','WASPADA':'','SIAGA':'','KRISIS':''}
 def status_dot(level):
     return f"<span class='status-dot dot-{level}'></span>"
@@ -546,7 +575,7 @@ def level_from_score(s):
     return 'AMAN'
 
 # ── Live USD/IDR ──────────────────────────────────────────────
-@st.cache_resource
+@st.cache_data(ttl=3600)
 def fetch_live_usd_idr() -> float | None:
     """Ambil kurs USD/IDR live dari Frankfurter → Open ER. Cache 1 jam."""
     sources = [
@@ -739,106 +768,245 @@ fc_list, fc_trend = forecast_months(predictions, n=6, from_month=str(prev_real))
 current_fc      = fc_list[0]                # entri pertama = bulan sekarang
 
 # ── Cache chart Overview agar tidak rebuild setiap navigasi ──
+_OVERVIEW_AXIS_STYLE = dict(
+    gridcolor='rgba(255,255,255,0.06)', showline=True,
+    linecolor='rgba(255,255,255,0.1)'
+)
+_OVERVIEW_LAYOUT_BASE = dict(
+    plot_bgcolor='rgba(5,13,26,0.7)', paper_bgcolor='rgba(0,0,0,0)',
+    margin=dict(l=0, r=55, t=50, b=10),
+    font=dict(family='DM Sans', size=11, color='#94a3b8')
+)
+
 @st.cache_data(show_spinner=False)
-def _build_overview_fig(sel_month_str: str):
-    """Build Overview subplot figure. Di-cache per bulan yang dipilih."""
+def _build_overview_fig1(sel_month_str: str):
+    """Crisis Score & Level Krisis chart."""
     _months_dt = pd.to_datetime(predictions['month'].astype(str))
     _sel_dt    = pd.to_datetime(sel_month_str)
+    fig = go.Figure()
 
-    _fig = make_subplots(rows=3, cols=1,
-        subplot_titles=(
-            'Crisis Score & Level Krisis',
-            'Kunjungan Wisatawan Mancanegara',
-            'Kurs USD/IDR'
-        ),
-        vertical_spacing=0.18, row_heights=[0.44, 0.30, 0.26])
-
-    _fig.add_trace(go.Scatter(x=_months_dt, y=predictions['crisis_score_100'],
-        mode='lines', name='Crisis Score',
+    fig.add_trace(go.Scatter(
+        x=_months_dt,
+        y=predictions['crisis_score_100'],
+        mode='lines',
+        name='Crisis Score',
         line=dict(color='#cbd5e1', width=2),
-        fill='tozeroy', fillcolor='rgba(148,163,184,0.06)'), row=1, col=1)
+        fill='tozeroy',
+        fillcolor='rgba(148,163,184,0.06)'
+    ))
+
     for lv, col in COLOR_MAP.items():
         mask = predictions['crisis_level'] == lv
         if mask.sum() > 0:
-            _fig.add_trace(go.Scatter(
-                x=_months_dt[mask], y=predictions.loc[mask, 'crisis_score_100'],
-                mode='markers', name=lv,
+            fig.add_trace(go.Scatter(
+                x=_months_dt[mask],
+                y=predictions.loc[mask, 'crisis_score_100'],
+                mode='markers',
+                name=lv,
                 marker=dict(color=col, size=7, line=dict(width=1.2, color='#050d1a')),
                 hovertemplate=f'<b>{lv}</b><br>%{{x|%b %Y}}<br>Score: %{{y:.1f}}<extra></extra>'
-            ), row=1, col=1)
-    for thr, lbl, col in [(60, 'KRISIS', '#ef4444'), (45, 'SIAGA', '#f97316'), (30, 'WASPADA', '#f59e0b')]:
-        _fig.add_hline(y=thr, line_dash='dot', line_color=col, line_width=1, opacity=0.7,
-                       annotation_text=lbl, annotation_position='right',
-                       annotation_font_size=9, annotation_font_color=col,
-                       annotation_xanchor='left', annotation_xshift=-52,
-                       row=1, col=1)
+            ))
 
-    _fig.add_trace(go.Scatter(x=_months_dt, y=predictions['wisman'],
-        mode='lines', name='Wisman', showlegend=False,
-        line=dict(color='#7dd3fc', width=2),
-        fill='tozeroy', fillcolor='rgba(96,165,250,0.09)'), row=2, col=1)
+    for thr, lbl, col in [
+        (60, 'KRISIS', '#d90000'),
+        (45, 'SIAGA', '#ff6c43'),
+        (30, 'WASPADA', '#F9F871')
+    ]:
+        fig.add_hline(
+            y=thr,
+            line_dash='dot',
+            line_color=col,
+            line_width=1,
+            opacity=0.7,
+            annotation_text=lbl,
+            annotation_position='right',
+            annotation_font_size=9,
+            annotation_font_color=col,
+            annotation_xanchor='left',
+            annotation_xshift=-52
+        )
 
-    if 'usd_idr_avg' in predictions.columns:
-        _fig.add_trace(go.Scatter(x=_months_dt, y=predictions['usd_idr_avg'],
-            mode='lines', name='USD/IDR', showlegend=False,
-            line=dict(color='#fbbf24', width=2)), row=3, col=1)
+    fig.add_vrect(
+        x0='2020-03-01',
+        x1='2021-12-01',
+        fillcolor='rgba(239,68,68,0.06)',
+        line_width=0,
+        annotation_text='COVID-19',
+        annotation_font_color='#ef4444',
+        annotation_font_size=10
+    )
 
-    for r in [1, 2, 3]:
-        _fig.add_vrect(x0='2020-03-01', x1='2021-12-01',
-            fillcolor='rgba(239,68,68,0.06)', line_width=0,
-            annotation_text='COVID-19' if r == 1 else '',
-            annotation_font_color='#ef4444',
-            annotation_font_size=10, row=r, col=1)
-        _fig.add_vline(x=_sel_dt, line_dash='dot', line_color='#60a5fa',
-                       line_width=1.2, row=r, col=1)
+    fig.add_vline(
+        x=_sel_dt,
+        line_dash='dot',
+        line_color='#60a5fa',
+        line_width=1.2
+    )
 
     _EVENTS = [
-        ('2002-10-12', 'Bom Bali I',       '#ef4444', 'circle'),
-        ('2005-10-01', 'Bom Bali II',      '#f97316', 'circle'),
-        ('2017-11-01', 'Erupsi Agung',     '#fb923c', 'diamond'),
-        ('2018-08-05', 'Gempa Lombok',     '#f59e0b', 'diamond'),
-        ('2020-03-19', 'Lockdown COVID',   '#ef4444', 'x'),
-        ('2021-10-14', 'Bali Dibuka PPLN', '#22c55e', 'triangle-up'),
-        ('2022-11-15', 'KTT G20 Bali',    '#a78bfa', 'star'),
-        ('2023-02-01', 'Bebas Visa 20 N.', '#60a5fa', 'triangle-up'),
+        ('2002-10-12', 'Bom Bali I',       '#ef4444'),
+        ('2005-10-01', 'Bom Bali II',      '#f97316'),
+        ('2017-11-01', 'Erupsi Agung',     '#fb923c'),
+        ('2018-08-05', 'Gempa Lombok',     '#f59e0b'),
+        ('2020-03-19', 'Lockdown COVID',   '#ef4444'),
+        ('2021-10-14', 'Bali Dibuka PPLN', '#22c55e'),
+        ('2022-11-15', 'KTT G20 Bali',     '#a78bfa'),
+        ('2023-02-01', 'Bebas Visa 20 N.', '#60a5fa'),
     ]
-    for ev_date, ev_label, ev_col, ev_sym in _EVENTS:
+
+    for ev_date, ev_label, ev_col in _EVENTS:
         try:
             _ev_dt = pd.to_datetime(ev_date)
             if _ev_dt < _months_dt.min() or _ev_dt > _months_dt.max() + pd.DateOffset(months=3):
                 continue
-            _fig.add_vline(x=_ev_dt, line_dash='dot', line_color=ev_col,
-                           line_width=0.8, opacity=0.55, row=1, col=1)
-            _fig.add_annotation(
-                x=_ev_dt, y=97, text=ev_label,
-                showarrow=False, font=dict(size=8, color=ev_col),
-                textangle=-55, xanchor='left',
-                bgcolor='rgba(5,13,26,0.7)', borderpad=2,
-                row=1, col=1
+
+            fig.add_vline(
+                x=_ev_dt,
+                line_dash='dot',
+                line_color=ev_col,
+                line_width=0.8,
+                opacity=0.55
+            )
+
+            fig.add_annotation(
+                x=_ev_dt,
+                y=97,
+                text=ev_label,
+                showarrow=False,
+                font=dict(size=8, color=ev_col),
+                textangle=-55,
+                xanchor='left',
+                bgcolor='rgba(5,13,26,0.7)',
+                borderpad=2
             )
         except Exception:
             pass
 
-    _fig.update_layout(height=820, showlegend=True,
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1,
-                    bgcolor='rgba(5,13,26,0.85)', bordercolor='rgba(255,255,255,0.12)',
-                    borderwidth=1, font=dict(size=11, color='#e2e8f0')),
-        plot_bgcolor='rgba(5,13,26,0.7)', paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=0, r=55, t=50, b=10),
-        font=dict(family='DM Sans', size=11, color='#94a3b8'))
+    fig.update_layout(
+        height=340,
+        showlegend=True,
+        title=dict(
+            text='Crisis Score & Level Krisis',
+            x=0.5,
+            xanchor='center',
+            font=dict(size=17, color='#93c5fd', family='DM Sans')
+        ),
+        legend=dict(
+            orientation='h',
+            yanchor='bottom',
+            y=1.02,
+            xanchor='right',
+            x=1,
+            bgcolor='rgba(5,13,26,0.85)',
+            bordercolor='rgba(255,255,255,0.12)',
+            borderwidth=1,
+            font=dict(size=11, color='#e2e8f0')
+        ),
+        **_OVERVIEW_LAYOUT_BASE
+    )
 
-    _title_colors = ['#93c5fd', '#7dd3fc', '#fbbf24']
-    for i, ann in enumerate(_fig.layout.annotations[:3]):
-        ann.update(
-            font=dict(size=17, color=_title_colors[i], family='DM Sans'),
-            x=0.5, xanchor='center', yshift=18
-        )
-    for r in [1, 2, 3]:
-        _fig.update_xaxes(gridcolor='rgba(255,255,255,0.06)', showline=True,
-                          linecolor='rgba(255,255,255,0.1)', row=r, col=1)
-        _fig.update_yaxes(gridcolor='rgba(255,255,255,0.06)', showline=True,
-                          linecolor='rgba(255,255,255,0.1)', row=r, col=1)
-    return _fig
+    fig.update_xaxes(**_OVERVIEW_AXIS_STYLE)
+    fig.update_yaxes(**_OVERVIEW_AXIS_STYLE)
+    return fig
+
+
+@st.cache_data(show_spinner=False)
+def _build_overview_fig2(sel_month_str: str):
+    """Kunjungan Wisatawan Mancanegara chart."""
+    _months_dt = pd.to_datetime(predictions['month'].astype(str))
+    _sel_dt    = pd.to_datetime(sel_month_str)
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=_months_dt,
+        y=predictions['wisman'],
+        mode='lines',
+        name='Wisman',
+        showlegend=False,
+        line=dict(color='#7dd3fc', width=2),
+        fill='tozeroy',
+        fillcolor='rgba(96,165,250,0.09)'
+    ))
+
+    fig.add_vrect(
+        x0='2020-03-01',
+        x1='2021-12-01',
+        fillcolor='rgba(239,68,68,0.06)',
+        line_width=0
+    )
+
+    fig.add_vline(
+        x=_sel_dt,
+        line_dash='dot',
+        line_color='#60a5fa',
+        line_width=1.2
+    )
+
+    fig.update_layout(
+        height=240,
+        showlegend=False,
+        title=dict(
+            text='Kunjungan Wisatawan Mancanegara',
+            x=0.5,
+            xanchor='center',
+            font=dict(size=17, color='#7dd3fc', family='DM Sans')
+        ),
+        **_OVERVIEW_LAYOUT_BASE
+    )
+
+    fig.update_xaxes(**_OVERVIEW_AXIS_STYLE)
+    fig.update_yaxes(**_OVERVIEW_AXIS_STYLE)
+    return fig
+
+
+@st.cache_data(show_spinner=False)
+def _build_overview_fig3(sel_month_str: str):
+    """Kurs USD/IDR chart."""
+    _months_dt = pd.to_datetime(predictions['month'].astype(str))
+    _sel_dt    = pd.to_datetime(sel_month_str)
+
+    fig = go.Figure()
+
+    if 'usd_idr_avg' in predictions.columns:
+        fig.add_trace(go.Scatter(
+            x=_months_dt,
+            y=predictions['usd_idr_avg'],
+            mode='lines',
+            name='USD/IDR',
+            showlegend=False,
+            line=dict(color='#fbbf24', width=2)
+        ))
+
+    fig.add_vrect(
+        x0='2020-03-01',
+        x1='2021-12-01',
+        fillcolor='rgba(239,68,68,0.06)',
+        line_width=0
+    )
+
+    fig.add_vline(
+        x=_sel_dt,
+        line_dash='dot',
+        line_color='#60a5fa',
+        line_width=1.2
+    )
+
+    fig.update_layout(
+        height=220,
+        showlegend=False,
+        title=dict(
+            text='Kurs USD/IDR',
+            x=0.5,
+            xanchor='center',
+            font=dict(size=17, color='#fbbf24', family='DM Sans')
+        ),
+        **_OVERVIEW_LAYOUT_BASE
+    )
+
+    fig.update_xaxes(**_OVERVIEW_AXIS_STYLE)
+    fig.update_yaxes(**_OVERVIEW_AXIS_STYLE)
+    return fig
 
 # ══════════════════════════════════════════════════════
 # SIDEBAR
@@ -856,30 +1024,55 @@ with st.sidebar:
     st.markdown(st.session_state['_sidebar_logo_html'], unsafe_allow_html=True)
     st.divider()
 
-    if '_avail_months' not in st.session_state:
-        _avail_hist = sorted(predictions['month'].unique(), reverse=True)
-        _ld = predictions['month'].iloc[-1]
-        _p  = pd.Period(_ld, freq='M')
-        _fut = sorted([str(_p + i) for i in range(1, 25) if str(_p + i) > _ld], reverse=True)
-        st.session_state['_avail_months'] = _fut + _avail_hist
-        st.session_state['_last_data_sb'] = _ld
-    avail      = st.session_state['_avail_months']
-    _last_data = st.session_state['_last_data_sb']
+    avail_hist = sorted(predictions['month'].unique(), reverse=True)
+    _last_data = predictions['month'].iloc[-1]
+    _now_month = datetime.now().strftime('%Y-%m')
+    # Tambahkan bulan masa depan sampai 2 tahun ke depan
+    _future = []
+    _p = pd.Period(_last_data, freq='M')
+    for i in range(1, 25):
+        _p2 = _p + i
+        _future.append(str(_p2))
+    # Future: urutan terbaru di atas (descending), lalu historical terbaru ke terlama
+    _future_filtered = sorted([m for m in _future if m > _last_data], reverse=True)
+    avail = _future_filtered + avail_hist
     # Format label: tambah tag [PROYEKSI] untuk masa depan
     def _month_label(m):
         if m > _last_data:
             return f"{m}  "
         return m
     st.markdown(
-        "<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;font-size:13px;font-weight:600;color:#e2e8f0'>"
-        "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;"
-        "background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0'></span>"
-        "Periode Analisis</div>",
-        unsafe_allow_html=True)
-    sel = st.selectbox("", avail,
-                       format_func=_month_label,
-                       help="Bulan dengan = proyeksi (belum ada data BPS)",
-                       label_visibility="collapsed")
+            "<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;font-size:13px;font-weight:600;color:#e2e8f0'>"
+            "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;"
+            "background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0'></span>"
+            "Pilih Periode Analisis</div>",
+            unsafe_allow_html=True)
+            
+    nama_bulan_id = {
+        '01': 'Januari', '02': 'Februari', '03': 'Maret', '04': 'April',
+        '05': 'Mei', '06': 'Juni', '07': 'Juli', '08': 'Agustus',
+        '09': 'September', '10': 'Oktober', '11': 'November', '12': 'Desember'
+    }
+
+    # Ambil daftar tahun dari variabel avail yang ada
+    list_tahun = sorted(list(set([m.split('-')[0] for m in avail])), reverse=True)
+    selected_year = st.selectbox("Tahun", list_tahun)
+        
+    # Filter bulan berdasarkan tahun yang dipilih
+    avail_months = sorted([m for m in avail if m.startswith(selected_year)], reverse=True)
+        
+    # Konversi label bulan menjadi Bahasa Indonesia
+    format_bulan = {}
+    for m in avail_months:
+        bulan_angka = m.split('-')[1]
+        label = nama_bulan_id[bulan_angka]
+        # Tambahkan indikator jika itu adalah bulan proyeksi
+        if m > _last_data:
+            label += " [PROYEKSI]"
+        format_bulan[m] = label
+            
+    # Pilih bulan
+    sel = st.selectbox("Bulan", avail_months, format_func=lambda x: format_bulan[x])
     sel_dt = pd.to_datetime(sel)
 
     st.divider()
@@ -895,65 +1088,32 @@ with st.sidebar:
     if "selected_nav" not in st.session_state:
         st.session_state.selected_nav = "Overview & Timeline"
 
-    _cur_nav = st.session_state.selected_nav
+    st.markdown("""
+    <div style='font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;
+                letter-spacing:.12em;margin-bottom:6px;font-family:"DM Sans"'>NAVIGASI</div>
+    """, unsafe_allow_html=True)
 
-    # ── Render semua nav item sekaligus + JS highlight instan di browser ──
-    _nav_items_html = []
     for _lbl in NAV_OPTIONS:
-        _active  = _cur_nav == _lbl
-        _img     = NAV_ICONS_B64.get(_lbl, "")
+        _active = st.session_state.selected_nav == _lbl
+        _img    = NAV_ICONS_B64.get(_lbl, "")
         _bg      = "rgba(59,130,246,0.18)" if _active else "transparent"
         _border  = "1px solid rgba(59,130,246,0.50)" if _active else "1px solid transparent"
-        _color   = "#e2e8f0" if _active else "#94a3b8"
+        _color   = "#F9F871" if _active else "#94a3b8"
         _opacity = "1" if _active else "0.6"
         _fw      = "700" if _active else "500"
-        _id      = _lbl.replace(' ', '_').replace('&', 'n')
-        _nav_items_html.append(
-            f"<div id='nav-item-{_id}' data-nav='{_lbl}' "
-            f"style='display:flex;align-items:center;gap:10px;padding:8px 12px;"
+        st.markdown(
+            f"<div style='display:flex;align-items:center;gap:10px;padding:8px 12px;"
             f"border-radius:8px;background:{_bg};border:{_border};"
-            f"margin-bottom:3px;cursor:pointer;transition:background 0.12s,border 0.12s'>"
+            f"margin-bottom:3px;cursor:pointer'>"
             f"<img src='{_img}' style='width:18px;height:18px;object-fit:contain;opacity:{_opacity}'>"
             f"<span style='font-size:13px;font-weight:{_fw};color:{_color}'>{_lbl}</span>"
-            f"</div>"
+            f"</div>",
+            unsafe_allow_html=True
         )
-    st.markdown(
-        "<div style='font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;"
-        "letter-spacing:.12em;margin-bottom:6px;font-family:"DM Sans"'>NAVIGASI</div>"
-        + "".join(_nav_items_html)
-        + """<script>
-(function(){
-  var items = document.querySelectorAll('[data-nav]');
-  items.forEach(function(el){
-    el.addEventListener('mousedown', function(){
-      // Update highlight instan di browser — sebelum Python rerun dimulai
-      items.forEach(function(x){
-        x.style.background = 'transparent';
-        x.style.border = '1px solid transparent';
-        var sp = x.querySelector('span');
-        if(sp){ sp.style.color='#94a3b8'; sp.style.fontWeight='500'; }
-        var img = x.querySelector('img');
-        if(img){ img.style.opacity='0.6'; }
-      });
-      el.style.background = 'rgba(59,130,246,0.18)';
-      el.style.border = '1px solid rgba(59,130,246,0.50)';
-      var sp = el.querySelector('span');
-      if(sp){ sp.style.color='#e2e8f0'; sp.style.fontWeight='700'; }
-      var img = el.querySelector('img');
-      if(img){ img.style.opacity='1'; }
-    });
-  });
-})();
-</script>""",
-        unsafe_allow_html=True
-    )
-
-    # Button invisible (1 baris) — hanya trigger rerun Python untuk ganti konten halaman
-    _btn_cols = st.columns(len(NAV_OPTIONS))
-    for i, _lbl in enumerate(NAV_OPTIONS):
-        with _btn_cols[i]:
-            if st.button("·", key=f"nav_{_lbl}", help=_lbl):
-                st.session_state.selected_nav = _lbl
+        if st.button(_lbl, key=f"nav_{_lbl}", use_container_width=True,
+                     type="primary" if _active else "secondary"):
+            st.session_state.selected_nav = _lbl
+            st.rerun()
 
     selected_nav = st.session_state.selected_nav
     _tick("sidebar_render")
@@ -992,7 +1152,7 @@ with st.sidebar:
         </div>
         <div style='margin-top:8px;font-size:11px;font-weight:600;
                     color:{"#f97316" if an_s else "#22c55e"}'>
-            {"⚠️ Anomali Terdeteksi" if an_s else "✅ Tidak Ada Anomali"}
+            {"⚠️ Terdeteksi Perubahan Mendadak" if an_s else "✅ Tidak Terdeteksi Perubahan Mendadak"}
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1062,7 +1222,7 @@ curr_conf = current_fc['confidence']
 curr_mo   = current_fc['month']
 trend_txt = "↗ MENINGKAT" if fc_trend > 0.5 else ("↘ MENURUN" if fc_trend < -0.5 else "→ STABIL")
 # Warna tren: merah jika positif (krisis meningkat = buruk), hijau jika negatif (membaik)
-trend_col = "#ef4444" if fc_trend > 0.5 else ("#22c55e" if fc_trend < -0.5 else "#94a3b8")
+trend_col = "#d90000" if fc_trend > 0.5 else ("#22c55e" if fc_trend < -0.5 else "#FFBC37")
 # Warna TREN/BULAN di stat box: merah jika minus (berdasarkan nilai fc_trend), hijau jika plus
 _tren_val_col = "#f87171" if fc_trend < 0 else ("#4ade80" if fc_trend > 0 else "#94a3b8")
 
@@ -1073,7 +1233,7 @@ st.markdown(f"""
     <div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px'>
         <!-- Left: level + score + trend -->
         <div>
-            <div style='font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;
+            <div style='font-size:12px;font-weight:700;color:#FFBC37;text-transform:uppercase;
                         letter-spacing:.13em;margin-bottom:8px;font-family:"DM Sans"'>
                 PROYEKSI BULAN INI &mdash; {curr_mo}
             </div>
@@ -1081,13 +1241,13 @@ st.markdown(f"""
                 <div style='display:flex;align-items:center;gap:8px'>
                     <span class='status-dot dot-{curr_lv}' style='width:12px;height:12px'></span>
                     <span style='font-family:"DM Serif Display";font-size:26px;
-                                 color:{COLOR_MAP.get(curr_lv,"#fff")};line-height:1'>{curr_lv}</span>
+                                 color:{COLOR_MAP.get(curr_lv,"#E0A226")};line-height:1'>{curr_lv}</span>
                 </div>
-                <div style='font-family:"JetBrains Mono";font-size:14px;color:#64748b'>
-                    Score&nbsp;<span style='color:#e2e8f0;font-weight:700;font-size:17px'>{curr_sc}</span>
-                    <span style='color:#334155'>/100</span>
+                <div style='font-family:"JetBrains Mono";font-size:14px;color:#FFFFFF'>
+                    Score&nbsp;<span style='color:#FFBC37;font-weight:700;font-size:17px'>{curr_sc}</span>
+                    <span style='color:#FFFFFF'>/100</span>
                 </div>
-                <div style='font-size:12px;color:{trend_col};font-weight:700;
+                <div style='font-size:12px;color:#ffffff;font-weight:700;
                             font-family:"DM Sans";letter-spacing:.03em'>{trend_txt}</div>
             </div>
         </div>
@@ -1096,7 +1256,7 @@ st.markdown(f"""
             <div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);
                         border-radius:10px;padding:10px 18px;text-align:center;min-width:82px'>
                 <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
-                            color:#64748b;margin-bottom:4px;font-family:"DM Sans";text-align:center'>CONFIDENCE</div>
+                            color:#FFBC37;margin-bottom:4px;font-family:"DM Sans";text-align:center'>CONFIDENCE</div>
                 <div style='font-family:"JetBrains Mono";font-size:18px;color:#93c5fd;font-weight:700;line-height:1;text-align:center'>
                     {curr_conf:.0f}%
                 </div>
@@ -1104,7 +1264,7 @@ st.markdown(f"""
             <div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);
                         border-radius:10px;padding:10px 18px;text-align:center;min-width:82px'>
                 <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
-                            color:#64748b;margin-bottom:4px;font-family:"DM Sans";text-align:center'>PROYEKSI DARI</div>
+                            color:#FFBC37;margin-bottom:4px;font-family:"DM Sans";text-align:center'>PROYEKSI DARI</div>
                 <div style='font-family:"JetBrains Mono";font-size:18px;color:#93c5fd;font-weight:600;line-height:1;text-align:center'>
                     {_last_month}
                 </div>
@@ -1112,7 +1272,7 @@ st.markdown(f"""
             <div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);
                         border-radius:10px;padding:10px 18px;text-align:center;min-width:82px'>
                 <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
-                            color:#64748b;margin-bottom:4px;font-family:"DM Sans";text-align:center'>TREN/BULAN</div>
+                            color:#FFBC37;margin-bottom:4px;font-family:"DM Sans";text-align:center'>TREN/BULAN</div>
                 <div style='font-family:"JetBrains Mono";font-size:18px;color:{_tren_val_col};font-weight:700;line-height:1;text-align:center'>
                     {fc_trend:+.2f}
                 </div>
@@ -1217,9 +1377,9 @@ _proj_badge = (f"<span style='font-size:9px;background:rgba(167,139,250,0.15);"
                f"color:#a78bfa;padding:2px 7px;border-radius:8px;"
                f"border:1px solid rgba(167,139,250,0.3)'>🔮 PROYEKSI ~{_proj_conf}%</span> "
                if _is_proj else "")
-_live_badge = (f"<span style='font-size:9px;background:rgba(74,222,128,0.12);"
-               f"color:#4ade80;padding:2px 7px;border-radius:8px;"
-               f"border:1px solid rgba(74,222,128,0.25)'>⚡ LIVE</span>"
+_live_badge = (f"<span style='font-size:9px;background:rgba(239,68,68,0.15);"
+               f"color:#ef4444;padding:2px 7px;border-radius:8px;"
+               f"border:1px solid rgba(239,68,68,0.3)'>⚡ LIVE</span>"
                if _usd_is_live else "kurs rata-rata")
 
 # KPI card builder
@@ -1241,19 +1401,25 @@ _proj_badge_html = (
     if _is_proj else ""
 )
 _usd_sub_html = (
-    "<span class='live-badge'><span class='live-pulse'></span>LIVE</span>"
+    "<span style='display:inline-flex;align-items:center;gap:5px;font-size:10px;"
+    "font-weight:700;background:rgba(239,68,68,0.15);color:#ef4444;padding:3px 8px;"
+    "border-radius:20px;border:1px solid rgba(239,68,68,0.3);letter-spacing:.04em'>"
+    "<span style='width:6px;height:6px;border-radius:50%;background:#ef4444;"
+    "animation:pulse 1.5s infinite;flex-shrink:0;display:inline-block'></span>LIVE</span>"
     if _usd_is_live else "kurs rata-rata"
 )
 
 def _kpi_card_html(label, value, sub, delta, level=None, use_dot=False):
-    accent = {"AMAN":"#22c55e","WASPADA":"#f59e0b","SIAGA":"#f97316","KRISIS":"#ef4444"}.get(level,"#3b82f6")
+    accent = {"AMAN":"#00c794","WASPADA":"#F9F871","SIAGA":"#ff6c43","KRISIS":"#d90000"}.get(level,"#3b82f6")
+    label_color = accent if level else "#1119FF"
     dot = (f"<span style='display:inline-block;width:16px;height:16px;border-radius:50%;"
            f"background:{accent};box-shadow:0 0 6px {accent};margin-right:8px;"
            f"vertical-align:middle;flex-shrink:0'></span>") if use_dot else ""
+    value_color = f"color:{accent} !important" if level else ""
     return f"""
 <div class="kpi-c" style="border-top:2px solid {accent}">
-  <div class="kpi-c-label">{label}</div>
-  <div class="kpi-c-value">{dot}{value}</div>
+  <div class="kpi-c-label" style="color:{label_color} !important">{label}</div>
+  <div class="kpi-c-value" style="{value_color}">{dot}{value}</div>
   <div class="kpi-c-sub">{sub}</div>
   <div class="kpi-c-delta">{delta}</div>
 </div>"""
@@ -1335,7 +1501,7 @@ body { height: 100%; }
   background: rgba(255,255,255,0.07);
 }
 .kpi-c-label {
-  font-size:13px !important;
+  font-size:15px !important;
   font-weight:700 !important;
   color:#94a3b8 !important;
   text-transform:uppercase !important;
@@ -1514,18 +1680,32 @@ st.markdown(alert_html(level, f"Status Pariwisata Bali — {sel}",
 
 # ── Page Title Divider ────────────────────────────────
 _NAV_ICONS = {
-    "Overview & Timeline":  ("📈", "Overview & Timeline",  "#93c5fd"),
-    "Analisis Detail":       ("🔬", "Analisis Detail",       "#c084fc"),
-    "Sentimen":              ("💬", "Sentimen",              "#4ade80"),
-    "Prediksi & Proyeksi":  ("🔮", "Prediksi & Proyeksi",  "#fbbf24"),
-    "Narasi AI":            ("✨", "Narasi AI",            "#f87171"),
+    # "Overview & Timeline":  ("📈", "Overview & Timeline",  "#93c5fd"),
+    # "Analisis Detail":       ("🔬", "Analisis Detail",       "#c084fc"),
+    # "Sentimen":              ("💬", "Sentimen",              "#4ade80"),
+    # # "Prediksi & Proyeksi":  ("🔮", "Prediksi & Proyeksi",  "#fbbf24"),
+    # "Narasi AI":            ("✨", "Narasi AI",            "#f87171"),
 }
 _icon, _title, _col = _NAV_ICONS.get(selected_nav, ("📈", selected_nav, "#93c5fd"))
+
+if selected_nav in ["Analisis Detail", "Overview & Timeline", "Sentimen", "Prediksi & Proyeksi", "Narasi AI"]:
+    _title_style = (
+        "background-image:linear-gradient(to left top,"
+        "#1119ff,#0054ff,#0072ff,#0088ed,#0099d6,"
+        "#3694c4,#4c8eb2,#5b88a1,#4f708d,#465877,#3e4160,#352b48);"
+        "-webkit-background-clip:text;"
+        "-webkit-text-fill-color:transparent;"
+        "background-clip:text;"
+    )
+else:
+    _title_style = f"color:{_col};"
+
 st.markdown(f"""
 <div style='margin-top:48px;margin-bottom:28px;text-align:center;
             padding-bottom:24px;border-bottom:1px solid rgba(255,255,255,0.07)'>
     <div style='font-family:"DM Serif Display",serif;font-size:38px;font-weight:400;
-                color:#f1f5f9;letter-spacing:-.02em;line-height:1.15'>
+                letter-spacing:-.02em;line-height:1.15;display:inline-block;
+                {_title_style}'>
         {_title}
     </div>
 </div>
@@ -1538,8 +1718,35 @@ st.markdown(f"""
 # ─── TAB 1: OVERVIEW ─────────────────────────────────
 if selected_nav == "Overview & Timeline":
     _tick("nav_start_overview")
-    fig = _build_overview_fig(str(sel))
-    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("""
+    <style>
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: rgba(255,255,255,0.04) !important;
+        border: 1.5px solid rgba(59,130,246,0.55) !important;
+        border-radius: 18px !important;
+        box-shadow: 0 4px 28px rgba(59,130,246,0.10), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+        padding: 4px 8px 8px !important;
+        margin-bottom: 16px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    with st.container(border=True):
+        st.markdown('<div class="accent-overview-1"></div>', unsafe_allow_html=True)
+        st.plotly_chart(_build_overview_fig1(str(sel)), use_container_width=True)
+
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+    with st.container(border=True):
+        st.markdown('<div class="accent-overview-2"></div>', unsafe_allow_html=True)
+        st.plotly_chart(_build_overview_fig2(str(sel)), use_container_width=True)
+
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+    with st.container(border=True):
+        st.markdown('<div class="accent-overview-3"></div>', unsafe_allow_html=True)
+        st.plotly_chart(_build_overview_fig3(str(sel)), use_container_width=True)
 
     # ── Summary Stats Strip ───────────────────────────────
     _pct_aman   = (predictions['crisis_level']=='AMAN').mean()*100
@@ -1663,26 +1870,35 @@ if selected_nav == "Analisis Detail":
                 fig_c = go.Figure(go.Bar(
                     x=list(comp_vals.keys()),
                     y=[v*100 for v in comp_vals.values()],
-                    marker_color=['#ef4444','#f59e0b','#3b82f6'],
+                    marker_color=['#D90000','#f59e0b','#3b82f6'],
                     marker_line_color='rgba(0,0,0,0)',
                     text=[f'{v*100:.1f}%' for v in comp_vals.values()],
                     textposition='outside',
-                    textfont=dict(size=13,color='#f1f5f9')
+                    textfont=dict(size=12, color='#f1f5f9')
                 ))
                 fig_c.update_layout(
-                    yaxis=dict(range=[0,115], title='Kontribusi (%)',
-                               gridcolor='rgba(255,255,255,0.06)', color='#94a3b8'),
-                    xaxis=dict(color='#cbd5e1', tickfont=dict(size=12)),
+                    # Menambahkan font size pada title axis
+                    yaxis=dict(
+                        range=[0,115], 
+                        title=dict(text='Kontribusi (%)', font=dict(size=12)),
+                        gridcolor='rgba(255,255,255,0.06)', 
+                        color='#94a3b8',
+                        tickfont=dict(size=12) # Memastikan tick label juga membesar
+                    ),
+                    xaxis=dict(
+                        color='#cbd5e1', 
+                        tickfont=dict(size=12)
+                    ),
                     plot_bgcolor='rgba(0,0,0,0)',
                     paper_bgcolor='rgba(0,0,0,0)',
                     height=300,
                     margin=dict(l=10,r=10,t=10,b=10),
-                    font=dict(family='DM Sans',size=12,color='#cbd5e1')
+                    font=dict(family='DM Sans', size=12, color='#cbd5e1')
                 )
                 st.plotly_chart(fig_c, use_container_width=True)
                 if _comp_proj:
                     st.markdown(
-                        "<div style='font-size:10px;color:#a78bfa;text-align:center;margin-top:-8px'>"
+                        "<div style='font-size:12px;color:#ffffff;text-align:center;margin-top:-8px'>"
                         "Estimasi proporsi berbasis crisis score proyeksi — bukan data historis</div>",
                         unsafe_allow_html=True
                     )
@@ -1729,21 +1945,30 @@ if selected_nav == "Analisis Detail":
             prob_vals   = [sf(row_data.get(f'prob_{l.lower()}',0))*100 for l in prob_labels]
             fig_p = go.Figure(go.Bar(
                 y=prob_labels, x=prob_vals, orientation='h',
-                marker_color=[COLOR_MAP[l] for l in prob_labels],
+                marker_color=['#00C794', '#F9F871', '#FF6C43', '#D90000'],
                 marker_line_color='rgba(0,0,0,0)',
                 text=[f'{v:.1f}%' for v in prob_vals],
                 textposition='outside',
                 textfont=dict(size=12,color='#f1f5f9')
             ))
             fig_p.update_layout(
-                xaxis=dict(range=[0,100], title='Probabilitas (%)',
-                           gridcolor='rgba(255,255,255,0.06)', color='#94a3b8'),
-                yaxis=dict(color='#f1f5f9', categoryorder='total ascending'),
+                xaxis=dict(
+                    range=[0, 100], 
+                    title=dict(text='Probabilitas (%)', font=dict(size=12)),
+                    gridcolor='rgba(255,255,255,0.06)', 
+                    color='#94a3b8',
+                    tickfont=dict(size=12)
+                ),
+                yaxis=dict(
+                    color='#f1f5f9', 
+                    categoryorder='total ascending',
+                    tickfont=dict(size=12)
+                ),
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
                 height=300,
-                margin=dict(l=10,r=50,t=10,b=10),
-                font=dict(family='DM Sans',size=12,color='#cbd5e1')
+                margin=dict(l=10, r=50, t=10, b=10),
+                font=dict(family='DM Sans', size=12, color='#cbd5e1')
             )
             st.plotly_chart(fig_p, use_container_width=True)
 
@@ -1764,7 +1989,7 @@ if selected_nav == "Analisis Detail":
                     marker_color='#3b82f6', marker_line_color='rgba(0,0,0,0)',
                     text=[f'{v:.3f}' for v in fi['Importance']],
                     textposition='outside',
-                    textfont=dict(size=11,color='#f1f5f9')
+                    textfont=dict(size=12,color='#f1f5f9')
                 ))
                 fig_fi.update_layout(
                     plot_bgcolor='rgba(0,0,0,0)',
@@ -1774,7 +1999,7 @@ if selected_nav == "Analisis Detail":
                     xaxis=dict(range=[0, fi['Importance'].max()*1.35],
                                gridcolor='rgba(255,255,255,0.06)', color='#94a3b8'),
                     yaxis=dict(color='#f1f5f9', tickfont=dict(size=12)),
-                    font=dict(family='DM Sans',size=11,color='#cbd5e1')
+                    font=dict(family='DM Sans',size=12,color='#cbd5e1')
                 )
                 st.plotly_chart(fig_fi, use_container_width=True)
             except Exception:
@@ -1796,48 +2021,47 @@ if selected_nav == "Sentimen":
     </style>
     """, unsafe_allow_html=True)
 
-    sent_color = '#4ade80' if sent >= 0.3 else ('#f87171' if sent < -0.3 else '#fbbf24')
-    sent_label = 'POSITIF' if sent >= 0.3 else ('NEGATIF' if sent < -0.3 else 'NETRAL')
-    sent_pct   = int((sent + 1) / 2 * 100)
-
     mr_pct_rows = master[master['month']==sel]
 
     # ── Proyeksi: tidak ada data review nyata ────────────────
     if _is_proj:
-        # Gunakan sentimen proyeksi, tapi tandai review sebagai N/A
-        pct_neg         = 0.0
-        pct_pos         = 0.0
-        pct_netral      = 0.0
-        _review_is_proj = True
+        pct_neg           = 0.0
+        pct_pos           = 0.0
+        pct_netral        = 0.0
+        _review_is_proj   = True
         _netral_estimated = False
-        # Ambil sentimen terakhir yang diketahui dari data historis
-        _last_real_sent  = float(predictions[predictions['month'] <= _last_data_month]['avg_sentiment_monthly'].iloc[-1])
-        _last_real_month = predictions['month'].iloc[-1]
+        _last_real_sent   = float(predictions[predictions['month'] <= _last_data_month]['avg_sentiment_monthly'].iloc[-1])
+        _last_real_month  = predictions['month'].iloc[-1]
     else:
-        _review_is_proj  = False
-        _last_real_sent  = None
-        _last_real_month = None
-        pct_neg = sf(mr_pct_rows['pct_negative_monthly'].iloc[0] if len(mr_pct_rows) > 0
-                     and 'pct_negative_monthly' in master.columns
-                     else row_data.get('pct_negative_monthly', 0))
+        _review_is_proj   = False
+        _last_real_sent   = None
+        _last_real_month  = None
+        _netral_estimated = False
 
-        # pct_positive & pct_neutral tidak ada di master (NB04 hanya simpan pct_negative)
-        _avg_sent_raw = float(mr_pct_rows['avg_sentiment_monthly'].iloc[0]
-                              if len(mr_pct_rows) > 0 and 'avg_sentiment_monthly' in master.columns
-                              else sent)
-        _sentiment_est = min(1.0, max(0.0, _avg_sent_raw))
+        pct_neg    = sf(mr_pct_rows['pct_negative_monthly'].iloc[0] if len(mr_pct_rows) > 0
+                        and 'pct_negative_monthly' in master.columns
+                        else row_data.get('pct_negative_monthly', 0))
+        pct_pos    = sf(mr_pct_rows['pct_positive_monthly'].iloc[0] if len(mr_pct_rows) > 0
+                        and 'pct_positive_monthly' in master.columns
+                        else (100 - pct_neg))
+        pct_netral = sf(mr_pct_rows['pct_neutral_monthly'].iloc[0] if len(mr_pct_rows) > 0
+                        and 'pct_neutral_monthly' in master.columns
+                        else max(0.0, 100.0 - pct_pos - pct_neg))
 
-        _nonneg = max(0.0, 100.0 - pct_neg)
-        if 'pct_positive_monthly' in master.columns and len(mr_pct_rows) > 0:
-            pct_pos    = sf(mr_pct_rows['pct_positive_monthly'].iloc[0])
-            pct_netral = max(0.0, round(100.0 - pct_pos - pct_neg, 1))
-            _netral_estimated = False
-        else:
-            _s_norm       = min(1.0, _sentiment_est / 0.8)
-            _netral_frac  = 0.30 - 0.20 * _s_norm
-            pct_netral    = round(_nonneg * _netral_frac, 1)
-            pct_pos       = round(_nonneg - pct_netral, 1)
-            _netral_estimated = True
+    # ── Sent label: score dulu, lalu fallback ke distribusi pct ──
+    if sent >= 0.3:
+        sent_label = 'POSITIF'
+    elif sent < -0.3:
+        sent_label = 'NEGATIF'
+    elif pct_pos >= 55:
+        sent_label = 'POSITIF'
+    elif pct_neg >= 55:
+        sent_label = 'NEGATIF'
+    else:
+        sent_label = 'NETRAL'
+
+    sent_color = '#4ade80' if sent_label == 'POSITIF' else ('#f87171' if sent_label == 'NEGATIF' else '#fbbf24')
+    sent_pct   = int((sent + 1) / 2 * 100)
 
     # ── Hero: pakai kolom native Streamlit, bukan HTML kompleks ──
     h1, h2, h3, h4, h5 = st.columns([2, 1, 1, 1, 1], gap="medium")
@@ -1847,7 +2071,7 @@ if selected_nav == "Sentimen":
             f"<div style='font-size:11px;font-weight:700;letter-spacing:.12em;color:#475569;text-transform:uppercase;margin-bottom:6px'>Sentimen Bulan Ini · {sel}</div>"
             f"<div style='font-family:DM Serif Display,serif;font-size:36px;color:{sent_color};line-height:1'>{sent_label}</div>"
             f"<div style='font-family:JetBrains Mono,monospace;font-size:20px;color:{sent_color};margin-top:4px'>{sent:+.3f}</div>"
-            + (f"<div style='font-size:10px;color:#a78bfa;margin-top:6px'>🔮 proyeksi — data terakhir {_last_real_month}</div>" if _review_is_proj else "")
+            + (f"<div style='font-size:14px;color:#a78bfa;margin-top:6px'>proyeksi — data terakhir {_last_real_month}</div>" if _review_is_proj else "")
             + f"</div>",
             unsafe_allow_html=True
         )
@@ -1892,8 +2116,8 @@ if selected_nav == "Sentimen":
             )
         st.markdown(
             "<div style='background:rgba(167,139,250,0.07);border:1px solid rgba(167,139,250,0.2);"
-            "border-radius:10px;padding:10px 16px;margin:8px 0 16px;font-size:11px;color:#a78bfa'>"
-            f"🔮 <b>Bulan proyeksi</b> — data review wisatawan belum tersedia. "
+            "border-radius:10px;padding:10px 16px;margin:8px 0 16px;font-size:16px;color:#a78bfa'>"
+            f"<b>Bulan proyeksi</b> — data review wisatawan belum tersedia. "
             f"Sentimen ditampilkan berdasarkan proyeksi tren dari data terakhir ({_last_real_month}: {_last_real_sent:+.3f})."
             "</div>",
             unsafe_allow_html=True
@@ -2008,15 +2232,16 @@ if selected_nav == "Sentimen":
 
         # ── Box: 6 Bulan Terakhir ──────────────────────────
         with st.container(border=True):
-            st.markdown('<div class="accent-green"></div>', unsafe_allow_html=True)
+            st.markdown('<div class="accent-blue2" style="background: #1119FF !important; border-color: #1119FF !important;"></div>', unsafe_allow_html=True)
             st.markdown(
                 "<div style='display:flex;align-items:center;gap:8px;padding:4px 0 10px;"
                 "border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px'>"
                 "<span style='font-family:DM Sans,sans-serif;font-size:15px;font-weight:700;"
-                "letter-spacing:.05em;text-transform:uppercase;color:#4ade80;"
-                "border-left:3px solid #22c55e;padding-left:10px'>6 Bulan Terakhir</span></div>",
+                "letter-spacing:.05em;text-transform:uppercase;color:#1119FF;"
+                "border-left:3px solid #1119FF;padding-left:10px'>6 Bulan Terakhir</span></div>",
                 unsafe_allow_html=True
             )
+            
             if 'avg_sentiment_monthly' in predictions.columns:
                 last6 = predictions.tail(6)[['month','avg_sentiment_monthly']].copy()
                 colors_bar = ['#4ade80' if v>0.1 else ('#f87171' if v<-0.1 else '#fbbf24')
@@ -2025,15 +2250,15 @@ if selected_nav == "Sentimen":
                     x=last6['month'], y=last6['avg_sentiment_monthly'],
                     marker_color=colors_bar, marker_line_color='rgba(0,0,0,0)',
                     text=[f'{v:+.3f}' for v in last6['avg_sentiment_monthly']],
-                    textposition='outside', textfont=dict(color='#e2e8f0', size=11),
+                    textposition='outside', textfont=dict(color='#e2e8f0', size=12),
                     hovertemplate='<b>%{x}</b><br>Sentimen: %{y:.3f}<extra></extra>'
                 ))
                 fig_6.add_hline(y=0, line_dash='dash', line_color='rgba(255,255,255,0.12)', line_width=1)
                 fig_6.update_layout(
                     plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                     height=220, margin=dict(l=0,r=0,t=16,b=0),
-                    yaxis=dict(gridcolor='rgba(255,255,255,0.04)', color='#64748b', range=[-0.2, last6['avg_sentiment_monthly'].max()*1.25]),
-                    xaxis=dict(color='#64748b'),
+                    yaxis=dict(gridcolor='rgba(255,255,255,0.04)', color='#64748b', range=[-0.2, last6['avg_sentiment_monthly'].max()*1.25], tickfont=dict(size=12)),
+                    xaxis=dict(color='#64748b', tickfont=dict(size=12)),
                     font=dict(family='DM Sans', size=11, color='#94a3b8'))
                 st.plotly_chart(fig_6, use_container_width=True)
 
@@ -2097,7 +2322,7 @@ if selected_nav == "Sentimen":
                 f"background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)'>"
                 f"<div style='font-size:10px;font-weight:700;text-transform:uppercase;"
                 f"letter-spacing:.1em;color:#475569;margin-bottom:10px'>DISTRIBUSI REVIEW</div>"
-                f"<div style='display:flex;align-items:center;gap:8px;margin-bottom:6px'>"
+                f"<div style='display:flex;align-items:center;gap:8px;margin-bottom:9px'>"
                 f"<div style='font-size:11px;color:#4ade80;width:50px;text-align:right'>{pct_pos:.1f}%</div>"
                 f"<div style='flex:1;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden'>"
                 f"<div style='height:100%;width:{pct_pos:.0f}%;background:#4ade80;border-radius:3px'></div></div>"
@@ -2635,7 +2860,7 @@ if selected_nav == "Prediksi & Proyeksi":
             mode='lines+markers', name='Proyeksi',
             line=dict(color='#f59e0b', width=2, dash='dash'),
             marker=dict(size=8, symbol='diamond', color='#f59e0b')))
-        for thr,lbl,col in [(60,'KRISIS','#ef4444'),(45,'SIAGA','#f97316'),(30,'WASPADA','#f59e0b')]:
+        for thr,lbl,col in [(60,'KRISIS','#d90000'),(45,'SIAGA','#ff6c43'),(30,'WASPADA','#F9F871')]:
             fig_fc.add_hline(y=thr, line_dash='dot', line_color=col, line_width=0.7, opacity=0.45,
                              annotation_text=lbl, annotation_position='right',
                              annotation_font_size=9, annotation_font_color=col)
@@ -2765,8 +2990,12 @@ if selected_nav == "Narasi AI":
 
     # ── Kegunaan cards ────────────────────────────────────
     st.markdown("""
-    <div style='font-size:15px;font-weight:700;color:#94a3b8;text-transform:uppercase;
-                letter-spacing:.12em;margin-bottom:14px'>APA GUNANYA NARASI AI?</div>
+    <div style='display:flex;align-items:center;gap:0;width:100%;margin-bottom:14px'>
+        <div style='flex:1;height:1px;background:#1119FF'></div>
+        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#1119FF;text-transform:uppercase;
+                    letter-spacing:.12em;white-space:nowrap'>APA GUNANYA NARASI AI?</div>
+        <div style='flex:1;height:1px;background:#1119FF'></div>
+    </div>
     <div style='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px'>
         <div style='background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);
                     border-radius:12px;padding:20px 16px 16px'>
@@ -2777,7 +3006,7 @@ if selected_nav == "Narasi AI":
         </div>
         <div style='background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);
                     border-radius:12px;padding:20px 16px 16px'>
-            <div style='font-size:16px;font-weight:800;color:#fca5a5;margin-bottom:6px;text-align:center'>Peringatan Dini Krisis</div>
+            <div style='font-size:16px;font-weight:800;color:#d90000;margin-bottom:6px;text-align:center'>Peringatan Dini Krisis</div>
             <div style='font-size:13px;color:#e2e8f0;line-height:1.6;text-align:center'>
                 Saat SIAGA/KRISIS terdeteksi, sistem menyusun teks peringatan + rekomendasi untuk stakeholder.
             </div>
@@ -2800,10 +3029,10 @@ if selected_nav == "Narasi AI":
     # ══════════════════════════════════════════════════════
     # ─ 1. TIPE LAPORAN — FULL WIDTH 4 CARDS ──────────────
     st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-top:28px;margin-bottom:18px'>
-        <div style='flex:1;height:1px;background:rgba(255,255,255,0.10)'></div>
-        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#94a3b8;text-transform:uppercase;
+        <div style='flex:1;height:1px;background:#1119FF'></div>
+        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#1119FF;text-transform:uppercase;
                     letter-spacing:.12em;white-space:nowrap'>PILIH TIPE LAPORAN</div>
-        <div style='flex:1;height:1px;background:rgba(255,255,255,0.10)'></div>
+        <div style='flex:1;height:1px;background:#1119FF'></div>
     </div>""", unsafe_allow_html=True)
 
     REPORT_CARDS = {
@@ -2815,7 +3044,7 @@ if selected_nav == "Narasi AI":
         'alert': {
             'icon':'🚨','title':'Emergency Alert','desc':'Peringatan darurat ≤120 kata',
             'detail':'Status level + 3 indikator kritis + 1 rekomendasi segera. Untuk SIAGA/KRISIS.',
-            'color':'#ef4444','bg':'rgba(239,68,68,0.10)','border':'rgba(239,68,68,0.30)',
+            'color':'#d90000','bg':'rgba(239,68,68,0.10)','border':'rgba(239,68,68,0.30)',
         },
         'monthly': {
             'icon':'📑','title':'Laporan Bulanan','desc':'Laporan lengkap 4 bagian',
@@ -2825,7 +3054,7 @@ if selected_nav == "Narasi AI":
         'predict': {
             'icon':'🔮','title':'Prediksi AI','desc':'Proyeksi + skenario risiko',
             'detail':'Prediksi 3–6 bulan ke depan berbasis tren ML, faktor risiko, dan rekomendasi antisipatif.',
-            'color':'#a855f7','bg':'rgba(168,85,247,0.10)','border':'rgba(168,85,247,0.30)',
+            'color':'#FF6C43','bg':'rgba(251,146,60,0.12)','border':'rgba(255,108,67,0.30)',
         },
     }
 
@@ -2923,7 +3152,7 @@ if selected_nav == "Narasi AI":
     st.markdown(
         "<div style='margin-top:-12px;margin-bottom:20px;background:" + _sel_card['bg'] + ";border-radius:8px;"
         "padding:12px 16px;border-left:3px solid " + _sel_card['color'] + "'>"
-        "<span style='font-size:14px;color:#94a3b8'>Tipe dipilih: "
+        "<span style='font-size:15px;color:#94a3b8'>Tipe dipilih: "
         "<b style='color:" + _sel_card['color'] + "'>" + _sel_card['title'] + "</b>"
         " &nbsp;·&nbsp; <span style='color:#cbd5e1'>" + _sel_card['desc'] + "</span></span></div>",
         unsafe_allow_html=True
@@ -2931,35 +3160,35 @@ if selected_nav == "Narasi AI":
 
     # ─ MODEL (4 kolom horizontal full width) ────────────
     st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-top:28px;margin-bottom:16px'>
-        <div style='flex:1;height:1px;background:rgba(255,255,255,0.10)'></div>
-        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#94a3b8;text-transform:uppercase;
+        <div style='flex:1;height:1px;background:#1119FF'></div>
+        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#1119FF;text-transform:uppercase;
                     letter-spacing:.12em;white-space:nowrap'>PILIH MODEL AI</div>
-        <div style='flex:1;height:1px;background:rgba(255,255,255,0.10)'></div>
+        <div style='flex:1;height:1px;background:#1119FF'></div>
     </div>""", unsafe_allow_html=True)
 
     GROQ_MODELS = {
         'llama-3.3-70b-versatile': {
             'label': 'Llama 3.3 70B', 'tag': 'Terbaik',
             'desc': 'Akurasi tinggi, analisis mendalam',
-            'color': '#a78bfa', 'bg': 'rgba(167,139,250,0.10)', 'border': 'rgba(167,139,250,0.28)',
+            'color': '#a78bfa', 'bg': 'rgba(167,139,250,0.12)', 'border': 'rgba(167,139,250,0.30)',
             'icon': '🏆',
         },
         'llama-3.1-8b-instant': {
             'label': 'Llama 3.1 8B', 'tag': 'Tercepat',
             'desc': 'Respons < 0.5 detik, ringkas',
-            'color': '#34d399', 'bg': 'rgba(52,211,153,0.10)', 'border': 'rgba(52,211,153,0.28)',
+            'color': '#34d399', 'bg': 'rgba(52,211,153,0.12)', 'border': 'rgba(52,211,153,0.30)',
             'icon': '⚡',
         },
-        'mixtral-8x7b-32768': {
-            'label': 'Mixtral 8×7B', 'tag': 'Konteks Panjang',
-            'desc': 'Laporan detail & komprehensif',
-            'color': '#60a5fa', 'bg': 'rgba(96,165,250,0.10)', 'border': 'rgba(96,165,250,0.28)',
+        'qwen/qwen3-32b': {
+            'label': 'Qwen3 32B', 'tag': 'Bahasa Natural',
+            'desc': 'Narasi mengalir & mudah dibaca',
+            'color': '#60a5fa', 'bg': 'rgba(96,165,250,0.12)', 'border': 'rgba(96,165,250,0.30)',
             'icon': '📄',
         },
-        'gemma2-9b-it': {
-            'label': 'Gemma2 9B', 'tag': 'Bahasa Natural',
-            'desc': 'Narasi mengalir & mudah dibaca',
-            'color': '#fb923c', 'bg': 'rgba(251,146,60,0.10)', 'border': 'rgba(251,146,60,0.28)',
+        'meta-llama/llama-4-scout-17b-16e-instruct': {
+            'label': 'Llama 4 Scout', 'tag': 'Konteks Panjang',
+            'desc': 'Laporan detail & komprehensif',
+            'color': '#fb923c', 'bg': 'rgba(251,146,60,0.12)', 'border': 'rgba(251,146,60,0.30)',
             'icon': '✍️',
         },
     }
@@ -2985,7 +3214,7 @@ if selected_nav == "Narasi AI":
             _is_msel = st.session_state['selected_model_key'] == _mkey
             _m_bdr   = ("2px solid " + _pc) if _is_msel else ("1px solid " + _pbr)
             _m_shad  = ("box-shadow:0 0 14px " + _pc + "55;") if _is_msel else ""
-            _m_opac  = "1" if _is_msel else "0.90"
+            _m_opac  = "1" if _is_msel else "1"
             st.markdown(
                 "<div style='background:" + _pb + ";border:" + _m_bdr + ";"
                 "border-radius:10px;padding:12px 14px;opacity:" + _m_opac + ";" + _m_shad + ";margin-bottom:6px;"
@@ -3076,7 +3305,7 @@ if selected_nav == "Narasi AI":
     st.markdown(
         "<div style='margin-top:-12px;background:" + _sel_pair_card['bg'] + ";border-radius:8px;"
         "padding:12px 16px;border-left:3px solid " + _sel_pair_card['color'] + "'>"
-        "<span style='font-size:14px;color:#94a3b8'>Model: "
+        "<span style='font-size:15px;color:#94a3b8'>Model: "
         "<b style='color:" + _sel_pair_card['color'] + "'>" + _sel_mcard['label'] + "</b>"
         " &nbsp;·&nbsp; <span style='color:#cbd5e1'>" + _sel_mcard['tag'] + "</span></span></div>",
         unsafe_allow_html=True
@@ -3084,12 +3313,12 @@ if selected_nav == "Narasi AI":
 
     st.markdown("<div style='margin:16px 0 8px'></div>", unsafe_allow_html=True)
 
-    # ─ API & STATUS — FULL WIDTH ──────────────────────────
+    # ─ API & STATUS ──────────────────────────
     st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-top:28px;margin-bottom:18px'>
-        <div style='flex:1;height:1px;background:rgba(255,255,255,0.10)'></div>
-        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#94a3b8;text-transform:uppercase;
+        <div style='flex:1;height:1px;background:#1119FF'></div>
+        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#1119FF;text-transform:uppercase;
                     letter-spacing:.12em;white-space:nowrap'>API &amp; STATUS</div>
-        <div style='flex:1;height:1px;background:rgba(255,255,255,0.10)'></div>
+        <div style='flex:1;height:1px;background:#1119FF'></div>
     </div>""", unsafe_allow_html=True)
 
     # ─ PILIH BULAN & TAHUN ────────────────────────────────
@@ -3117,13 +3346,13 @@ if selected_nav == "Narasi AI":
     _c_year, _c_month, _c_status, _c_cache = st.columns([1, 1, 1, 1])
 
     with _c_year:
-        st.markdown("""<div style='font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;
-                    letter-spacing:.12em;margin-bottom:12px'>BULAN YANG DIANALISIS</div>""",
+        st.markdown("""<div style='font-size:15px;font-weight:700;color:#FF0000;text-transform:uppercase;
+                    letter-spacing:.12em;margin-bottom:12px'>BULAN DAN TAHUN YANG DIANALISIS</div>""",
                     unsafe_allow_html=True)
         _ny_idx  = _avail_years.index(st.session_state['narasi_year_sel']) \
                    if st.session_state['narasi_year_sel'] in _avail_years else 0
         st.markdown(
-            "<div style='display:flex;align-items:center;gap:0;font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:4px'>" "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0;margin-right:7px'></span>Tahun</div>", unsafe_allow_html=True)
+            "<div style='display:flex;align-items:center;gap:0;font-size:16px;font-weight:600;color:#1119FF;margin-bottom:4px'>" "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0;margin-right:7px'></span>Tahun</div>", unsafe_allow_html=True)
         _sel_year = st.selectbox("", _avail_years, index=_ny_idx, key="narasi_year_box", label_visibility="collapsed")
         st.session_state['narasi_year_sel'] = _sel_year
 
@@ -3132,7 +3361,7 @@ if selected_nav == "Narasi AI":
     with _c_month:
         st.markdown("<div style='height:36px'></div>", unsafe_allow_html=True)
         st.markdown(
-            "<div style='display:flex;align-items:center;gap:0;font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:4px'>" "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0;margin-right:7px'></span>Bulan</div>", unsafe_allow_html=True)
+            "<div style='display:flex;align-items:center;gap:0;font-size:16px;font-weight:600;color:#1119FF;margin-bottom:4px'>" "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0;margin-right:7px'></span>Bulan</div>", unsafe_allow_html=True)
         _prev_nm = st.session_state.get('narasi_month_sel', sel)
         _nm_default = _prev_nm if _prev_nm in _months_for_year else _months_for_year[-1]
         _nm_idx  = _months_for_year.index(_nm_default)
@@ -3163,7 +3392,7 @@ if selected_nav == "Narasi AI":
 
     with _c_status:
         _status_clr = COLOR_MAP.get(_narasi_level, '#fff')
-        st.markdown("<div style='font-size:13px;font-weight:600;color:#e2e8f0;margin-top:31px;margin-bottom:4px'>Status Bulan</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:15px;font-weight:600;color:#e2e8f0;margin-top:31px;margin-bottom:4px'>Status Bulan</div>", unsafe_allow_html=True)
         st.markdown(
             "<div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);"
             "border-radius:8px;padding:0 14px;display:flex;align-items:center;gap:12px;"
@@ -3185,7 +3414,7 @@ if selected_nav == "Narasi AI":
         ) if _has_cache else (
             "<span style='font-size:14px;color:#94a3b8'>Belum ada cache untuk bulan ini</span>"
         )
-        st.markdown("<div style='font-size:13px;font-weight:600;color:#e2e8f0;margin-top:31px;margin-bottom:4px'>Cache Narasi</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:15px;font-weight:600;color:#e2e8f0;margin-top:31px;margin-bottom:4px'>Cache Narasi</div>", unsafe_allow_html=True)
         st.markdown(
             "<div style='background:" + _cache_bg + ";border:1px solid " + _cache_bdr + ";"
             "border-radius:8px;padding:0 14px;display:flex;align-items:center;gap:6px;"
@@ -3288,15 +3517,15 @@ if selected_nav == "Narasi AI":
         _clr  = COLOR_MAP.get(_clv, '#94a3b8')
         st.markdown(
             "<div style='display:flex;align-items:center;gap:10px;margin-bottom:12px'>"
-            "<div style='font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;"
-            "letter-spacing:.1em'>📄 NARASI TERSIMPAN</div>"
+            "<div style='font-size:16px;font-weight:700;color:#FFFFFF;text-transform:uppercase;"
+            "letter-spacing:.1em'>NARASI TERSIMPAN</div>"
             "<span style='background:" + _clr + "22;color:" + _clr + ";font-size:10px;font-weight:700;"
             "padding:3px 10px;border-radius:20px;border:1px solid " + _clr + "44'>"
             + EMOJI_MAP.get(_clv,'') + " " + _clv + "</span>"
-            "<span style='font-family:monospace;font-size:10px;color:#475569'>"
+            "<span style='font-family:monospace;font-size:14px;color:#475569'>"
             + cached_n.get('month','') + "</span>"
             "<span style='font-size:10px;color:#334155'>·</span>"
-            "<span style='font-family:monospace;font-size:10px;color:#334155'>"
+            "<span style='font-family:monospace;font-size:14px;color:#334155'>"
             + str(cached_n.get('tokens',0)) + " tokens</span></div>"
             "<div style='background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);"
             "border-radius:14px;padding:26px 30px;line-height:1.95;font-size:14px;"
@@ -3479,7 +3708,8 @@ if selected_nav == "Narasi AI":
                 _response = _client.chat.completions.create(
                     model=selected_model,
                     messages=[{'role':'user','content':_prompt}],
-                    temperature=0.7, max_tokens=1024
+                    temperature=0.7, max_tokens=1024,
+                    **( {"reasoning_effort": "none"} if "qwen" in selected_model else {} )
                 )
                 _narr_text = _response.choices[0].message.content
                 _tokens    = _response.usage.prompt_tokens + _response.usage.completion_tokens
@@ -3500,12 +3730,12 @@ if selected_nav == "Narasi AI":
                 _model_short = GROQ_MODELS.get(selected_model, {}).get('label', selected_model)
                 st.markdown(
                     "<div style='display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap'>"
-                    "<div style='font-size:10px;font-weight:700;color:#4ade80;text-transform:uppercase;"
-                    "letter-spacing:.1em'>✅ NARASI BERHASIL DIBUAT</div>"
+                    "<div style='font-size:16px;font-weight:700;color:#FFFFFF;text-transform:uppercase;"
+                    "letter-spacing:.1em'>NARASI BERHASIL DIBUAT</div>"
                     "<span style='background:" + _rclr + "22;color:" + _rclr + ";font-size:10px;font-weight:700;"
                     "padding:3px 10px;border-radius:20px;border:1px solid " + _rclr + "44'>"
                     + EMOJI_MAP.get(_rlv,'') + " " + _rlv + "</span>"
-                    "<span style='font-family:monospace;font-size:10px;color:#475569'>"
+                    "<span style='font-family:monospace;font-size:14px;color:#475569'>"
                     + str(_tokens) + " tokens · " + _model_short + _fc_tag + "</span></div>"
                     "<div style='background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);"
                     "border-radius:14px;padding:26px 30px;line-height:1.95;font-size:14px;"
@@ -3594,7 +3824,7 @@ st.markdown(f"""
     <span style='font-size:10px;color:#1e293b'>
         Data: BPS Bali · Bank Indonesia · Google Hotels &nbsp;|&nbsp;
         Model: Isolation Forest + Random Forest + XLM-RoBERTa &nbsp;|&nbsp;
-        Narasi: Groq LLM (llama-3.3-70b-versatile / llama-3.1-8b / mixtral / gemma2)
+        Narasi: Groq LLM (llama-3.3-70b-versatile / llama-3.1-8b / qwen3-32bqwen3 / llama-4-scout)
     </span>
 </div>
 """, unsafe_allow_html=True)
