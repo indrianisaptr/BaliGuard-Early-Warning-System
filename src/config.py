@@ -17,7 +17,7 @@ BASE_DIR  = Path(__file__).parent.parent
 DATA_DIR  = BASE_DIR / 'data' / 'final'
 MODEL_DIR = BASE_DIR / 'models'
 ASSET_DIR = BASE_DIR / 'assets'
-IMAGE_DIR = BASE_DIR / 'images'
+IMAGE_DIR = BASE_DIR / 'assets' / 'icons'
 
 # ── Crisis Level Thresholds ───────────────────────────────────────────
 # crisis_score_100 >= nilai → masuk level tersebut

@@ -93,15 +93,15 @@ def load_models() -> tuple:
 
 @st.cache_resource(show_spinner=False)
 def load_nav_icons() -> dict:
-    """Base64 icon dari images/ — dibuat sekali, tidak dibuat ulang setiap rerun."""
+    """Base64 icon dari icons/ — dibuat sekali, tidak dibuat ulang setiap rerun."""
     import base64
-    # Nama file di images/ folder sesuai struktur project asli
+    # Nama file di icons/ folder sesuai struktur project asli
     mapping = {
-        'Gambaran Umum & Garis Waktu': BASE_DIR / 'images' / 'overview&timeline.png',
-        'Analisis Detail':             BASE_DIR / 'images' / 'analisis_detail.png',
-        'Sentimen':                    BASE_DIR / 'images' / 'sentimen.png',
-        'Prediksi & Proyeksi':         BASE_DIR / 'images' / 'prediksi&proyeksi.png',
-        'Narasi AI':                   BASE_DIR / 'images' / 'narasi_ai.png',
+        'Gambaran Umum & Garis Waktu': BASE_DIR / 'assets' / 'icons' / 'overview&timeline.png',
+        'Analisis Detail':             BASE_DIR / 'assets' / 'icons' / 'analisis_detail.png',
+        'Sentimen':                    BASE_DIR / 'assets' / 'icons' / 'sentimen.png',
+        'Prediksi & Proyeksi':         BASE_DIR / 'assets' / 'icons' / 'prediksi&proyeksi.png',
+        'Narasi AI':                   BASE_DIR / 'assets' / 'icons' / 'narasi_ai.png',
     }
     result = {}
     for label, path in mapping.items():

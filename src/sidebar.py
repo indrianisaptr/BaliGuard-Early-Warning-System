@@ -120,11 +120,11 @@ def render_sidebar(ctx: dict) -> tuple:
         from pathlib import Path
 
         _NAV_IMG_MAP = {
-            'Overview & Timeline': 'images/overview&timeline.png',
-            'Analisis Detail':     'images/analisis_detail.png',
-            'Sentimen':            'images/sentimen.png',
-            'Prediksi & Proyeksi': 'images/prediksi&proyeksi.png',
-            'Narasi AI':           'images/narasi_ai.png',
+            'Overview & Timeline': 'assets/icons/overview&timeline.png',
+            'Analisis Detail':     'assets/icons/analisis_detail.png',
+            'Sentimen':            'assets/icons/sentimen.png',
+            'Prediksi & Proyeksi': 'assets/icons/prediksi&proyeksi.png',
+            'Narasi AI':           'assets/icons/narasi_ai.png',
         }
         _SVG_ICONS = {
             'Overview & Timeline': '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',

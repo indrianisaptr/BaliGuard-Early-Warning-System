@@ -20,7 +20,7 @@ _t0 = time.perf_counter()
 def _load_logo():
     from PIL import Image
     import base64
-    for fname in ['images/FIX.webp', 'images/FIX.png']:
+    for fname in ['assets/icons/FIX.webp', 'assets/icons/FIX.png']:
         p = Path(fname)
         if p.exists():
             ext = p.suffix[1:]

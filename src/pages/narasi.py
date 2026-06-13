@@ -48,7 +48,7 @@ def _render_narasi_actions(narrative_text: str, month: str, report_type: str) ->
                 navigator.clipboard.writeText(`{_js_text}`)
                     .then(function(){{
                         var b=document.getElementById('btn-copy-narasi');
-                        b.innerText='Tersalin!';
+                        b.innerText='✅ Tersalin!';
                         b.style.background='#16a34a';
                         setTimeout(function(){{b.innerText='📋 Copy Teks';b.style.background='#1e3a5f';}},2000);
                     }})
