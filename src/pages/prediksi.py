@@ -197,9 +197,8 @@ def render(ctx: dict) -> None:
     }
 
     /* Sembunyikan tick bar bawaan */
-    [data-testid="stTickBarMin"],
-    [data-testid="stTickBarMax"] {
-      display: none !important;
+    [data-testid="stSliderTickBar"] {
+    display: none !important;
     }
 
     /* Range label row manual */
@@ -237,6 +236,18 @@ def render(ctx: dict) -> None:
       padding:2px 9px; border-radius:20px;
       background:rgba(59,130,246,0.12); color:#7dd3fc;
       border:1px solid rgba(59,130,246,0.2);
+    }
+
+    /* ── Sembunyikan tooltip/bubble bawaan Streamlit pada proj_n slider ── */
+    div[data-testid="stSlider"][aria-label="Jumlah Bulan"] div[role="slider"]::before,
+    div[data-testid="stSlider"][aria-label="Jumlah Bulan"] [data-testid="stThumbValue"],
+    div[data-testid="stSlider"][aria-label="Jumlah Bulan"] .st-emotion-cache-1cj0yv5,
+    div[data-testid="stSlider"] div[class*="StyledThumbValue"],
+    div[data-testid="stSlider"] div[class*="thumbValue"],
+    div[data-testid="stSlider"] [data-testid="stThumbValue"] {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
     }
 
     /* ── Result box ── */
@@ -340,10 +351,20 @@ def render(ctx: dict) -> None:
                                              key="proj_month", label_visibility="collapsed")
             _proj_month_num  = _MONTH_NAMES.index(_proj_month_name) + 1
     with _sel_right:
-        st.markdown("<div class='ctrl-label'>⏱ Jumlah Bulan Proyeksi</div>", unsafe_allow_html=True)
+        # ── Label row: judul kiri + nilai aktif kanan ──────────────────
+        st.markdown(
+            f"<div class='slider-label-row'>"
+            f"<span class='slider-label-txt'>⏱ JUMLAH BULAN PROYEKSI</span>"
+            f"<span class='slider-val-pill' id='proj-n-val'>{st.session_state.get('proj_n', 6)}</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
         _proj_n = st.slider("Jumlah Bulan", 3, 12, 6, 1, key="proj_n",
-                             label_visibility="collapsed")
-        st.markdown("<div class='slider-range-row'><span>3</span><span>12</span></div>", unsafe_allow_html=True)
+                            label_visibility="collapsed")
+        st.markdown(
+            "<div class='slider-range-row'><span>3</span><span>12</span></div>",
+            unsafe_allow_html=True
+        )
 
     if _proj_month_num == 1:
         _from_month_str = f"{_proj_year - 1}-12"
