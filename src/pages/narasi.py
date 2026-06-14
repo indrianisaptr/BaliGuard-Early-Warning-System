@@ -122,8 +122,12 @@ def _bold_swot_headings(text: str) -> str:
     return _SWOT_PATTERN.sub(_replacer, text)
 
 def _render_markdown_bold(text: str) -> str:
-    """Convert **teks** menjadi <b>teks</b> untuk render HTML."""
-    return re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    """Convert **teks** menjadi <b> bergaya heading untuk render HTML."""
+    return re.sub(
+        r'\*\*(.+?)\*\*',
+        r'<b style="color:#ffffff;font-size:16px">\1</b>',
+        text
+    )
 
 def _format_narasi_html(text: str) -> str:
     """
@@ -187,7 +191,26 @@ def render(ctx: dict) -> None:
     # ── Unpack ctx ────────────────────────────────────────────
     predictions      = ctx['predictions']
     master           = ctx['master']
+    # BARU
     narratives_cache = ctx['narratives_cache']
+    # Load cache — gunakan session_state agar tidak hilang saat rerun
+    _nc_path = 'data/final/narratives_cache.json'
+    if 'narratives_cache' not in st.session_state:
+        st.session_state['narratives_cache'] = {}
+    try:
+        if os.path.exists(_nc_path):
+            with open(_nc_path, 'r', encoding='utf-8') as _f:
+                _from_file = json.load(_f)
+            # Migrasi cache lama (key tanpa report_type)
+            for _k, _v in _from_file.items():
+                if '_' not in _k[4:]:
+                    _rt = _v.get('report_type', 'alert')
+                    st.session_state['narratives_cache'][f"{_k}_{_rt}"] = _v
+                else:
+                    st.session_state['narratives_cache'][_k] = _v
+    except Exception:
+        pass
+    narratives_cache = st.session_state['narratives_cache']
     rf_model         = ctx['rf_model']
     iso_model        = ctx['iso_model']
     scaler           = ctx['scaler']
@@ -681,9 +704,11 @@ def render(ctx: dict) -> None:
     ) if _is_fc_month else ""
 
     # Cache status for narasi_target
-    _has_cache    = narasi_target in narratives_cache
-    _cache_level  = narratives_cache[narasi_target].get('crisis_level','') if _has_cache else ''
-    _cache_tokens = narratives_cache[narasi_target].get('tokens', 0)        if _has_cache else 0
+    _model_short_key = selected_model.replace('/', '_').replace('-', '_')
+    _cache_key    = f"{narasi_target}_{report_type}_{_model_short_key}"
+    _has_cache    = _cache_key in narratives_cache
+    _cache_level  = narratives_cache[_cache_key].get('crisis_level','') if _has_cache else ''
+    _cache_tokens = narratives_cache[_cache_key].get('tokens', 0)        if _has_cache else 0
 
     with _c_status:
         _status_clr = COLOR_MAP.get(_narasi_level, '#fff')
@@ -811,7 +836,7 @@ def render(ctx: dict) -> None:
 
     # ── Output area ──────────────────────────────────────
     if _has_cache and not gen_btn:
-        cached_n = narratives_cache[narasi_target]
+        cached_n = narratives_cache[_cache_key]
         _clv  = cached_n.get('crisis_level', '')
         _clr  = COLOR_MAP.get(_clv, '#94a3b8')
         st.markdown(
@@ -977,7 +1002,24 @@ def render(ctx: dict) -> None:
                     "  - Physical Risk → risiko dari bencana alam, cuaca ekstrem, dan gangguan fisik destinasi\n"
                     "  - Media Risk → risiko dari pemberitaan negatif global yang merusak citra Bali\n"
                     "  - Tourist Perception → tingkat kepercayaan dan persepsi positif wisatawan terhadap Bali\n"
+                    # BARU — tambahkan blok bahasa sebelum penutup
                     "  - External Risk → tekanan eksternal komposit (ekonomi global, geopolitik, dll) yang memengaruhi pariwisata\n"
+                    "\n\n================================================================\n"
+                    "ATURAN BAHASA — WAJIB DIPATUHI TANPA PENGECUALIAN:\n"
+                    "================================================================\n"
+                    "1. SELURUH output WAJIB menggunakan Bahasa Indonesia formal yang natural.\n"
+                    "2. DILARANG KERAS menggunakan karakter non-Latin: tidak boleh ada karakter "
+                    "Mandarin (汉字), Jepang (かな/カナ), Korea (한글), Arab (عربي), "
+                    "Cyrillic, atau aksara non-Latin lainnya.\n"
+                    "3. DILARANG mencampur bahasa: tidak boleh ada kata/frasa bahasa Mandarin, "
+                    "Jepang, Korea, Arab, Prancis, Spanyol, atau bahasa selain Indonesia dan "
+                    "istilah teknis Inggris yang lazim.\n"
+                    "4. Istilah teknis tanpa padanan umum (Random Forest, External Risk, Crisis Score, TPK) "
+                    "BOLEH tetap dalam bahasa Inggris, namun seluruh kalimat harus tetap berbahasa Indonesia.\n"
+                    "5. SELF-CHECK WAJIB: Sebelum output akhir, periksa ulang seluruh teks. "
+                    "Jika ditemukan karakter non-Latin atau kata asing di luar pengecualian di atas, "
+                    "ganti dengan padanan Bahasa Indonesia.\n"
+                    "================================================================\n"
                 )
                 # ────────────────────────────────────────────────────────────────────────
 
@@ -1010,21 +1052,19 @@ def render(ctx: dict) -> None:
                     )
                 elif report_type == 'predict':
                     _prompt = (
-                        "Kamu adalah analis senior BaliGuard — sistem early warning pariwisata Bali.\n"
-                        + _data_block +
-                        f"\nTugas: Buat laporan PREDIKSI & PROYEKSI untuk pariwisata Bali 3–6 bulan ke depan "
-                        f"setelah bulan {_ctx['month']}, dalam Bahasa Indonesia yang tajam dan berbasis data.\n\n"
-                        "Struktur laporan:\n\n"
-                        "1. PROYEKSI KONDISI (2-3 kalimat)\n"
+                        # BARU
+                        "Struktur laporan (INSTRUKSI FORMAT: gunakan heading bold **JUDUL**, "
+                        "JANGAN penomoran atau heading tanpa tanda bintang):\n\n"
+                        "**PROYEKSI KONDISI**\n"
                         "   - Prediksi arah tren crisis score 3 bulan ke depan (naik/turun/stabil)\n"
                         "   - Apakah proyeksi menunjukkan pemulihan atau tekanan berlanjut?\n\n"
-                        "2. FAKTOR RISIKO UTAMA (3 poin)\n"
+                        "**FAKTOR RISIKO UTAMA**\n"
                         "   - Sebutkan 3 indikator yang paling berpotensi mempengaruhi kondisi ke depan\n"
                         "   - Jelaskan arah tekanan (positif/negatif) masing-masing indikator\n\n"
-                        "3. SKENARIO RISIKO\n"
+                        "**SKENARIO RISIKO**\n"
                         "   - Skenario Optimis: kondisi terbaik yang mungkin terjadi\n"
                         "   - Skenario Pesimis: kondisi terburuk jika indikator memburuk\n\n"
-                        "4. REKOMENDASI ANTISIPATIF (3 poin konkret)\n"
+                        "**REKOMENDASI ANTISIPATIF**\n"
                         "   - Tindakan preventif yang perlu disiapkan SEKARANG sebelum risiko terjadi\n"
                         "   - Tiap poin: [Urgensi] Tindakan spesifik → dampak yang diantisipasi\n\n"
                         "Gaya: forward-looking, actionable, berbasis angka dan tren nyata."
@@ -1032,11 +1072,14 @@ def render(ctx: dict) -> None:
                     )
                 # ── PATCH A3: SWOT prompt ──────────────────────────────────
                 elif report_type == 'swot':
+                    # BARU
                     _prompt = (
                         "Kamu adalah analis pariwisata profesional dan penasihat strategis untuk pengambil kebijakan di Bali.\n"
                         + _data_block +
                         f"\nTugas: Buat ANALISIS SWOT pariwisata Bali bulan {_ctx['month']} "
-                        "dalam Bahasa Indonesia yang tajam, analitis, dan memiliki penalaran mendalam (deep reasoning).\n\n"
+                        "dalam Bahasa Indonesia yang tajam, analitis, dan memiliki penalaran mendalam (deep reasoning).\n"
+                        "PENTING: Langsung mulai output dengan **KEKUATAN (Strengths)**. "
+                        "JANGAN tambahkan judul atau header apapun sebelum bagian SWOT pertama.\n\n"
                         "==================================================\n"
                         "ATURAN REASONING & KLASIFIKASI (WAJIB DIPATUHI MUTLAK):\n"
                         "==================================================\n"
@@ -1053,16 +1096,19 @@ def render(ctx: dict) -> None:
                         "==================================================\n"
                         "STRUKTUR OUTPUT SWOT (WAJIB DIIKUTI):\n"
                         "==================================================\n"
-                        "KEKUATAN (Strengths)\n"
+                        # BARU
+                        "INSTRUKSI FORMAT (HARGA MATI): Gunakan heading bold **JUDUL** untuk setiap bagian SWOT. "
+                        "JANGAN gunakan heading tanpa tanda bintang. JANGAN beri nomor di depan heading.\n\n"
+                        "**KEKUATAN (Strengths)**\n"
                         "- Identifikasi faktor dominan internal atau persepsi yang paling kuat (tertinggi).\n"
                         "- Jelaskan bagaimana faktor ini menjadi penyangga utama ketahanan pariwisata Bali, dan hubungkan sebab-akibatnya dengan tren data operasional (seperti tren Wisman atau TPK Hotel).\n\n"
-                        "KELEMAHAN (Weaknesses)\n"
+                        "**KELEMAHAN (Weaknesses)**\n"
                         "- Analisis titik kerentanan internal atau penurunan performa (misal: fluktuasi Crisis Score, Inflasi, atau penurunan Sentimen).\n"
                         "- Jelaskan implikasi logis dari kelemahan ini terhadap operasional pariwisata jika dibiarkan.\n\n"
-                        "PELUANG (Opportunities)\n"
+                        "**PELUANG (Opportunities)**\n"
                         "- WAJIB BANDINGKAN: Tourist Perception vs External Risk.\n"
                         "- Jelaskan secara analitis apakah persepsi wisatawan masih mampu menahan tekanan eksternal yang ada, atau sebaliknya. Berikan rekomendasi strategis (promosi/layanan) untuk memanfaatkan momentum komparasi tersebut.\n\n"
-                        "ANCAMAN (Threats)\n"
+                        "**ANCAMAN (Threats)**\n"
                         "- WAJIB BANDINGKAN: Physical Risk vs Media Risk. Tentukan ancaman mana yang lebih dominan memberikan tekanan reputasi/fisik saat ini.\n"
                         "- INTEGRASI KOMPREHENSIF: Kamu WAJIB memasukkan Tourist Perception dan External Risk ke dalam analisis Threats ini. Jelaskan apakah tekanan fisik/media dan eksternal yang ada saat ini sudah cukup kuat untuk mulai menggerus kepercayaan/persepsi wisatawan atau belum.\n"
                         "- Jelaskan efek domino (sebab-akibat) potensial terhadap pariwisata Bali.\n\n"
@@ -1074,19 +1120,23 @@ def render(ctx: dict) -> None:
                     _prompt = (
                         "Kamu adalah analis senior BaliGuard.\n"
                         + _data_block +
-                        "\nBuat laporan bulanan analitis Bahasa Indonesia dengan struktur:\n\n"
-                        "1. RINGKASAN EKSEKUTIF (2-3 kalimat)\n"
+                        # BARU
+                        "\nBuat laporan bulanan analitis Bahasa Indonesia dengan struktur berikut.\n"
+                        "INSTRUKSI FORMAT: Gunakan heading bold **JUDUL** untuk setiap bagian. "
+                        "JANGAN gunakan penomoran (1. 2. 3.) atau heading tanpa tanda bintang.\n\n"
+                        "**RINGKASAN EKSEKUTIF**\n"
                         "   - Status bulan ini vs bulan lalu (naik/turun berapa poin)\n"
                         "   - Apakah ini perubahan mendadak atau tren berkelanjutan?\n\n"
-                        "2. ANALISIS INDIKATOR (3-4 kalimat)\n"
+                        "**ANALISIS INDIKATOR**\n"
                         "   - Fokus pada indikator yang BERUBAH paling signifikan bulan ini\n"
                         "   - Jelaskan angka dengan konteks: '+8% wisman itu normal atau luar biasa?'\n"
                         "   - Soroti jika ada kontradiksi antar indikator\n\n"
-                        "3. ANALISIS KAUSAL — MENGAPA INI TERJADI? (2-3 kalimat)\n"
+                        "**ANALISIS KAUSAL — MENGAPA INI TERJADI?**\n"
                         "   - Identifikasi kemungkinan penyebab utama, bukan sekadar deskripsi\n"
                         "   - Jika ada anomali IF, analisis apa yang mungkin memicunya\n"
                         "   - Apakah tekanan berasal dari faktor internal (layanan) atau eksternal (ekonomi, akses)?\n\n"
-                        "4. REKOMENDASI PRIORITAS (3 poin konkret dengan urgensi jelas)\n"
+                        "**REKOMENDASI PRIORITAS**\n"
+                        "   - 3 poin konkret dengan urgensi jelas\n"
                         "   - Tiap poin: [Prioritas] Tindakan spesifik → target indikator yang diperbaiki"
                         + _narasi_rule
                     )
@@ -1131,7 +1181,8 @@ def render(ctx: dict) -> None:
                     unsafe_allow_html=True
                 )
                 _render_narasi_actions(_narr_text, narasi_target, report_type)
-                narratives_cache[narasi_target] = result
+                narratives_cache[_cache_key] = result
+                st.session_state['narratives_cache'][_cache_key] = result
                 os.makedirs('data/final', exist_ok=True)
                 with open('data/final/narratives_cache.json', 'w', encoding='utf-8') as f:
                     json.dump(narratives_cache, f, ensure_ascii=False, indent=2)
