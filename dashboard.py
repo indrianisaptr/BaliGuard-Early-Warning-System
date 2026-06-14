@@ -269,6 +269,7 @@ _cards = [
                    (_proj_badge_html + f" RF: {_rf_pred}") if _proj_badge_html else f"RF: {_rf_pred}",
                    f"<span style='color:#334155;font-size:10px'>{_prev_month or '—'}</span>",
                    _level, use_dot=True),
+    _kpi_card_html("USD/IDR", f"Rp {_usd_avg:,.0f}", _usd_sub_html, _d_usd),
     _kpi_card_html("CRISIS SCORE", f"{_score:.1f}",
                    f"dari 100 &nbsp;·&nbsp; conf {_conf_kpi:.0f}%", _d_score),
     _kpi_card_html("WISMAN", f"{int(_wisman):,}",
@@ -277,7 +278,7 @@ _cards = [
                    "est. proyeksi" if _is_proj else "tingkat hunian hotel", _d_tpk),
     _kpi_card_html("SENTIMEN", f"{_sent:+.3f}",
                    "est. proyeksi" if _is_proj else "rata-rata ulasan", _d_sent),
-    _kpi_card_html("USD/IDR", f"Rp {_usd_avg:,.0f}", _usd_sub_html, _d_usd),
+    
 ]
 
 # Carousel HTML (sama persis dengan dashboard.py asli, diambil dari sana)
