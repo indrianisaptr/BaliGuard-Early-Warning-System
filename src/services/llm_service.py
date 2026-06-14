@@ -2,7 +2,7 @@
 src/services/llm_service.py — BaliGuard: LLM / Groq Service
 Semua interaksi dengan Groq API dan Anthropic API ada di sini.
 """
-import os, json, time, requests
+import os, json, re, time, requests
 import streamlit as st
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +20,39 @@ LEVEL_DESC = {
     'KRISIS':  'krisis pariwisata aktif, diperlukan intervensi segera',
 }
 
+LANG_GUARD = (
+    "ATURAN BAHASA (WAJIB DIPATUHI, PRIORITAS TERTINGGI):\n"
+    "1. Seluruh jawaban HARUS ditulis 100% dalam Bahasa Indonesia formal yang natural, "
+    "dari kata pertama hingga kata terakhir.\n"
+    "2. DILARANG KERAS menyisipkan aksara atau karakter non-Latin dalam bentuk apa pun "
+    "(termasuk Hanzi/Mandarin seperti 处于, 此外, 因此, 同时, aksara Jepang, Korea, Arab, "
+    "Cyrillic, atau aksara lainnya), baik berupa kata, frasa, maupun karakter tunggal "
+    "yang terselip di antara kata-kata Indonesia.\n"
+    "3. DILARANG mencampur Bahasa Indonesia dengan bahasa asing lain di luar istilah "
+    "teknis yang memang umum dipakai dalam Bahasa Indonesia.\n"
+    "4. Istilah teknis berbahasa Inggris yang TIDAK memiliki padanan umum dalam Bahasa "
+    "Indonesia (misalnya: Random Forest, External Risk, Physical Risk, Media Risk, "
+    "Crisis Score) BOLEH digunakan apa adanya, tetapi struktur kalimat di sekitarnya "
+    "tetap harus Bahasa Indonesia.\n"
+    "5. SELF-CHECK SEBELUM MENJAWAB: sebelum mengeluarkan jawaban final, periksa ulang "
+    "seluruh draf secara internal. Jika ditemukan satu pun karakter non-Latin atau kata "
+    "dari bahasa lain (Mandarin/Jepang/Korea/Arab/dst), perbaiki dan gantikan dengan "
+    "padanan Bahasa Indonesia yang tepat SEBELUM menampilkan jawaban. Jangan tampilkan "
+    "proses koreksi ini ke pengguna — tampilkan hanya hasil akhir yang sudah bersih "
+    "dan 100% Bahasa Indonesia.\n\n"
+)
+
+LANG_GUARD_REMINDER = (
+    "\n\nPENGINGAT TERAKHIR (paling penting): tulis ulang jawaban Anda di atas, "
+    "pastikan SELURUHNYA Bahasa Indonesia formal dan TIDAK ADA satu pun karakter "
+    "Mandarin, Jepang, Korea, Arab, atau aksara non-Latin lain yang tersisip. "
+    "Jika ada, hapus/gantikan dengan kata Bahasa Indonesia sebelum menjawab."
+)
+
+# Pola untuk menyaring aksara non-Latin sebagai jaring pengaman terakhir
+NON_LATIN_PATTERN = re.compile(
+    r'[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7a3\u0600-\u06ff\u0400-\u04ff]+'
+)
 
 def _get_groq_key() -> str:
     k = os.environ.get('GROQ_API_KEY', '')
@@ -82,6 +115,7 @@ SKOR RISIKO EKSTERNAL:
 
     if mode == 'executive':
         return (
+            LANG_GUARD +
             "Anda adalah analis risiko pariwisata senior Bali. "
             "Berdasarkan data berikut, tulis EXECUTIVE SUMMARY dalam Bahasa Indonesia "
             "yang padat (3-4 paragraf). Fokus pada: (1) kondisi terkini, "
@@ -90,9 +124,11 @@ SKOR RISIKO EKSTERNAL:
             "atau penurunan persepsi wisatawan, dan dampaknya terhadap pariwisata Bali. "
             "Gunakan bahasa formal namun mudah dipahami pejabat pariwisata.\n\n"
             + base_context
+            + LANG_GUARD_REMINDER
         )
     elif mode == 'alert':
         return (
+            LANG_GUARD +
             "Anda adalah sistem peringatan dini pariwisata Bali. "
             f"Level saat ini adalah {level}. "
             "Buat EMERGENCY ALERT dalam Bahasa Indonesia yang singkat (2-3 paragraf). "
@@ -101,9 +137,11 @@ SKOR RISIKO EKSTERNAL:
             "atau penurunan persepsi wisatawan, serta tindakan mendesak yang spesifik. "
             "Gunakan bahasa tegas dan to-the-point.\n\n"
             + base_context
+            + LANG_GUARD_REMINDER
         )
     elif mode == 'recommendation':
         return (
+            LANG_GUARD +
             "Anda adalah konsultan strategi pariwisata Bali. "
             "Berdasarkan data berikut, berikan REKOMENDASI KEBIJAKAN dalam Bahasa Indonesia "
             "(minimal 4 poin spesifik) untuk Dinas Pariwisata Bali. "
@@ -112,9 +150,11 @@ SKOR RISIKO EKSTERNAL:
             "atau strategi menarik wisatawan dari negara yang ekonominya sedang melemah. "
             "Setiap rekomendasi harus actionable dan berbasis data.\n\n"
             + base_context
+            + LANG_GUARD_REMINDER
         )
     elif mode == 'swot':
         return (
+            LANG_GUARD +
             "Anda adalah analis strategis pariwisata. "
             "Buat ANALISIS SWOT pariwisata Bali berdasarkan data berikut dalam Bahasa Indonesia. "
             "Format: Kekuatan | Kelemahan | Peluang | Ancaman, masing-masing 2-3 poin. "
@@ -125,8 +165,9 @@ SKOR RISIKO EKSTERNAL:
             f"{'Peluang' if ctx.get('tourist_perception_score',0) >= 60 else 'Ancaman'} persepsi wisatawan\n"
             f"- External Risk {ctx.get('external_risk_score',0):.1f}/100 → faktor strategis utama\n\n"
             + base_context
+            + LANG_GUARD_REMINDER
         )
-    return base_context
+    return LANG_GUARD + base_context
 
 
 # ── API Callers ───────────────────────────────────────────────────────
@@ -202,6 +243,10 @@ def get_or_generate(cache: dict, month: str, mode: str,
         text = call_anthropic(prompt)
     else:
         text = call_groq(prompt)
+
+    if not text.startswith('⚠️') and NON_LATIN_PATTERN.search(text):
+        text = NON_LATIN_PATTERN.sub('', text)
+        text = re.sub(r' {2,}', ' ', text).strip()
 
     if not text.startswith('⚠️'):
         cache[cache_key] = text

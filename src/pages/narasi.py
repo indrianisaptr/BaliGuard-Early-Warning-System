@@ -1149,6 +1149,24 @@ def render(ctx: dict) -> None:
                     **( {"reasoning_effort": "none"} if "qwen" in selected_model else {} )
                 )
                 _narr_text = _response.choices[0].message.content
+
+                # ── Safety net bahasa: perbaiki/hapus aksara non-Latin yang bocor ──
+                _CJK_FIXES = {
+                    '处于': ' berada pada',
+                    '此外': ' Selain itu,',
+                    '因此': ' Oleh karena itu,',
+                    '同时': ' Sementara itu,',
+                }
+                for _cjk, _id in _CJK_FIXES.items():
+                    _narr_text = _narr_text.replace(_cjk, _id)
+
+                _non_latin = re.compile(
+                    r'[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7a3\u0600-\u06ff\u0400-\u04ff]+'
+                )
+                if _non_latin.search(_narr_text):
+                    _narr_text = _non_latin.sub('', _narr_text)
+                    _narr_text = re.sub(r' {2,}', ' ', _narr_text).strip()
+
                 _tokens    = _response.usage.prompt_tokens + _response.usage.completion_tokens
 
                 result = {
