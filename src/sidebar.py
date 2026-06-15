@@ -223,6 +223,7 @@ def render_sidebar(ctx: dict) -> tuple:
     Google Trends<br>
     World Bank<br>
     Hotel Reviews<br>
+    Kaggle<br>
     Tourist Reviews
 </div>""", unsafe_allow_html=True)
         
