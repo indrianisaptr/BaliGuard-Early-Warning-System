@@ -16,15 +16,25 @@ def simulate_score(row: dict,
         except Exception:
             return 0.0
 
-    ct = sf(row.get('crisis_component_tourism',  0.4))
-    ce = sf(row.get('crisis_component_economy',  0.3))
+    ct = sf(row.get('crisis_component_tourism',   0.4))
+    ce = sf(row.get('crisis_component_economy',   0.3))
+    cx = sf(row.get('external_risk_score',        0.0))
     cs = sf(row.get('crisis_component_sentiment', 0.25))
 
     ct2 = float(np.clip(ct - (wisman_delta_pct / 100) * 0.5, 0, 1))
     ce2 = float(np.clip(ce + (usd_delta_pct    / 100) * 0.3, 0, 1))
+    cx2 = float(np.clip(cx, 0, 1))
     cs2 = float(np.clip(cs - sent_delta               * 0.2, 0, 1))
 
-    return round((0.45 * ct2 + 0.30 * ce2 + 0.25 * cs2) * 100, 1)
+    return round(
+        (
+            0.45 * ct2 +
+            0.25 * ce2 +
+            0.20 * cx2 +
+            0.10 * cs2
+        ) * 100,
+        1
+    )
 
 
 def level_from_score(s: float) -> str:

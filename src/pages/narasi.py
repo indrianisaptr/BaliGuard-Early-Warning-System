@@ -211,6 +211,9 @@ def render(ctx: dict) -> None:
     except Exception:
         pass
     narratives_cache = st.session_state['narratives_cache']
+    # DEBUG - nonaktifkan semua cache narasi
+    st.session_state['narratives_cache'] = {}
+    narratives_cache = {}
     rf_model         = ctx['rf_model']
     iso_model        = ctx['iso_model']
     scaler           = ctx['scaler']
@@ -984,20 +987,22 @@ def render(ctx: dict) -> None:
                     "Jangan hanya menyebut nilai angka. Setiap indikator risk score WAJIB dijelaskan dengan pola berikut:\n"
                     "  [Nama indikator] berada pada level [Rendah/Sedang/Tinggi] ([nilai]/100), "
                     "yang menunjukkan [arti indikator tersebut], sehingga [dampak konkret terhadap pariwisata Bali].\n\n"
-                    "Contoh BENAR:\n"
-                    "  'Media Risk berada pada level sedang (50/100), yang menunjukkan adanya risiko pemberitaan "
+                    "Contoh BENAR (pola kalimat ilustratif — JANGAN salin angka contoh, WAJIB gunakan nilai aktual dari data):\n"
+                    "  'Media Risk berada pada level [nilai aktual]/100 [kategori], yang menunjukkan adanya risiko pemberitaan "
                     "negatif di media internasional, sehingga dapat menekan kepercayaan wisatawan mancanegara "
                     "terhadap Bali sebagai destinasi yang aman.'\n\n"
-                    "  'Tourist Perception berada pada level tinggi (80/100), yang menunjukkan bahwa wisatawan "
-                    "memiliki persepsi positif terhadap Bali, sehingga mendukung pertumbuhan kunjungan dan "
+                    "  'Tourist Perception berada pada level [nilai aktual]/100 [kategori], yang menunjukkan bahwa wisatawan "
+                    "memiliki persepsi tertentu terhadap Bali, sehingga memengaruhi pertumbuhan kunjungan dan "
                     "belanja wisata dalam jangka pendek.'\n\n"
-                    "  'External Risk berada pada level sedang (50/100), yang menunjukkan tekanan eksternal "
-                    "masih dalam batas terkendali, namun perlu dipantau karena dapat memengaruhi kestabilan "
+                    "  'External Risk berada pada level [nilai aktual]/100 [kategori], yang menunjukkan tekanan eksternal "
+                    "berada pada kondisi tertentu, namun perlu dipantau karena dapat memengaruhi kestabilan "
                     "kunjungan dalam beberapa bulan ke depan.'\n\n"
                     "Contoh SALAH (DILARANG):\n"
-                    "  'Media Risk sebesar 50/100.'\n"
-                    "  'Physical Risk Score: 40/100.'\n"
-                    "  'External Risk berada di angka 50.'\n\n"
+                    "  'Media Risk sebesar [angka]/100.' (tanpa kategori dan penjelasan dampak)\n"
+                    "  'Physical Risk Score: [angka]/100.' (hanya skor tanpa narasi sebab-akibat)\n"
+                    "  'External Risk berada di angka [angka].' (tanpa skala /100 dan kategori)\n\n"
+                    "PERINGATAN KERAS: [nilai aktual] dan [kategori] di atas adalah placeholder, BUKAN angka final. "
+                    "WAJIB diganti dengan nilai skor dan kategori SESUNGGUHNYA dari data aktual di atas.\n\n"
                     "Panduan makna tiap indikator:\n"
                     "  - Physical Risk → risiko dari bencana alam, cuaca ekstrem, dan gangguan fisik destinasi\n"
                     "  - Media Risk → risiko dari pemberitaan negatif global yang merusak citra Bali\n"
@@ -1053,7 +1058,9 @@ def render(ctx: dict) -> None:
                 elif report_type == 'predict':
                     _prompt = (
                         # BARU
-                        "Struktur laporan (INSTRUKSI FORMAT: gunakan heading bold **JUDUL**, "
+                        "Kamu adalah analis senior BaliGuard.\n"
+                        + _data_block +
+                        "\nStruktur laporan (INSTRUKSI FORMAT: gunakan heading bold **JUDUL**, "
                         "JANGAN penomoran atau heading tanpa tanda bintang):\n\n"
                         "**PROYEKSI KONDISI**\n"
                         "   - Prediksi arah tren crisis score 3 bulan ke depan (naik/turun/stabil)\n"
@@ -1088,9 +1095,9 @@ def render(ctx: dict) -> None:
                         "   - 0 – 33   = RENDAH\n"
                         "   - 34 – 66  = SEDANG\n"
                         "   - 67 – 100 = TINGGI\n"
-                        "   DILARANG KERAS menyebut indikator sebagai 'tinggi' atau 'ancaman signifikan' hanya karena nilainya lebih besar dari indikator lain! Jika Physical Risk 8.5 dan Media Risk 5.0, kamu WAJIB bernarasi: 'Physical Risk lebih tinggi dibanding Media Risk, namun kedua indikator masih berada pada kategori RENDAH sehingga ancaman terkendali'.\n\n"
+                        "   DILARANG KERAS menyebut indikator sebagai 'tinggi' atau 'ancaman signifikan' hanya karena nilainya lebih besar dari indikator lain! Jika [indikator A] [nilai] dan [indikator B] [nilai] dan keduanya sama-sama berada pada kategori yang sama, kamu WAJIB bernarasi sesuai pola: '[Indikator A] lebih tinggi dibanding [Indikator B], namun kedua indikator masih berada pada kategori [kategori] sehingga ancaman terkendali'.\n\n"
                         "2. IDENTIFIKASI FAKTOR DOMINAN:\n"
-                        "   Tentukan dan sebutkan secara eksplisit indikator dengan skor tertinggi dari seluruh data, lalu jelaskan implikasi utamanya (Contoh: 'Indikator dominan pada periode ini adalah Tourist Perception (78.9/100), yang menunjukkan bahwa...').\n\n"
+                        "   Tentukan dan sebutkan secara eksplisit indikator dengan skor tertinggi dari seluruh data, lalu jelaskan implikasi utamanya (Contoh pola kalimat: 'Indikator dominan pada periode ini adalah [indikator_tertinggi] ([nilai aktual]/100), yang menunjukkan bahwa...').\n\n"
                         "3. LARANGAN MEMBACA DATA SECARA MEKANIS:\n"
                         "   DILARANG KERAS membuat pola kalimat malas seperti: '[Nama indikator] [angka] menunjukkan adanya [risiko generik]'. Kamu harus menyusun paragraf analitis yang menjelaskan hubungan sebab-akibat antar metrik.\n\n"
                         "==================================================\n"

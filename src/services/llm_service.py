@@ -107,10 +107,10 @@ INDIKATOR UTAMA (MoM):
 - Bali Share    : {_delta('bali_share_pct')}%
 
 SKOR RISIKO EKSTERNAL:
-- Physical Risk    : {ctx.get('physical_risk_score', 0):.1f}/100
-- Media Risk       : {ctx.get('media_risk_score', 0):.1f}/100
-- Tourist Percep   : {ctx.get('tourist_perception_score', 0):.1f}/100
-- External Risk    : {ctx.get('external_risk_score', 0):.1f}/100
+- Physical Risk    : {ctx.get('physical_risk', 0):.1f}/100
+- Media Risk       : {ctx.get('media_risk', 0):.1f}/100
+- Tourist Percep   : {ctx.get('tourist_perception', 0):.1f}/100
+- External Risk    : {ctx.get('external_risk', 0):.1f}/100
 """
 
     if mode == 'executive':
@@ -159,11 +159,11 @@ SKOR RISIKO EKSTERNAL:
             "Buat ANALISIS SWOT pariwisata Bali berdasarkan data berikut dalam Bahasa Indonesia. "
             "Format: Kekuatan | Kelemahan | Peluang | Ancaman, masing-masing 2-3 poin. "
             "Gunakan skor berikut untuk menentukan kuadran:\n"
-            f"- Physical Risk {ctx.get('physical_risk_score',0):.1f}/100 → Ancaman fisik/bencana\n"
-            f"- Media Risk {ctx.get('media_risk_score',0):.1f}/100 → Ancaman reputasi media global\n"
-            f"- Tourist Perception {ctx.get('tourist_perception_score',0):.1f}/100 → "
-            f"{'Peluang' if ctx.get('tourist_perception_score',0) >= 60 else 'Ancaman'} persepsi wisatawan\n"
-            f"- External Risk {ctx.get('external_risk_score',0):.1f}/100 → faktor strategis utama\n\n"
+            f"- Physical Risk {ctx.get('physical_risk',0):.1f}/100 → Ancaman fisik/bencana\n"
+            f"- Media Risk {ctx.get('media_risk',0):.1f}/100 → Ancaman reputasi media global\n"
+            f"- Tourist Perception {ctx.get('tourist_perception',0):.1f}/100 → "
+            f"{'Peluang' if ctx.get('tourist_perception',0) >= 60 else 'Ancaman'} persepsi wisatawan\n"
+            f"- External Risk {ctx.get('external_risk',0):.1f}/100 → faktor strategis utama\n\n"
             + base_context
             + LANG_GUARD_REMINDER
         )

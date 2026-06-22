@@ -108,10 +108,10 @@ def render(ctx: dict) -> None:
         elif _is_proj:
             _sc = score / 100.0
             comp_vals = {
-                'Kunjungan Wisatawan': round(_sc * 0.40, 4),
+                'Kunjungan Wisatawan': round(_sc * 0.45, 4),
                 'Kondisi Ekonomi':     round(_sc * 0.25, 4),
-                'Sentimen Ulasan':     round(_sc * 0.20, 4),
-                'External Risk':       round(sf(ctx.get('external_risk', 0)), 4),
+                'External Risk':       round(_sc * 0.20, 4),
+                'Sentimen Ulasan':     round(_sc * 0.10, 4),
             }
             _comp_proj = True
         else:

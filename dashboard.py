@@ -26,7 +26,7 @@ def _load_logo():
             ext = p.suffix[1:]
             with open(p, 'rb') as f:
                 b64 = base64.b64encode(f.read()).decode()
-            img = Image.open(p)
+            img = Image.open(p).copy()
             return img, f'data:image/{ext};base64,{b64}'
     return None, ''
 
@@ -202,6 +202,8 @@ _conf_kpi   = ctx['conf'] * 100
 _rf_pred    = ctx['rf_pred']
 _sent       = ctx['sent']
 _usd_avg    = ctx['usd_avg']
+_ext_risk   = float(_row_data.get('external_risk_score', 0))
+_p_ext_risk = float(ctx['prev_row'].get('external_risk_score', _ext_risk)) if ctx['prev_row'] else _ext_risk
 _usd_live   = ctx['usd_is_live']
 _delta_ctx  = ctx['delta_ctx']
 _prev_month = ctx['prev_row'].get('month') if ctx['prev_row'] else None
@@ -233,6 +235,7 @@ _d_wisman = _delta_txt(_wisman,  _p_wisman, suffix="pct_change")
 _d_tpk    = _delta_txt(_tpk,     _p_tpk,   suffix="%")
 _d_sent   = _delta_txt(_sent,    _p_sent,   fmt="+.3f")
 _d_usd    = _delta_txt(_usd_avg, _p_usd,    suffix="pct_change", invert=True)
+_d_ext    = _delta_txt(_ext_risk, _p_ext_risk, fmt=".3f", invert=True)
 
 _proj_badge_html = (
     f"<span style='font-size:9px;background:rgba(167,139,250,0.15);"
@@ -395,8 +398,9 @@ render(ctx)
 # ══════════════════════════════════════════════════════
 with st.expander("Tabel Data Prediksi Lengkap", expanded=False):
     _disp = ['month','wisman','tpk_bintang','inflasi_processed','usd_idr_avg',
-             'avg_sentiment_monthly','bali_share_pct','wisman_zscore',
-             'crisis_score_100','crisis_level','rf_predicted_level','rf_confidence','iso_anomaly']
+         'avg_sentiment_monthly','bali_share_pct','wisman_zscore',
+         'external_risk_score',
+         'crisis_score_100','crisis_level','rf_predicted_level','rf_confidence','iso_anomaly']
     _disp    = [c for c in _disp if c in predictions.columns]
     _df_show = predictions[_disp].copy()
 
