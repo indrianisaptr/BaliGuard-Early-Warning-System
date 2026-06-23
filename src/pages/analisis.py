@@ -99,10 +99,10 @@ def render(ctx: dict) -> None:
         if len(mr_rows) > 0:
             mr = mr_rows.iloc[0]
             comp_vals = {
-                'Kunjungan Wisatawan': sf(mr.get('crisis_component_tourism',0)),
-                'Kondisi Ekonomi':     sf(mr.get('crisis_component_economy',0)),
-                'Sentimen Ulasan':     sf(mr.get('crisis_component_sentiment',0)),
-                'External Risk':       sf(ctx.get('external_risk', 0)),
+                'Kunjungan Wisatawan': sf(mr.get('crisis_component_tourism', 0))   * 0.45,
+                'Kondisi Ekonomi':     sf(mr.get('crisis_component_economy', 0))   * 0.25,
+                'Sentimen Ulasan':     sf(mr.get('crisis_component_sentiment', 0)) * 0.10,
+                'External Risk':       sf(mr.get('external_risk_score', 0))        * 0.20,
             }
             _comp_proj = False
         elif _is_proj:
@@ -110,8 +110,8 @@ def render(ctx: dict) -> None:
             comp_vals = {
                 'Kunjungan Wisatawan': round(_sc * 0.45, 4),
                 'Kondisi Ekonomi':     round(_sc * 0.25, 4),
-                'External Risk':       round(_sc * 0.20, 4),
                 'Sentimen Ulasan':     round(_sc * 0.10, 4),
+                'External Risk':       round(sf(ctx.get('external_risk', 0)) * 0.20, 4),
             }
             _comp_proj = True
         else:

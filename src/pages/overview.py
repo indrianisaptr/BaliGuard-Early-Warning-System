@@ -194,7 +194,7 @@ def render(ctx: dict) -> None:
     media_risk_score         = ctx.get('media_risk', row_data.get('media_risk_score'))
     tourist_perception_score = ctx.get('tourist_perception', row_data.get('tourist_perception_score'))
     external_risk_score      = ctx.get('external_risk', row_data.get('external_risk_score'))
-
+    
     _tick("nav_start_overview")
 
     # ── Override container: hapus border tebal, pakai divider tipis ──
