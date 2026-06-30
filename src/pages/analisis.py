@@ -14,8 +14,8 @@ from datetime import datetime
 
 from src.utils import (
     sf, _tick, kpi_html, alert_html, status_dot,
-    LEVEL_COLORS, LABEL_ORDER,
     FEATURES_CORE, FEATURES_LAG,
+    LABEL_MANUSIAWI, interpretasi_indikator,        # [BARU]
 )
 
 
@@ -62,7 +62,7 @@ def render(ctx: dict) -> None:
     FEATURES = [f for f in FEATURES_CORE + FEATURES_LAG if f in master.columns]
     _tick("nav_start_analisis")
 
-    # ── CSS override — flat/divider style ──
+    # ── CSS override ──────────────────────────────────────────
     st.markdown("""
     <style>
     div[data-testid="stVerticalBlockBorderWrapper"] {
@@ -84,6 +84,35 @@ def render(ctx: dict) -> None:
         margin-bottom: 16px;
         padding-bottom: 8px;
         border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .why-box {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+    }
+    .why-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 7px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        gap: 12px;
+    }
+    .why-row:last-child { border-bottom: none; }
+    .why-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        white-space: nowrap;
+        min-width: 160px;
+    }
+    .why-text {
+        font-size: 12px;
+        color: #94a3b8;
+        text-align: right;
+        flex: 1;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -154,26 +183,56 @@ def render(ctx: dict) -> None:
         else:
             st.info("Data komponen tidak tersedia untuk bulan ini.")
 
+        # ── [BARU] Section: Mengapa Status Ini Muncul? ─────
+        st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+        st.markdown('<div class="box-heading sec-blue">Mengapa Status Ini Muncul?</div>',
+                    unsafe_allow_html=True)
+
+        # 5 indikator utama pembentuk status — urutan dari yang paling berpengaruh
+        _why_indicators = [
+            ("wisman_growth_mom", sf(row_data.get("wisman_growth_mom", 0))),
+            ("tpk_bintang",       sf(row_data.get("tpk_bintang", 0))),
+            ("usd_idr_avg",       sf(row_data.get("usd_idr_avg", usd_avg))),
+            ("avg_sentiment_monthly", sf(row_data.get("avg_sentiment_monthly", sent))),
+            ("gdelt_crisis_score",sf(row_data.get("gdelt_crisis_score", 0))),
+        ]
+        why_rows_html = ""
+        for kolom, nilai in _why_indicators:
+            label   = LABEL_MANUSIAWI.get(kolom, kolom)
+            kalimat = interpretasi_indikator(kolom, nilai)
+            why_rows_html += (
+                f'<div class="why-row">'
+                f'<span class="why-label">{label}</span>'
+                f'<span class="why-text">{kalimat}</span>'
+                f'</div>'
+            )
+        st.markdown(
+            f'<div class="why-box">{why_rows_html}</div>',
+            unsafe_allow_html=True
+        )
+
         # ── Panel 2: Indikator Detail ───────────────────────
-        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
         st.markdown('<div class="box-heading sec-purple">Indikator Detail</div>',
                     unsafe_allow_html=True)
 
+        # [DIUBAH] Label teknis diganti bahasa manusiawi
+        _anom_label = "⚠️ Ya, terdeteksi anomali" if is_anom else "✅ Tidak, kondisi normal"
         indicators = [
-            ("Wisman", f"{int(round(wisman)):,} orang"),
-            ("Recovery vs 2017–2019", f"{ctx.get('recovery_pct', sf(row_data.get('wisman_recovery_pct', 0))):.1f}%"),
-            ("TPK Hotel Bintang",     f"{tpk:.1f}%"),
-            ("Kurs USD/IDR",          f"Rp {usd_avg:,.0f}"),
-            ("Inflasi Bali",          f"{inflasi:.2f}%"),
-            ("Sentimen Avg",          f"{sent:+.3f}"),
-            ("Bali Share",            f"{bali_shr:.1f}%"),
-            ("Z-score Wisman",        f"{sf(row_data.get('wisman_zscore',0)):.2f}"),
-            ("Penjelasan Anomali",    ctx.get('anomaly_exp', '')),
-            ("Anomali IF",            "⚠️ Terdeteksi" if is_anom else "✅ Normal"),
-            ("RF Prediksi",           rf_pred),
-            ("RF Confidence",         f"{conf:.0f}%"),
-            ("Delta Score",           f"{ctx.get('score_delta', 0):+.1f} ({ctx.get('score_trend', 'STABIL')})"),
-            ("Faktor Dominan",        ctx.get('dominant_factor', 'N/A')),
+            ("Jumlah Wisatawan Mancanegara",        f"{int(round(wisman)):,} orang"),
+            ("Tingkat Pemulihan vs 2017–2019",       f"{recovery_pct:.1f}%"),
+            ("Tingkat Hunian Hotel Berbintang",      f"{tpk:.1f}%"),
+            ("Kurs USD/IDR Rata-rata Bulan Ini",     f"Rp {usd_avg:,.0f}"),
+            ("Tingkat Inflasi Bali",                 f"{inflasi:.2f}%"),
+            ("Sentimen Rata-rata Ulasan Wisatawan",  f"{sent:+.3f}"),
+            ("Pangsa Wisatawan Bali dari Nasional",  f"{bali_shr:.1f}%"),
+            ("Penyimpangan Wisatawan dari Normal",   f"{sf(row_data.get('wisman_zscore',0)):.2f} (Z-score)"),
+            ("Keterangan Anomali",                   anomaly_exp),
+            ("Terdeteksi Anomali oleh Model",        _anom_label),
+            ("Prediksi Level Krisis (Random Forest)",rf_pred),
+            ("Tingkat Keyakinan Prediksi Model",     f"{conf:.0f}%"),
+            ("Perubahan Skor Krisis",                f"{score_delta:+.1f} ({score_trend})"),
+            ("Faktor Paling Dominan",                dominant_factor),
         ]
         rows_html = "".join(
             f'<div class="risk-row"><span class="risk-name">{k}</span>'
@@ -184,7 +243,7 @@ def render(ctx: dict) -> None:
 
     with cr:
         # ── Panel 3: Probabilitas RF ──────────────────────
-        st.markdown('<div class="box-heading sec-orange">Probabilitas Prediksi Random Forest</div>',
+        st.markdown('<div class="box-heading sec-orange">Probabilitas Prediksi Model</div>',
                     unsafe_allow_html=True)
 
         prob_labels = ['AMAN','WASPADA','SIAGA','KRISIS']
@@ -222,7 +281,8 @@ def render(ctx: dict) -> None:
 
         # ── Panel 4: Feature Importance ───────────────────
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-        st.markdown('<div class="box-heading sec-green">Feature Importance — Random Forest</div>',
+        # [DIUBAH] Judul lebih manusiawi
+        st.markdown('<div class="box-heading sec-green">Faktor Paling Berpengaruh pada Prediksi Model</div>',
                     unsafe_allow_html=True)
 
         try:
@@ -232,8 +292,14 @@ def render(ctx: dict) -> None:
                 'Importance': rf_model.feature_importances_[:len(fi_available)]
             })
             fi = fi.sort_values('Importance', ascending=True).tail(8)
+
+            # [DIUBAH] Label fitur diganti bahasa manusiawi
+            fi['Label'] = fi['Fitur'].map(
+                lambda c: LABEL_MANUSIAWI.get(c, c)
+            )
+
             fig_fi = go.Figure(go.Bar(
-                x=fi['Importance'], y=fi['Fitur'], orientation='h',
+                x=fi['Importance'], y=fi['Label'], orientation='h',
                 marker_color='#3b82f6', marker_line_color='rgba(0,0,0,0)',
                 text=[f'{v:.3f}' for v in fi['Importance']],
                 textposition='outside',
@@ -252,4 +318,4 @@ def render(ctx: dict) -> None:
             )
             st.plotly_chart(fig_fi, use_container_width=True, config={'displayModeBar': False})
         except Exception:
-            st.info("Feature importance tidak tersedia.")
+            st.info("Data faktor pengaruh tidak tersedia.")

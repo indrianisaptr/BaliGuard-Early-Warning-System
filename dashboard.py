@@ -112,17 +112,6 @@ st.markdown(f"""
                 </div>
             </div>
         </div>
-        <div style='background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
-                    border-radius:12px;padding:14px 20px;text-align:center;flex-shrink:0'>
-            <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;
-                        color:rgba(255,255,255,0.55);margin-bottom:5px;font-family:"DM Sans"'>DATA TERAKHIR</div>
-            <div style='font-family:"JetBrains Mono";font-size:20px;color:#93c5fd;font-weight:700'>
-                {_last_month}
-            </div>
-            <div style='font-size:13px;color:rgba(255,255,255,0.45);margin-top:4px;font-family:"DM Sans"'>
-                {_n_months} bulan data historis
-            </div>
-        </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -146,50 +135,6 @@ _tren_val_col  = "#f87171" if _fc_trend < 0 else ("#4ade80" if _fc_trend > 0 els
 
 COLOR_MAP_H = {'AMAN':'#236A26','WASPADA':'#F9F871','SIAGA':'#ff6c43','KRISIS':'#d90000'}
 
-st.markdown(f"""
-<div style='background:rgba(14,28,60,0.7);border:1px solid rgba(255,255,255,0.09);
-            border-radius:14px;padding:18px 26px;margin-bottom:14px'>
-    <div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px'>
-        <div>
-            <div style='font-size:12px;font-weight:700;color:#FFBC37;text-transform:uppercase;
-                        letter-spacing:.13em;margin-bottom:8px;font-family:"DM Sans"'>
-                PROYEKSI BULAN INI &mdash; {_curr_mo}
-            </div>
-            <div style='display:flex;align-items:center;gap:16px;flex-wrap:wrap'>
-                <div style='display:flex;align-items:center;gap:8px'>
-                    <span class='status-dot dot-{_curr_lv}' style='width:12px;height:12px'></span>
-                    <span style='font-family:"DM Serif Display";font-size:26px;
-                                 color:{COLOR_MAP_H.get(_curr_lv,"#E0A226")};line-height:1'>{_curr_lv}</span>
-                </div>
-                <div style='font-family:"JetBrains Mono";font-size:14px;color:#FFFFFF'>
-                    Score&nbsp;<span style='color:#FFBC37;font-weight:700;font-size:17px'>{_curr_sc}</span>/100
-                </div>
-                <div style='font-size:12px;color:#ffffff;font-weight:700;font-family:"DM Sans"'>{_trend_txt}</div>
-            </div>
-        </div>
-        <div style='display:flex;gap:6px'>
-            <div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);
-                        border-radius:10px;padding:10px 18px;text-align:center;min-width:82px'>
-                <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
-                            color:#FFBC37;margin-bottom:4px;font-family:"DM Sans"'>CONFIDENCE</div>
-                <div style='font-family:"JetBrains Mono";font-size:18px;color:#93c5fd;font-weight:700'>{_curr_conf:.0f}%</div>
-            </div>
-            <div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);
-                        border-radius:10px;padding:10px 18px;text-align:center;min-width:82px'>
-                <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
-                            color:#FFBC37;margin-bottom:4px;font-family:"DM Sans"'>PROYEKSI DARI</div>
-                <div style='font-family:"JetBrains Mono";font-size:18px;color:#93c5fd;font-weight:600'>{_last_month}</div>
-            </div>
-            <div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);
-                        border-radius:10px;padding:10px 18px;text-align:center;min-width:82px'>
-                <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
-                            color:#FFBC37;margin-bottom:4px;font-family:"DM Sans"'>TREN/BULAN</div>
-                <div style='font-family:"JetBrains Mono";font-size:18px;color:{_tren_val_col};font-weight:700'>{_fc_trend:+.2f}</div>
-            </div>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
 
 # ── KPI + Alert — ambil dari ctx ──────────────────────
 _row_data   = ctx['row_data']
@@ -211,11 +156,11 @@ _p_score    = float(ctx['prev_row'].get('crisis_score_100', _score)) if ctx['pre
 _p_wisman   = float(ctx['prev_row'].get('wisman', _wisman)) if ctx['prev_row'] else _wisman
 _p_tpk      = float(ctx['prev_row'].get('tpk_bintang', _tpk)) if ctx['prev_row'] else _tpk
 _p_sent     = float(ctx['prev_row'].get('avg_sentiment_monthly', _sent)) if ctx['prev_row'] else _sent
-_p_usd      = float(ctx['prev_row'].get('usd_idr_avg', _usd_avg)) if ctx['prev_row'] else _usd_avg
+_p_usd      = float(ctx['prev_row'].get('usd_idr_avg')) if (ctx['prev_row'] and ctx['prev_row'].get('usd_idr_avg') is not None) else None
 _proj_conf  = int(_row_data.get('_proj_confidence', 85)) if _is_proj else None
 
 def _delta_txt(curr, prev_val, fmt=".1f", suffix="", invert=False):
-    if prev_val is None or prev_val == 0:
+    if prev_val is None:
         return "<span style='color:#64748b;font-size:12px'>— vs bln lalu</span>"
     d    = curr - prev_val
     pct  = (d / abs(prev_val) * 100) if prev_val != 0 else 0
@@ -272,13 +217,13 @@ _cards = [
                    (_proj_badge_html + f" RF: {_rf_pred}") if _proj_badge_html else f"RF: {_rf_pred}",
                    f"<span style='color:#334155;font-size:10px'>{_prev_month or '—'}</span>",
                    _level, use_dot=True),
-    _kpi_card_html("USD/IDR", f"Rp {_usd_avg:,.0f}", _usd_sub_html, _d_usd),
     _kpi_card_html("CRISIS SCORE", f"{_score:.1f}",
                    f"dari 100 &nbsp;·&nbsp; conf {_conf_kpi:.0f}%", _d_score),
+    _kpi_card_html("USD/IDR", f"Rp {_usd_avg:,.0f}", _usd_sub_html, _d_usd),
     _kpi_card_html("WISMAN", f"{int(_wisman):,}",
                    "est. proyeksi" if _is_proj else "kunjungan bulan ini", _d_wisman),
-    _kpi_card_html("TPK BINTANG", f"{_tpk:.1f}%",
-                   "est. proyeksi" if _is_proj else "tingkat hunian hotel", _d_tpk),
+    _kpi_card_html("TINGKAT HUNIAN HOTEL", f"{_tpk:.1f}%",
+                   "est. proyeksi" if _is_proj else "tingkat hunian hotel bintang", _d_tpk),
     _kpi_card_html("SENTIMEN", f"{_sent:+.3f}",
                    "est. proyeksi" if _is_proj else "rata-rata ulasan", _d_sent),
     

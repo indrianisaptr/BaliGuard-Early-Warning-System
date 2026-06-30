@@ -11,13 +11,16 @@ import pandas as pd
 import numpy as np
 import json, os, time, requests, sys, re
 from datetime import datetime
-from src.services.llm_service import call_groq, get_or_generate, build_narrative_prompt
+from src.services.llm_service import (
+    build_ctx,
+    build_prompt,
+    build_prompt_comparison,
+    clean_output,
+)
 from src.services.forecast import forecast_months
 
 from src.utils import (
     sf, _tick, kpi_html, alert_html, status_dot,
-    LEVEL_COLORS, LABEL_ORDER,
-    FEATURES_CORE, FEATURES_LAG,
 )
 from src.config import COLOR_MAP
 EMOJI_MAP = {
@@ -87,21 +90,38 @@ _SWOT_HEADINGS = [
     r'KELEMAHAN\s*\(Weaknesses\)',
     r'PELUANG\s*\(Opportunities\)',
     r'ANCAMAN\s*\(Threats\)',
-    # Laporan Bulanan (monthly)
+    # ── PERUBAHAN 3: Tambah heading Rekomendasi Strategis ──
+    r'REKOMENDASI STRATEGIS',
+    # ── PERUBAHAN 3: Tambah heading komparasi ──
+    r'PERBANDINGAN KEKUATAN',
+    r'PERBANDINGAN KELEMAHAN',
+    r'PERBANDINGAN PELUANG',
+    r'PERBANDINGAN ANCAMAN',
+    r'RINGKASAN PERUBAHAN KONDISI',
+    r'REKOMENDASI BERDASARKAN PERBANDINGAN',
+    r'PERBANDINGAN KONDISI UTAMA',
+    r'FAKTOR PERUBAHAN',
+    r'KESIMPULAN RINGKAS',
+    r'PERBANDINGAN STATUS',
+    r'PERUBAHAN INDIKATOR KRITIS',
+    r'TINDAKAN BERDASARKAN PERBANDINGAN',
+    r'RINGKASAN EKSEKUTIF KOMPARATIF',
+    r'ANALISIS INDIKATOR KOMPARATIF',
+    r'ANALISIS KAUSAL',
+    r'REKOMENDASI ADAPTIF',
+    r'PERUBAHAN TREN',
+    r'PROYEKSI BERDASARKAN DUA PERIODE',
+    r'REKOMENDASI ANTISIPATIF',
+    # Laporan Bulanan (monthly) — tetap
     r'(?:\d+\.\s*)?RINGKASAN EKSEKUTIF',
     r'(?:\d+\.\s*)?ANALISIS INDIKATOR',
     r'(?:\d+\.\s*)?ANALISIS KAUSAL[^<\n]*',
     r'(?:\d+\.\s*)?REKOMENDASI PRIORITAS',
-    # Prediksi AI (predict)
-    r'(?:\d+\.\s*)?RINGKASAN EKSEKUTIF',
-    r'(?:\d+\.\s*)?ANALISIS INDIKATOR',
-    r'(?:\d+\.\s*)?ANALISIS KAUSAL[^<\n]*',
-    r'(?:\d+\.\s*)?REKOMENDASI PRIORITAS',
+    # Prediksi AI
     r'(?:\d+\.\s*)?PROYEKSI KONDISI',
     r'(?:\d+\.\s*)?FAKTOR RISIKO UTAMA',
     r'(?:\d+\.\s*)?SKENARIO RISIKO',
-    r'(?:\d+\.\s*)?REKOMENDASI ANTISIPATIF',
-    # Alert (tanpa nomor)
+    # Alert
     r'STATUS',
     r'PEMICU UTAMA',
     r'KONTEKS',
@@ -202,18 +222,28 @@ def render(ctx: dict) -> None:
             with open(_nc_path, 'r', encoding='utf-8') as _f:
                 _from_file = json.load(_f)
             # Migrasi cache lama (key tanpa report_type)
+            _FORMAT_KEYS = ('paragraf', 'poin')
             for _k, _v in _from_file.items():
+                _key_final = _k
+                # Migrasi tahap 1: key lama tanpa report_type
                 if '_' not in _k[4:]:
                     _rt = _v.get('report_type', 'alert')
-                    st.session_state['narratives_cache'][f"{_k}_{_rt}"] = _v
+                    _key_final = f"{_k}_{_rt}"
+                # Migrasi tahap 2: key tanpa suffix format di akhir
+                if not _key_final.endswith(_FORMAT_KEYS):
+                    _fmt = _v.get('format', 'paragraf')
+                    _v['format'] = _fmt  # pastikan field format ikut tersimpan
+                    _key_final = f"{_key_final}_{_fmt}"
                 else:
-                    st.session_state['narratives_cache'][_k] = _v
+                    _v.setdefault('format', _key_final.rsplit('_', 1)[-1])
+                st.session_state['narratives_cache'][_key_final] = _v
     except Exception:
         pass
     narratives_cache = st.session_state['narratives_cache']
-    # DEBUG - nonaktifkan semua cache narasi
-    st.session_state['narratives_cache'] = {}
-    narratives_cache = {}
+    
+    if 'narasi_shown_keys' not in st.session_state:
+        st.session_state['narasi_shown_keys'] = set()
+    
     rf_model         = ctx['rf_model']
     iso_model        = ctx['iso_model']
     scaler           = ctx['scaler']
@@ -644,7 +674,10 @@ def render(ctx: dict) -> None:
     _fc_level_map      = {f['month']: f['level'] for f in _fc_extra}
     _all_months        = _avail_months_hist + [m for m in _fc_months_only if m not in _avail_months_hist]
     _avail_years       = sorted(set(m[:4] for m in _all_months), reverse=True)
-
+    
+    # Groq key
+    groq_key = _get_groq_key()
+    
     if 'narasi_year_sel' not in st.session_state:
         st.session_state['narasi_year_sel'] = sel[:4]
     if 'narasi_month_sel' not in st.session_state:
@@ -660,14 +693,14 @@ def render(ctx: dict) -> None:
             letter-spacing:.12em;margin-bottom:12px'>BULAN DAN TAHUN YANG DIANALISIS</div>""",
             unsafe_allow_html=True)
 
-    # 4 kolom sejajar: Tahun | Bulan | Status | Cache
-    _c_year, _c_month, _c_status, _c_cache = st.columns([1, 1, 1, 1])
+    # 5 kolom sejajar: Tahun | Bulan | Format | Status | Cache
+    _c_year, _c_month, _c_format, _c_status, _c_cache = st.columns([0.8, 0.8, 0.9, 1.3, 1.3])
 
     with _c_year:
         _ny_idx  = _avail_years.index(st.session_state['narasi_year_sel']) \
                    if st.session_state['narasi_year_sel'] in _avail_years else 0
         st.markdown(
-            "<div style='display:flex;align-items:center;gap:0;font-size:16px;font-weight:600;color:#1119FF;margin-bottom:4px'>" "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0;margin-right:7px'></span>Tahun</div>", unsafe_allow_html=True)
+            "<div style='display:flex;align-items:center;gap:0;font-size:16px;font-weight:600;color:#e2e8f0;margin-bottom:4px'>" "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0;margin-right:7px'></span>Tahun</div>", unsafe_allow_html=True)
         _sel_year = st.selectbox("", _avail_years, index=_ny_idx, key="narasi_year_box", label_visibility="collapsed")
         st.session_state['narasi_year_sel'] = _sel_year
 
@@ -675,7 +708,7 @@ def render(ctx: dict) -> None:
 
     with _c_month:
         st.markdown(
-            "<div style='display:flex;align-items:center;gap:0;font-size:16px;font-weight:600;color:#1119FF;margin-bottom:4px'>" "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0;margin-right:7px'></span>Bulan</div>", unsafe_allow_html=True)
+            "<div style='display:flex;align-items:center;gap:0;font-size:16px;font-weight:600;color:#e2e8f0;margin-bottom:4px'>" "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0;margin-right:7px'></span>Bulan</div>", unsafe_allow_html=True)
         _prev_nm = st.session_state.get('narasi_month_sel', sel)
         _nm_default = _prev_nm if _prev_nm in _months_for_year else _months_for_year[-1]
         _nm_idx  = _months_for_year.index(_nm_default)
@@ -683,6 +716,29 @@ def render(ctx: dict) -> None:
                                   format_func=_month_label_fn,
                                   index=_nm_idx, key="narasi_month_box", label_visibility="collapsed")
         st.session_state['narasi_month_sel'] = _sel_month
+        
+        if 'format_style_sel' not in st.session_state:
+            st.session_state['format_style_sel'] = 'paragraf'
+
+        FORMAT_OPTIONS = {'paragraf': 'Paragraf', 'poin': 'Poin'}
+
+        with _c_format:
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:0;font-size:16px;font-weight:600;"
+                "color:#e2e8f0;margin-bottom:4px'>"
+                "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;"
+                "background:#3b82f6;box-shadow:0 0 6px #3b82f6;flex-shrink:0;margin-right:7px'></span>"
+                "Format</div>", unsafe_allow_html=True)
+            _fmt_keys = list(FORMAT_OPTIONS.keys())
+            _fmt_idx  = _fmt_keys.index(st.session_state['format_style_sel'])
+            _sel_format = st.selectbox(
+                "", _fmt_keys,
+                format_func=lambda k: FORMAT_OPTIONS[k],
+                index=_fmt_idx, key="narasi_format_box", label_visibility="collapsed"
+            )
+            st.session_state['format_style_sel'] = _sel_format
+
+        format_style = st.session_state['format_style_sel']
 
     narasi_target   = st.session_state['narasi_month_sel']
 
@@ -708,7 +764,7 @@ def render(ctx: dict) -> None:
 
     # Cache status for narasi_target
     _model_short_key = selected_model.replace('/', '_').replace('-', '_')
-    _cache_key    = f"{narasi_target}_{report_type}_{_model_short_key}"
+    _cache_key    = f"{narasi_target}_{report_type}_{_model_short_key}_{format_style}"
     _has_cache    = _cache_key in narratives_cache
     _cache_level  = narratives_cache[_cache_key].get('crisis_level','') if _has_cache else ''
     _cache_tokens = narratives_cache[_cache_key].get('tokens', 0)        if _has_cache else 0
@@ -750,47 +806,7 @@ def render(ctx: dict) -> None:
             unsafe_allow_html=True
         )
 
-    # ─ API KEY + GENERATE ─────────────────────────────────
-    # st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
-    # if not groq_key:
-    #     st.markdown("""
-    #     <div style='background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);
-    #                 border-left:4px solid #f59e0b;border-radius:12px;padding:20px 22px;
-    #                 margin-top:12px;display:flex;align-items:center;gap:24px'>
-    #         <div style='flex:1'>
-    #             <div style='font-size:16px;font-weight:800;color:#fbbf24;margin-bottom:8px;
-    #                         letter-spacing:-.01em'>
-    #                 Groq API Key Diperlukan
-    #             </div>
-    #             <div style='font-size:14px;color:#d97706;line-height:1.75;font-weight:500'>
-    #                 Masukkan API Key di sidebar <strong style='color:#fbbf24'>(panel kiri)</strong>
-    #                 untuk mengaktifkan fitur Narasi AI.<br>
-    #                 Key 100% gratis dan bisa didapat dalam <strong style='color:#fbbf24'>30 detik</strong>
-    #                 — tidak butuh kartu kredit.
-    #             </div>
-    #         </div>
-    #         <div style='flex-shrink:0'>
-    #             <a href='https://console.groq.com/keys' target='_blank'
-    #                style='display:inline-flex;align-items:center;gap:8px;
-    #                       background:linear-gradient(135deg,#f59e0b,#d97706);
-    #                       color:#0a0a0a;font-size:14px;font-weight:800;
-    #                       padding:12px 24px;border-radius:8px;text-decoration:none;
-    #                       box-shadow:0 4px 16px rgba(245,158,11,0.4);
-    #                       white-space:nowrap;letter-spacing:.01em'>
-    #                 Dapatkan Key Gratis →
-    #             </a>
-    #         </div>
-    #     </div>
-    #     """, unsafe_allow_html=True)
-    # else:
-    #     st.markdown("""
-    #     <div style='background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);
-    #                 border-radius:12px;padding:12px 16px;margin-top:12px'>
-    #         <div style='font-size:12px;color:#4ade80;font-weight:700'>API Key Terhubung</div>
-    #         <div style='font-size:10px;color:#475569;margin-top:3px'>Siap generate narasi</div>
-    #     </div>
-    #     """, unsafe_allow_html=True)
-    groq_key = _get_groq_key()
+    
     # ── Generate button — scoped CSS via unique container ─
     st.markdown("""
     <style>
@@ -838,7 +854,8 @@ def render(ctx: dict) -> None:
                 unsafe_allow_html=True)
 
     # ── Output area ──────────────────────────────────────
-    if _has_cache and not gen_btn:
+    _already_shown = _cache_key in st.session_state['narasi_shown_keys']
+    if _has_cache and not gen_btn and _already_shown:
         cached_n = narratives_cache[_cache_key]
         _clv  = cached_n.get('crisis_level', '')
         _clr  = COLOR_MAP.get(_clv, '#94a3b8')
@@ -866,296 +883,53 @@ def render(ctx: dict) -> None:
             cached_n.get('report_type', report_type),
         )
 
+    # ── PERUBAHAN 5: Generate utama — gunakan llm_service ──
     if gen_btn and groq_key:
-        with st.spinner("🤖 " + selected_model + " sedang menganalisis data " + narasi_target + "..."):
+        with st.spinner(f"🤖 {selected_model} sedang menganalisis data {narasi_target}..."):
             try:
-                sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-                sys.path.insert(0, '.')
                 from groq import Groq as _Groq
-                import numpy as _np
 
-                # Dapatkan data baris — historis atau proyeksi
+                # ── Ambil data row ──────────────────────────────
                 if _is_fc_month:
-                    # Bulan proyeksi: ambil data terakhir sebagai basis, timpa dengan nilai proyeksi
-                    _base_row        = dict(predictions.iloc[-1])
-                    _narasi_row_data = _base_row.copy()
-                    _narasi_row_data['month']           = narasi_target
-                    _narasi_row_data['crisis_score_100'] = _narasi_score
-                    _narasi_row_data['crisis_level']     = _narasi_level
-                    _narasi_row_data['rf_predicted_level'] = _narasi_level
-                    _narasi_row_data['rf_confidence']    = 0.70
+                    _base_row = dict(predictions.iloc[-1])
+                    _base_row['month']             = narasi_target
+                    _base_row['crisis_score_100']  = _narasi_score
+                    _base_row['crisis_level']      = _narasi_level
+                    _base_row['rf_predicted_level'] = _narasi_level
+                    _base_row['rf_confidence']     = 0.70
+                    _narasi_row_data = _base_row
                     _history = predictions.tail(3).to_dict('records')
                 else:
                     _narasi_row_data = get_row(narasi_target)
                     _idx     = list(predictions['month']).index(narasi_target) \
-                               if narasi_target in list(predictions['month']) else len(predictions)-1
+                            if narasi_target in list(predictions['month']) else len(predictions) - 1
                     _history = predictions.iloc[max(0, _idx - 3):_idx].to_dict('records')
 
-                _ctx = {
-                    'month'        : str(_narasi_row_data.get('month', narasi_target)),
-                    'crisis_score' : round(float(_narasi_row_data.get('crisis_score_100', 0)), 1),
-                    'crisis_level' : _narasi_level,
-                    'rf_predicted' : str(_narasi_row_data.get('rf_predicted_level', 'N/A')),
-                    'rf_confidence': round(float(_narasi_row_data.get('rf_confidence', 0)) * 100, 1),
-                    'is_anomaly'   : int(sf(_narasi_row_data.get('iso_anomaly', 0))),
-                    'wisman'       : int(sf(_narasi_row_data.get('wisman', 0))),
-                    'tpk_bintang'  : round(float(_narasi_row_data.get('tpk_bintang', 0)), 1),
-                    'inflasi'      : round(float(_narasi_row_data.get('inflasi_processed', 0)), 2),
-                    'usd_idr'      : round(float(_narasi_row_data.get('usd_idr_avg', 0)), 0),
-                    'sentiment'    : round(float(_narasi_row_data.get('avg_sentiment_monthly', 0)), 3),
-                    'prob_krisis'  : round(float(_narasi_row_data.get('prob_krisis', 0)) * 100, 1),
-                    'prob_siaga'   : round(float(_narasi_row_data.get('prob_siaga', 0)) * 100, 1),
-                    'bali_share'   : round(float(_narasi_row_data.get('bali_share_pct', 0)), 1),
-                    'wisman_zscore'  : round(float(_narasi_row_data.get('wisman_zscore', 0)), 2),
-                    'physical_risk'  : round(float(_narasi_row_data.get('physical_risk_score', 0)) * 100, 1),
-                    'media_risk'     : round(float(_narasi_row_data.get('media_risk_score', 0)) * 100, 1),
-                    'tourist_percep' : round(float(_narasi_row_data.get('tourist_perception_score', 0)) * 100, 1),
-                    'external_risk'  : round(float(_narasi_row_data.get('external_risk_score', 0)) * 100, 1),
+                # ── Build ctx & prompt via llm_service ──────────
+                _ctx    = build_ctx(_narasi_row_data, _history)
+                _prompt = build_prompt(_ctx, report_type, format_style)
+
+                # ── Panggil LLM ─────────────────────────────────
+                _MAX_TOKENS_BY_TYPE = {
+                    'summary': 700,
+                    'alert': 700,
+                    'monthly': 900,
+                    'predict': 900,
+                    'swot': 1800,
+                    'comparison': 1500,
                 }
-                if _history:
-                    _avg3 = _np.mean([r.get('wisman', 0) for r in _history[-3:]])
-                    _ctx['wisman_trend']  = 'naik' if _ctx['wisman'] > _avg3 else 'turun'
-                    _ctx['avg_wisman_3m'] = round(_avg3, 0)
-                    _ctx['prev_levels']   = [r.get('crisis_level','N/A') for r in _history[-3:]]
-                    # MoM delta untuk konteks kausal
-                    _prev_r = _history[-1] if _history else {}
-                    def _d(a, b, key): 
-                        pv = float(_prev_r.get(key,0)); cv = float(a.get(key,0) if isinstance(a,dict) else a)
-                        return round(cv - pv, 3) if pv != 0 else 0
-                    _prev_w = float(_prev_r.get('wisman', 1))
-                    _ctx['wisman_delta_pct'] = round((_ctx['wisman'] - _prev_w) / max(1,_prev_w) * 100, 1)
-                    _ctx['score_delta']      = round(_ctx['crisis_score'] - float(_prev_r.get('crisis_score_100', _ctx['crisis_score'])), 1)
-                    _ctx['sent_delta']       = round(_ctx['sentiment'] - float(_prev_r.get('avg_sentiment_monthly', _ctx['sentiment'])), 3)
-                    _ctx['tpk_delta']        = round(_ctx['tpk_bintang'] - float(_prev_r.get('tpk_bintang', _ctx['tpk_bintang'])), 1)
-                    _ctx['usd_delta_pct']    = round((float(_prev_r.get('usd_idr_avg',0)) and
-                                               (_ctx['usd_idr'] - float(_prev_r.get('usd_idr_avg',0))) /
-                                               float(_prev_r.get('usd_idr_avg',1)) * 100) or 0, 1)
-                    _ctx['prev_level']       = _prev_r.get('crisis_level', 'N/A')
-                else:
-                    _ctx['wisman_trend']     = 'tidak tersedia'
-                    _ctx['avg_wisman_3m']    = 0
-                    _ctx['prev_levels']      = []
-                    _ctx['wisman_delta_pct'] = 0
-                    _ctx['score_delta']      = 0
-                    _ctx['sent_delta']       = 0
-                    _ctx['tpk_delta']        = 0
-                    _ctx['usd_delta_pct']    = 0
-                    _ctx['prev_level']       = 'N/A'
-
-                LEVEL_DESC = {
-                    'AMAN':'kondisi pariwisata normal','WASPADA':'ada sinyal awal yang perlu dipantau',
-                    'SIAGA':'tekanan signifikan pada sektor pariwisata',
-                    'KRISIS':'krisis pariwisata yang membutuhkan respons segera'
-                }
-                _lv_text = LEVEL_DESC.get(_ctx['crisis_level'], _ctx['crisis_level'])
-                _prev    = ' -> '.join(_ctx['prev_levels']) if _ctx['prev_levels'] else 'N/A'
-
-                # Deteksi kontradiksi (sentimen vs wisman)
-                _contradiction = ""
-                if _ctx['wisman_delta_pct'] < -5 and _ctx['sent_delta'] > 0.05:
-                    _contradiction = "KONTRADIKSI: Wisman turun tapi sentimen naik — kemungkinan tekanan dari faktor akses/ekonomi bukan kepuasan."
-                elif _ctx['wisman_delta_pct'] > 5 and _ctx['sent_delta'] < -0.05:
-                    _contradiction = "KONTRADIKSI: Wisman naik tapi sentimen turun — perlu investigasi kualitas layanan atau pengalaman wisata."
-                elif _ctx['score_delta'] > 5 and _ctx['sent_delta'] > 0.1:
-                    _contradiction = "KONTRADIKSI: Crisis score memburuk tapi sentimen publik positif — tekanan mungkin struktural, bukan persepsi."
-
-                def _risk_label(v: float) -> str:
-                    if v <= 33:   return "Rendah"
-                    elif v <= 66: return "Sedang"
-                    else:         return "Tinggi"
-
-                _data_block = (
-                    f"DATA PARIWISATA BALI - {_ctx['month']}\n"
-                    f"Crisis Score: {_ctx['crisis_score']}/100 -> Level {_ctx['crisis_level']} ({_lv_text})\n"
-                    f"  Perubahan score vs bulan lalu: {_ctx['score_delta']:+.1f} poin | Level sebelumnya: {_ctx['prev_level']}\n"
-                    f"Prediksi RF: {_ctx['rf_predicted']} (confidence: {_ctx['rf_confidence']}%) | "
-                    f"Anomali IF: {'Ya' if _ctx['is_anomaly'] else 'Tidak'}\n"
-                    f"P(Krisis): {_ctx['prob_krisis']}% | P(Siaga): {_ctx['prob_siaga']}%\n"
-                    f"Wisman: {_ctx['wisman']:,.0f} ({_ctx['wisman_delta_pct']:+.1f}% MoM, trend: {_ctx['wisman_trend']}, avg 3bln: {int(_ctx['avg_wisman_3m']):,.0f})\n"
-                    f"TPK Hotel: {_ctx['tpk_bintang']}% ({_ctx['tpk_delta']:+.1f}pp MoM)\n"
-                    f"USD/IDR: Rp {int(_ctx['usd_idr']):,} ({_ctx['usd_delta_pct']:+.1f}% MoM)\n"
-                    f"Inflasi: {_ctx['inflasi']}% | Sentimen: {_ctx['sentiment']} ({_ctx['sent_delta']:+.3f} MoM)\n"
-                    f"Pangsa Bali: {_ctx['bali_share']}% | Z-score: {_ctx['wisman_zscore']}\n"
-                    f"Physical Risk: {_ctx['physical_risk']:.1f}/100 | Media Risk: {_ctx['media_risk']:.1f}/100\n"
-                    f"Tourist Perception: {_ctx['tourist_percep']:.1f}/100 | External Risk (komposit): {_ctx['external_risk']:.1f}/100\n"
-                    f"Histori level: {_prev}\n"
-                    + (f"⚠️ {_contradiction}\n" if _contradiction else "")
-                )
-                
-                _narasi_rule = (
-                    "\n\nATURAN NARASI WAJIB (berlaku untuk SELURUH indikator risk score):\n"
-                    "Jangan hanya menyebut nilai angka. Setiap indikator risk score WAJIB dijelaskan dengan pola berikut:\n"
-                    "  [Nama indikator] berada pada level [Rendah/Sedang/Tinggi] ([nilai]/100), "
-                    "yang menunjukkan [arti indikator tersebut], sehingga [dampak konkret terhadap pariwisata Bali].\n\n"
-                    "Contoh BENAR (pola kalimat ilustratif — JANGAN salin angka contoh, WAJIB gunakan nilai aktual dari data):\n"
-                    "  'Media Risk berada pada level [nilai aktual]/100 [kategori], yang menunjukkan adanya risiko pemberitaan "
-                    "negatif di media internasional, sehingga dapat menekan kepercayaan wisatawan mancanegara "
-                    "terhadap Bali sebagai destinasi yang aman.'\n\n"
-                    "  'Tourist Perception berada pada level [nilai aktual]/100 [kategori], yang menunjukkan bahwa wisatawan "
-                    "memiliki persepsi tertentu terhadap Bali, sehingga memengaruhi pertumbuhan kunjungan dan "
-                    "belanja wisata dalam jangka pendek.'\n\n"
-                    "  'External Risk berada pada level [nilai aktual]/100 [kategori], yang menunjukkan tekanan eksternal "
-                    "berada pada kondisi tertentu, namun perlu dipantau karena dapat memengaruhi kestabilan "
-                    "kunjungan dalam beberapa bulan ke depan.'\n\n"
-                    "Contoh SALAH (DILARANG):\n"
-                    "  'Media Risk sebesar [angka]/100.' (tanpa kategori dan penjelasan dampak)\n"
-                    "  'Physical Risk Score: [angka]/100.' (hanya skor tanpa narasi sebab-akibat)\n"
-                    "  'External Risk berada di angka [angka].' (tanpa skala /100 dan kategori)\n\n"
-                    "PERINGATAN KERAS: [nilai aktual] dan [kategori] di atas adalah placeholder, BUKAN angka final. "
-                    "WAJIB diganti dengan nilai skor dan kategori SESUNGGUHNYA dari data aktual di atas.\n\n"
-                    "Panduan makna tiap indikator:\n"
-                    "  - Physical Risk → risiko dari bencana alam, cuaca ekstrem, dan gangguan fisik destinasi\n"
-                    "  - Media Risk → risiko dari pemberitaan negatif global yang merusak citra Bali\n"
-                    "  - Tourist Perception → tingkat kepercayaan dan persepsi positif wisatawan terhadap Bali\n"
-                    # BARU — tambahkan blok bahasa sebelum penutup
-                    "  - External Risk → tekanan eksternal komposit (ekonomi global, geopolitik, dll) yang memengaruhi pariwisata\n"
-                    "\n\n================================================================\n"
-                    "ATURAN BAHASA — WAJIB DIPATUHI TANPA PENGECUALIAN:\n"
-                    "================================================================\n"
-                    "1. SELURUH output WAJIB menggunakan Bahasa Indonesia formal yang natural.\n"
-                    "2. DILARANG KERAS menggunakan karakter non-Latin: tidak boleh ada karakter "
-                    "Mandarin (汉字), Jepang (かな/カナ), Korea (한글), Arab (عربي), "
-                    "Cyrillic, atau aksara non-Latin lainnya.\n"
-                    "3. DILARANG mencampur bahasa: tidak boleh ada kata/frasa bahasa Mandarin, "
-                    "Jepang, Korea, Arab, Prancis, Spanyol, atau bahasa selain Indonesia dan "
-                    "istilah teknis Inggris yang lazim.\n"
-                    "4. Istilah teknis tanpa padanan umum (Random Forest, External Risk, Crisis Score, TPK) "
-                    "BOLEH tetap dalam bahasa Inggris, namun seluruh kalimat harus tetap berbahasa Indonesia.\n"
-                    "5. SELF-CHECK WAJIB: Sebelum output akhir, periksa ulang seluruh teks. "
-                    "Jika ditemukan karakter non-Latin atau kata asing di luar pengecualian di atas, "
-                    "ganti dengan padanan Bahasa Indonesia.\n"
-                    "================================================================\n"
-                )
-                # ────────────────────────────────────────────────────────────────────────
-
-
-                if report_type == 'summary':
-                    _prompt = (
-                        "Kamu adalah analis senior BaliGuard — sistem early warning pariwisata Bali.\n"
-                        + _data_block +
-                        f"\nTugas: Buat ringkasan analitis kondisi pariwisata Bali bulan {_ctx['month']} "
-                        "dalam 2-3 kalimat Bahasa Indonesia yang TAJAM dan KAUSAL — bukan hanya deskriptif.\n"
-                        "Panduan:\n"
-                        "- Jelaskan MENGAPA kondisi ini terjadi, bukan hanya APA kondisinya\n"
-                        "- Sebutkan perubahan MoM yang paling signifikan sebagai pemicu\n"
-                        "- Jika ada kontradiksi antar indikator, soroti itu\n"
-                        "- Hindari kalimat seperti 'data menunjukkan' — langsung ke analisis\n"
-                        "Format: cocok untuk KPI card eksekutif, padat, berbasis data."
-                        + _narasi_rule
-                    )
-                elif report_type == 'alert':
-                    _prompt = (
-                        "Kamu adalah sistem BaliGuard. Kondisi kritis terdeteksi.\n"
-                        + _data_block +
-                        "\nBuat PERINGATAN DARURAT (max 130 kata) Bahasa Indonesia dengan struktur:\n"
-                        "STATUS: [level + score + perubahan dari bulan lalu]\n"
-                        "PEMICU UTAMA: [3 indikator kritis dengan perubahan MoM-nya]\n"
-                        "KONTEKS: [apakah ini anomali? konsisten atau tiba-tiba?]\n"
-                        "TINDAKAN: [1 rekomendasi segera yang spesifik dan actionable]\n"
-                        "Gaya: tegas, langsung, tidak bertele-tele."
-                        + _narasi_rule
-                    )
-                elif report_type == 'predict':
-                    _prompt = (
-                        # BARU
-                        "Kamu adalah analis senior BaliGuard.\n"
-                        + _data_block +
-                        "\nStruktur laporan (INSTRUKSI FORMAT: gunakan heading bold **JUDUL**, "
-                        "JANGAN penomoran atau heading tanpa tanda bintang):\n\n"
-                        "**PROYEKSI KONDISI**\n"
-                        "   - Prediksi arah tren crisis score 3 bulan ke depan (naik/turun/stabil)\n"
-                        "   - Apakah proyeksi menunjukkan pemulihan atau tekanan berlanjut?\n\n"
-                        "**FAKTOR RISIKO UTAMA**\n"
-                        "   - Sebutkan 3 indikator yang paling berpotensi mempengaruhi kondisi ke depan\n"
-                        "   - Jelaskan arah tekanan (positif/negatif) masing-masing indikator\n\n"
-                        "**SKENARIO RISIKO**\n"
-                        "   - Skenario Optimis: kondisi terbaik yang mungkin terjadi\n"
-                        "   - Skenario Pesimis: kondisi terburuk jika indikator memburuk\n\n"
-                        "**REKOMENDASI ANTISIPATIF**\n"
-                        "   - Tindakan preventif yang perlu disiapkan SEKARANG sebelum risiko terjadi\n"
-                        "   - Tiap poin: [Urgensi] Tindakan spesifik → dampak yang diantisipasi\n\n"
-                        "Gaya: forward-looking, actionable, berbasis angka dan tren nyata."
-                        + _narasi_rule
-                    )
-                # ── PATCH A3: SWOT prompt ──────────────────────────────────
-                elif report_type == 'swot':
-                    # BARU
-                    _prompt = (
-                        "Kamu adalah analis pariwisata profesional dan penasihat strategis untuk pengambil kebijakan di Bali.\n"
-                        + _data_block +
-                        f"\nTugas: Buat ANALISIS SWOT pariwisata Bali bulan {_ctx['month']} "
-                        "dalam Bahasa Indonesia yang tajam, analitis, dan memiliki penalaran mendalam (deep reasoning).\n"
-                        "PENTING: Langsung mulai output dengan **KEKUATAN (Strengths)**. "
-                        "JANGAN tambahkan judul atau header apapun sebelum bagian SWOT pertama.\n\n"
-                        "==================================================\n"
-                        "ATURAN REASONING & KLASIFIKASI (WAJIB DIPATUHI MUTLAK):\n"
-                        "==================================================\n"
-                        "1. KLASIFIKASI LEVEL RISIKO (HARGA MATI):\n"
-                        "   Sebelum menyimpulkan, kamu WAJIB mengklasifikasikan setiap skor indikator menggunakan skala mutlak berikut:\n"
-                        "   - 0 – 33   = RENDAH\n"
-                        "   - 34 – 66  = SEDANG\n"
-                        "   - 67 – 100 = TINGGI\n"
-                        "   DILARANG KERAS menyebut indikator sebagai 'tinggi' atau 'ancaman signifikan' hanya karena nilainya lebih besar dari indikator lain! Jika [indikator A] [nilai] dan [indikator B] [nilai] dan keduanya sama-sama berada pada kategori yang sama, kamu WAJIB bernarasi sesuai pola: '[Indikator A] lebih tinggi dibanding [Indikator B], namun kedua indikator masih berada pada kategori [kategori] sehingga ancaman terkendali'.\n\n"
-                        "2. IDENTIFIKASI FAKTOR DOMINAN:\n"
-                        "   Tentukan dan sebutkan secara eksplisit indikator dengan skor tertinggi dari seluruh data, lalu jelaskan implikasi utamanya (Contoh pola kalimat: 'Indikator dominan pada periode ini adalah [indikator_tertinggi] ([nilai aktual]/100), yang menunjukkan bahwa...').\n\n"
-                        "3. LARANGAN MEMBACA DATA SECARA MEKANIS:\n"
-                        "   DILARANG KERAS membuat pola kalimat malas seperti: '[Nama indikator] [angka] menunjukkan adanya [risiko generik]'. Kamu harus menyusun paragraf analitis yang menjelaskan hubungan sebab-akibat antar metrik.\n\n"
-                        "==================================================\n"
-                        "STRUKTUR OUTPUT SWOT (WAJIB DIIKUTI):\n"
-                        "==================================================\n"
-                        # BARU
-                        "INSTRUKSI FORMAT (HARGA MATI): Gunakan heading bold **JUDUL** untuk setiap bagian SWOT. "
-                        "JANGAN gunakan heading tanpa tanda bintang. JANGAN beri nomor di depan heading.\n\n"
-                        "**KEKUATAN (Strengths)**\n"
-                        "- Identifikasi faktor dominan internal atau persepsi yang paling kuat (tertinggi).\n"
-                        "- Jelaskan bagaimana faktor ini menjadi penyangga utama ketahanan pariwisata Bali, dan hubungkan sebab-akibatnya dengan tren data operasional (seperti tren Wisman atau TPK Hotel).\n\n"
-                        "**KELEMAHAN (Weaknesses)**\n"
-                        "- Analisis titik kerentanan internal atau penurunan performa (misal: fluktuasi Crisis Score, Inflasi, atau penurunan Sentimen).\n"
-                        "- Jelaskan implikasi logis dari kelemahan ini terhadap operasional pariwisata jika dibiarkan.\n\n"
-                        "**PELUANG (Opportunities)**\n"
-                        "- WAJIB BANDINGKAN: Tourist Perception vs External Risk.\n"
-                        "- Jelaskan secara analitis apakah persepsi wisatawan masih mampu menahan tekanan eksternal yang ada, atau sebaliknya. Berikan rekomendasi strategis (promosi/layanan) untuk memanfaatkan momentum komparasi tersebut.\n\n"
-                        "**ANCAMAN (Threats)**\n"
-                        "- WAJIB BANDINGKAN: Physical Risk vs Media Risk. Tentukan ancaman mana yang lebih dominan memberikan tekanan reputasi/fisik saat ini.\n"
-                        "- INTEGRASI KOMPREHENSIF: Kamu WAJIB memasukkan Tourist Perception dan External Risk ke dalam analisis Threats ini. Jelaskan apakah tekanan fisik/media dan eksternal yang ada saat ini sudah cukup kuat untuk mulai menggerus kepercayaan/persepsi wisatawan atau belum.\n"
-                        "- Jelaskan efek domino (sebab-akibat) potensial terhadap pariwisata Bali.\n\n"
-                        "Gaya Bahasa: Menulis layaknya analis ahli. Gunakan paragraf naratif yang mengalir dengan perbandingan yang natural, bukan seperti sistem yang sedang membacakan baris data."
-                    )
-                # ───────────────────────────────────────────────────────────
-
-                else:
-                    _prompt = (
-                        "Kamu adalah analis senior BaliGuard.\n"
-                        + _data_block +
-                        # BARU
-                        "\nBuat laporan bulanan analitis Bahasa Indonesia dengan struktur berikut.\n"
-                        "INSTRUKSI FORMAT: Gunakan heading bold **JUDUL** untuk setiap bagian. "
-                        "JANGAN gunakan penomoran (1. 2. 3.) atau heading tanpa tanda bintang.\n\n"
-                        "**RINGKASAN EKSEKUTIF**\n"
-                        "   - Status bulan ini vs bulan lalu (naik/turun berapa poin)\n"
-                        "   - Apakah ini perubahan mendadak atau tren berkelanjutan?\n\n"
-                        "**ANALISIS INDIKATOR**\n"
-                        "   - Fokus pada indikator yang BERUBAH paling signifikan bulan ini\n"
-                        "   - Jelaskan angka dengan konteks: '+8% wisman itu normal atau luar biasa?'\n"
-                        "   - Soroti jika ada kontradiksi antar indikator\n\n"
-                        "**ANALISIS KAUSAL — MENGAPA INI TERJADI?**\n"
-                        "   - Identifikasi kemungkinan penyebab utama, bukan sekadar deskripsi\n"
-                        "   - Jika ada anomali IF, analisis apa yang mungkin memicunya\n"
-                        "   - Apakah tekanan berasal dari faktor internal (layanan) atau eksternal (ekonomi, akses)?\n\n"
-                        "**REKOMENDASI PRIORITAS**\n"
-                        "   - 3 poin konkret dengan urgensi jelas\n"
-                        "   - Tiap poin: [Prioritas] Tindakan spesifik → target indikator yang diperbaiki"
-                        + _narasi_rule
-                    )
+                _max_tok = _MAX_TOKENS_BY_TYPE.get(report_type, 1024)
 
                 _client   = _Groq(api_key=groq_key)
                 _response = _client.chat.completions.create(
                     model=selected_model,
-                    messages=[{'role':'user','content':_prompt}],
-                    temperature=0.7, max_tokens=1024,
-                    **( {"reasoning_effort": "none"} if "qwen" in selected_model else {} )
+                    messages=[{'role': 'user', 'content': _prompt}],
+                    temperature=0.7, max_tokens=_max_tok,
+                    **({'reasoning_effort': 'none'} if 'qwen' in selected_model else {}),
                 )
-                _narr_text = _response.choices[0].message.content
+                _narr_text = clean_output(_response.choices[0].message.content)
+                _tokens    = _response.usage.prompt_tokens + _response.usage.completion_tokens
+                # ── END PERUBAHAN 5 ─────────────────────────────
 
                 # ── Safety net bahasa: perbaiki/hapus aksara non-Latin yang bocor ──
                 _CJK_FIXES = {
@@ -1184,6 +958,7 @@ def render(ctx: dict) -> None:
                     'crisis_level': _narasi_level,
                     'report_type': report_type,
                     'crisis_score': _narasi_score,
+                    'format': format_style,
                 }
 
                 _rlv  = _narasi_level
@@ -1208,6 +983,7 @@ def render(ctx: dict) -> None:
                 _render_narasi_actions(_narr_text, narasi_target, report_type)
                 narratives_cache[_cache_key] = result
                 st.session_state['narratives_cache'][_cache_key] = result
+                st.session_state['narasi_shown_keys'].add(_cache_key)
                 os.makedirs('data/final', exist_ok=True)
                 with open('data/final/narratives_cache.json', 'w', encoding='utf-8') as f:
                     json.dump(narratives_cache, f, ensure_ascii=False, indent=2)
@@ -1215,7 +991,7 @@ def render(ctx: dict) -> None:
             except Exception as e:
                 st.error("❌ Error: " + str(e))
 
-    elif not _has_cache and not gen_btn:
+    elif not gen_btn and not _already_shown:
         st.markdown("""
         <div style='background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);
                     border-radius:14px;padding:48px;text-align:center'>
@@ -1227,4 +1003,159 @@ def render(ctx: dict) -> None:
             </div>
         </div>
         """, unsafe_allow_html=True)
+    
+    # ══════════════════════════════════════════════════════
+    # ── KOMPARASI ANTAR PERIODE (tampil setelah Generate) ─
+    # ══════════════════════════════════════════════════════
+    st.markdown("<div style='border-top:1px solid rgba(255,255,255,0.06);margin:32px 0 20px'></div>",
+                unsafe_allow_html=True)
+
+    st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-bottom:16px'>
+        <div style='flex:1;height:1px;background:#7c3aed'></div>
+        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#a78bfa;text-transform:uppercase;
+                    letter-spacing:.12em;white-space:nowrap'>KOMPARASI ANTAR PERIODE</div>
+        <div style='flex:1;height:1px;background:#7c3aed'></div>
+    </div>""", unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style='background:rgba(124,58,237,0.07);border:1px solid rgba(124,58,237,0.2);
+                border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#c4b5fd'>
+        Bandingkan kondisi pariwisata antara dua periode berbeda menggunakan tipe laporan yang dipilih di atas.
+        Berlaku untuk semua tipe: Quick Summary, Emergency Alert, Laporan Bulanan, Prediksi AI, dan SWOT.
+    </div>
+    """, unsafe_allow_html=True)
+
+    compare_mode = True  
+
+    if compare_mode:
+        st.markdown("""
+        <div style='background:rgba(124,58,237,0.10);border:1px solid rgba(167,139,250,0.3);
+                    border-radius:10px;padding:14px 18px;margin:12px 0'>
+            <div style='font-size:13px;font-weight:700;color:#a78bfa;margin-bottom:8px'>
+                PILIH DUA PERIODE YANG INGIN DIBANDINGKAN
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if 'cmp_format_sel' not in st.session_state:
+            st.session_state['cmp_format_sel'] = st.session_state.get('format_style_sel', 'paragraf')
+
+        _cmp_col1, _cmp_col2, _cmp_col3 = st.columns([1, 1, 0.7])
+
+        with _cmp_col1:
+            st.markdown("<div style='font-size:14px;font-weight:600;color:#c4b5fd;margin-bottom:4px'>Periode A (lebih lama)</div>",
+                        unsafe_allow_html=True)
+            _cmp_month_a = st.selectbox(
+                "", _all_months,
+                format_func=lambda m: f"{m} {'' if m in _avail_months_hist else 'Proyeksi'}",
+                index=max(0, len(_all_months) - 7),
+                key="cmp_month_a", label_visibility="collapsed"
+            )
+
+        with _cmp_col2:
+            st.markdown("<div style='font-size:14px;font-weight:600;color:#c4b5fd;margin-bottom:4px'>Periode B (lebih baru)</div>",
+                        unsafe_allow_html=True)
+            _cmp_month_b = st.selectbox(
+                "", _all_months,
+                format_func=lambda m: f"{m} {'' if m in _avail_months_hist else 'Proyeksi'}",
+                index=len(_all_months) - 1,
+                key="cmp_month_b", label_visibility="collapsed"
+            )
+
+        with _cmp_col3:
+            st.markdown("<div style='font-size:14px;font-weight:600;color:#c4b5fd;margin-bottom:4px'>Format</div>",
+                        unsafe_allow_html=True)
+            _cmp_fmt_keys = list(FORMAT_OPTIONS.keys())
+            _cmp_fmt_idx  = _cmp_fmt_keys.index(st.session_state['cmp_format_sel'])
+            _cmp_format = st.selectbox(
+                "", _cmp_fmt_keys,
+                format_func=lambda k: FORMAT_OPTIONS[k],
+                index=_cmp_fmt_idx, key="cmp_format_box", label_visibility="collapsed"
+            )
+            st.session_state['cmp_format_sel'] = _cmp_format
+
+        _cmp_btn = st.button("Generate Komparasi", key="btn_compare",
+                             type="primary", use_container_width=True,
+                             disabled=not bool(groq_key) or _cmp_month_a == _cmp_month_b)
+
+        if _cmp_month_a == _cmp_month_b:
+            st.warning("Pilih dua periode yang berbeda untuk komparasi.")
+
+        def _get_ctx_for_month(month: str) -> dict:
+            if month in _avail_months_hist:
+                _row = get_row(month)
+                _idx = list(predictions['month']).index(month) \
+                    if month in list(predictions['month']) else len(predictions) - 1
+                _hist = predictions.iloc[max(0, _idx - 3):_idx].to_dict('records')
+            else:
+                _base = dict(predictions.iloc[-1])
+                _base['month']              = month
+                _base['crisis_score_100']   = _fc_score_map.get(month, 30.0)
+                _base['crisis_level']       = _fc_level_map.get(month, 'WASPADA')
+                _base['rf_predicted_level'] = _fc_level_map.get(month, 'WASPADA')
+                _base['rf_confidence']      = 0.70
+                _row  = _base
+                _hist = predictions.tail(3).to_dict('records')
+            return build_ctx(_row, _hist)
+
+        if _cmp_btn:
+            _cmp_key_a = f"{_cmp_month_a}_{report_type}_{_model_short_key}_{_cmp_format}"
+            _cmp_key_b = f"{_cmp_month_b}_{report_type}_{_model_short_key}_{_cmp_format}"
+            _cache_a   = narratives_cache.get(_cmp_key_a)
+            _cache_b   = narratives_cache.get(_cmp_key_b)
+
+            _missing = []
+            if not _cache_a:
+                _missing.append(_cmp_month_a)
+            if not _cache_b:
+                _missing.append(_cmp_month_b)
+
+            if _missing:
+                st.warning(
+                    "⚠️ Narasi untuk bulan " + ", ".join(_missing) +
+                    " dengan tipe laporan **" + REPORT_CARDS.get(report_type, {}).get('title', report_type) +
+                    "** dan model **" + GROQ_MODELS.get(selected_model, {}).get('label', selected_model) +
+                    "** belum pernah di-generate. Silakan pilih bulan tersebut di bagian "
+                    "atas, lalu klik Generate Narasi AI terlebih dahulu sebelum membandingkan."
+                )
+            else:
+                _rt_label = REPORT_CARDS.get(report_type, {}).get('title', report_type)
+                st.markdown(
+                    "<div style='display:flex;align-items:center;gap:10px;margin:16px 0 12px;flex-wrap:wrap'>"
+                    "<div style='font-size:16px;font-weight:700;color:#a78bfa;text-transform:uppercase;"
+                    "letter-spacing:.1em'>KOMPARASI NARASI TERSIMPAN</div>"
+                    f"<span style='font-size:12px;color:#94a3b8'>· {_rt_label}</span>"
+                    "</div>",
+                    unsafe_allow_html=True
+                )
+
+                _side_a, _side_b = st.columns(2)
+
+                for _side_col, _month_lbl, _cache_data in [
+                    (_side_a, _cmp_month_a, _cache_a),
+                    (_side_b, _cmp_month_b, _cache_b),
+                ]:
+                    with _side_col:
+                        _clv = _cache_data.get('crisis_level', '')
+                        _clr = COLOR_MAP.get(_clv, '#94a3b8')
+                        st.markdown(
+                            "<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap'>"
+                            "<span style='font-family:monospace;font-size:14px;color:#a78bfa;font-weight:700'>"
+                            + _month_lbl + "</span>"
+                            "<span style='background:" + _clr + "22;color:" + _clr + ";font-size:10px;font-weight:700;"
+                            "padding:3px 10px;border-radius:20px;border:1px solid " + _clr + "44'>"
+                            + EMOJI_MAP.get(_clv,'') + " " + _clv + "</span>"
+                            "<span style='font-family:monospace;font-size:12px;color:#475569'>"
+                            + str(_cache_data.get('tokens',0)) + " tokens</span></div>"
+                            "<div style='background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.25);"
+                            "border-radius:14px;padding:20px 22px;line-height:1.85;font-size:14px;"
+                            "color:#cbd5e1;border-top:3px solid " + _clr + "'>"
+                            + "<div style='font-size:14px;line-height:1.7'>"
+                            + _format_narasi_html(_cache_data["narrative"]) + "</div></div>",
+                            unsafe_allow_html=True
+                        )
+                        _render_narasi_actions(
+                            _cache_data["narrative"], _month_lbl,
+                            f"komparasi_{report_type}_{_month_lbl}"
+                        )
 
