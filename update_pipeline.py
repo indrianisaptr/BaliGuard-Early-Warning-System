@@ -6,7 +6,11 @@ Jalankan tiap bulan setelah data BPS baru tersedia:
     python update_pipeline.py
 
 Apa yang dilakukan:
-  1. Fetch USD/IDR terbaru dari API live (Frankfurter / Open ER)
+  1. Baca USD/IDR terbaru dari automation staging
+     (automation/data/staging/usd_idr/) — TIDAK fetch API apapun di sini.
+     Fetch live sepenuhnya jadi tanggung jawab automation/fetch/usd_idr.py
+     (dijalankan terpisah via automation/scheduler/run_job.py).
+     Kalau staging kosong, fallback ke dataset historis lokal apa adanya.
   2. Load data existing dari data/processed/
   3. Append baris bulan baru (jika ada data BPS baru)
   4. Rebuild semua fitur (growth, zscore, rolling, lag, dll)
@@ -20,7 +24,7 @@ Untuk data BPS (wisman, TPK, inflasi):
   - Contoh: data/raw/updates/wisman_update.csv
 """
 
-import os, sys, json, warnings, urllib.request
+import os, sys, warnings
 from datetime import datetime
 from pathlib import Path
 
@@ -39,6 +43,54 @@ MDL_DIR  = BASE / 'models'
 
 for d in [DATA_RAW / 'updates', DATA_PRO, DATA_FIN, MDL_DIR]:
     d.mkdir(parents=True, exist_ok=True)
+
+# ── Automation staging bridge ────────────────────────────────
+# update_pipeline.py TIDAK BOLEH melakukan fetch API apapun.
+# Satu-satunya sumber data baru untuk usd_idr adalah staging yang
+# ditulis oleh automation/fetch/usd_idr.py + storage/staging_writer.py.
+# Kalau staging tidak bisa diimport (mis. dijalankan tanpa folder
+# automation/ di sebelahnya), kita treat sebagai "staging kosong"
+# dan jatuh ke dataset historis lokal — bukan fetch live.
+if str(BASE) not in sys.path:
+    sys.path.insert(0, str(BASE))
+
+try:
+    from automation.storage.staging_writer import list_staging_keys, read_staging
+    _STAGING_AVAILABLE = True
+except ImportError:
+    _STAGING_AVAILABLE = False
+
+# ── Prediction Storage (Supabase) bridge ─────────────────────
+# Storage layer baru: setelah predictions_final.csv ditulis, kirim juga
+# isinya ke Supabase via batch upsert. Kalau modul/kredensial tidak
+# tersedia, pipeline tetap jalan seperti biasa (CSV tetap jadi sumber
+# kebenaran untuk dashboard lama) — upsert hanya di-skip dengan warning.
+try:
+    from prediction_repository import PredictionRepository
+    _PREDICTION_REPO_AVAILABLE = True
+except ImportError:
+    _PREDICTION_REPO_AVAILABLE = False
+
+# ── Kolom output final predictions_final.csv ─────────────────
+# Single source of truth: dipakai baik untuk to_csv() maupun untuk data
+# yang dikirim ke PredictionRepository.upsert_predictions(), supaya CSV
+# dan Supabase selalu identik. Daftar ini HARUS sama persis dengan
+# PREDICTIONS_COLUMNS di prediction_repository.py (31 kolom, sesuai
+# output final NB05 — TIDAK termasuk crisis_component_tourism/economy/
+# sentiment, karena NB05 sudah tidak lagi mengirim itu ke predictions_final.csv).
+PREDICTION_OUTPUT_COLUMNS = [
+    'month', 'wisman', 'tpk_bintang', 'inflasi_processed',
+    'usd_idr_avg', 'avg_sentiment_monthly', 'bali_share_pct',
+    'wisman_zscore', 'wisman_growth_mom', 'wisman_growth_yoy',
+    'crisis_score_100', 'crisis_level',
+    'rf_predicted_level', 'rf_confidence',
+    'prob_aman', 'prob_waspada', 'prob_siaga', 'prob_krisis',
+    'iso_anomaly', 'iso_score',
+    'gdelt_crisis_score', 'economic_risk_score', 'disaster_risk_score',
+    'external_risk_avg', 'physical_risk_score', 'media_risk_score',
+    'tourist_perception_score', 'external_risk_score',
+    'wisman_recovery_pct', 'pct_negative_monthly', 'usd_volatility_3m',
+]
 
 # ── Crisis score weights — DARI NB04 Cell[17] ACTUAL CODE ──────────────────
 # CATATAN: NB04 Cell[16] COMMENT bilang "45/30/25" tapi CODE Cell[17] = 0.75/0.20/0.05
@@ -68,91 +120,87 @@ def level_from_score(s: float) -> str:
 # 1. FETCH LIVE USD/IDR
 # ════════════════════════════════════════════════════════════
 
-def fetch_usd_idr_monthly(start_date: str, end_date: str = None) -> pd.DataFrame:
-    if end_date is None:
-        end_date = datetime.now().strftime('%Y-%m-%d')
+def load_usd_idr_from_staging() -> pd.DataFrame:
+    """
+    Baca seluruh record usd_idr dari automation staging.
+    TIDAK melakukan fetch API apapun — staging adalah satu-satunya
+    titik kontak update_pipeline.py dengan dunia automation
+    (sesuai BALIGUARD_AUTOMATION_ARCHITECTURE.md: "automation berhenti
+    di staging, pipeline ML tidak pernah tahu soal fetch/API").
 
-    curr_month  = datetime.now().strftime('%Y-%m')
-    start_month = start_date[:7]
-    is_current  = (start_month == curr_month)
+    Return: DataFrame [month, usd_idr_avg] — kosong jika staging
+    tidak tersedia atau belum berisi data.
+    """
+    if not _STAGING_AVAILABLE:
+        print("  ⚠  Modul automation.storage.staging_writer tidak terimport — "
+              "anggap staging kosong, lanjut ke fallback historis lokal.")
+        return pd.DataFrame(columns=['month', 'usd_idr_avg'])
 
-    print(f"  Fetching USD/IDR: {start_date} → {end_date}")
-
-    # ── Bulan berjalan: pakai ExchangeRate-API dulu (real-time) ──
-    if is_current:
-        try:
-            # open.er-api.com — gratis, no key, pakai 'rates' bukan 'conversion_rates'
-            url  = "https://open.er-api.com/v6/latest/USD"
-            req  = urllib.request.Request(url, headers={"User-Agent": "BaliGuard/1.0"})
-            with urllib.request.urlopen(req, timeout=10) as r:
-                data = json.loads(r.read())
-            rate   = float(data['rates']['IDR'])    # ← 'rates', bukan 'conversion_rates'
-            result = pd.DataFrame([{'month': curr_month, 'usd_idr_avg': rate}])
-            print(f"  ✓ ExchangeRate-API (real-time): {rate:,.0f}")
-            return result
-        except Exception as e:
-            print(f"  ⚠ ExchangeRate-API gagal: {e}, fallback ke Frankfurter")
-
-    # ── Historis (atau fallback): Frankfurter ────────────────────
     try:
-        url = (f"https://api.frankfurter.app/{start_date}..{end_date}"
-               f"?from=USD&to=IDR")
-        req  = urllib.request.Request(url, headers={"User-Agent": "BaliGuard/1.0"})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.loads(r.read())
-        rows = [
-            {'date': pd.to_datetime(d), 'usd_idr': float(v['IDR'])}
-            for d, v in data['rates'].items()
-        ]
-        df = pd.DataFrame(rows)
-        df['month'] = df['date'].dt.to_period('M').astype(str)
-        result = df.groupby('month')['usd_idr'].mean().reset_index()
-        result.columns = ['month', 'usd_idr_avg']
-        print(f"  ✓ Frankfurter: {len(result)} bulan")
-        return result
+        keys = list_staging_keys('usd_idr')
     except Exception as e:
-        print(f"  ⚠  Frankfurter gagal: {e}")
+        print(f"  ⚠  Gagal membaca daftar staging usd_idr: {e}")
+        return pd.DataFrame(columns=['month', 'usd_idr_avg'])
 
-    # ── Fallback: cache lokal ─────────────────────────────────
-    cache_path = DATA_PRO / 'usd_idr_cache.csv'
-    if cache_path.exists():
-        print(f"  ⚠  Menggunakan cache lokal: {cache_path}")
-        return pd.read_csv(cache_path)
+    if not keys:
+        return pd.DataFrame(columns=['month', 'usd_idr_avg'])
 
-    print("  ✗ Semua sumber USD/IDR gagal.")
-    return pd.DataFrame(columns=['month', 'usd_idr_avg'])
+    rows = []
+    for key in keys:
+        try:
+            record = read_staging('usd_idr', key)
+        except Exception as e:
+            print(f"  ⚠  Gagal membaca staging usd_idr key={key}: {e}")
+            continue
+        if record and record.get('usd_idr_avg') is not None:
+            rows.append({'month': record['month'], 'usd_idr_avg': record['usd_idr_avg']})
+
+    if not rows:
+        return pd.DataFrame(columns=['month', 'usd_idr_avg'])
+
+    result = pd.DataFrame(rows).drop_duplicates(subset='month', keep='last')
+    result = result.sort_values('month').reset_index(drop=True)
+    print(f"  ✓ Staging usd_idr: {len(result)} bulan ditemukan "
+          f"({result['month'].min()} → {result['month'].max()})")
+    return result
 
 
 def update_usd_idr() -> pd.DataFrame:
-    usd_path   = DATA_PRO / 'monthly_usd.csv'
-    curr_month = datetime.now().strftime('%Y-%m')
-    today      = datetime.now()
-    end_date   = f"{today.year}-{today.month:02d}-{today.day:02d}"
+    """
+    Sumber data usd_idr untuk pipeline, TANPA fetch API apapun:
+      1. Prioritas: data dari automation staging (read-only).
+      2. Fallback: dataset historis lokal (data/processed/monthly_usd.csv)
+         apa adanya — tidak di-fetch ulang, hanya dibaca.
+
+    Hasil akhir tetap digabung & ditulis ke monthly_usd.csv +
+    usd_idr_cache.csv supaya kompatibel dengan rebuild_features()
+    dan output pipeline yang sudah ada (tidak berubah).
+    """
+    usd_path = DATA_PRO / 'monthly_usd.csv'
 
     if usd_path.exists():
-        existing   = pd.read_csv(usd_path)
+        existing = pd.read_csv(usd_path)
         existing['month'] = existing['month'].astype(str).str[:7]
-        last_month = existing['month'].max()
-        if last_month >= curr_month:
-            next_start = f"{curr_month}-01"   # refresh bulan berjalan
-        else:
-            next_start = (pd.Period(last_month, freq='M') + 1).strftime('%Y-%m-01')
     else:
-        existing   = pd.DataFrame(columns=['month', 'usd_idr_avg'])
-        next_start = '2009-01-01'
+        existing = pd.DataFrame(columns=['month', 'usd_idr_avg'])
 
-    new_data = fetch_usd_idr_monthly(next_start, end_date)
+    staging_data = load_usd_idr_from_staging()
 
-    if new_data.empty:
+    if staging_data.empty:
+        print("  ⚠  Staging usd_idr kosong — pakai dataset historis lokal "
+              "apa adanya (tidak fetch live).")
+        if existing.empty:
+            print("  ✗ Dataset historis lokal juga kosong/tidak ditemukan.")
         return existing
 
-    combined = pd.concat([existing, new_data], ignore_index=True)
+    combined = pd.concat([existing, staging_data], ignore_index=True)
     combined = combined.drop_duplicates(subset='month', keep='last')
     combined = combined.sort_values('month').reset_index(drop=True)
 
     combined.to_csv(usd_path, index=False)
     combined.to_csv(DATA_PRO / 'usd_idr_cache.csv', index=False)
-    print(f"  ✓ USD/IDR updated: {len(combined)} bulan, terakhir {combined['month'].max()}")
+    print(f"  ✓ USD/IDR updated dari staging: {len(combined)} bulan, "
+          f"terakhir {combined['month'].max()}")
     return combined
 
 
@@ -599,8 +647,8 @@ def run_pipeline(verbose: bool = True):
     df['month'] = df['month'].astype(str).str[:7]
     print(f"\n ✓ Master dataset: {len(df)} baris, {df['month'].min()} → {df['month'].max()}")
 
-    # ── Step 1: Update USD/IDR live ──────────────────────────
-    print("\n[1/5] Mengambil data USD/IDR terbaru...")
+    # ── Step 1: Baca USD/IDR dari staging (tanpa fetch) ──────
+    print("\n[1/5] Membaca data USD/IDR dari automation staging...")
     usd_df = update_usd_idr()
 
     # ── Step 2: Load BPS manual updates ─────────────────────
@@ -631,17 +679,35 @@ def run_pipeline(verbose: bool = True):
     print(f"  ✓ master_dataset_clean.parquet ({len(df)} baris)")
 
     # Simpan predictions CSV
-    pred_cols = [
-        'month', 'wisman', 'tpk_bintang', 'inflasi_processed',
-        'usd_idr_avg', 'avg_sentiment_monthly', 'bali_share_pct',
-        'wisman_zscore', 'crisis_score_100', 'crisis_level',
-        'rf_predicted_level', 'rf_confidence', 'iso_anomaly',
-        'prob_krisis', 'prob_siaga', 'prob_waspada', 'prob_aman',
-        'crisis_component_tourism', 'crisis_component_economy', 'crisis_component_sentiment',
-    ]
-    pred_cols_avail = [c for c in pred_cols if c in df.columns]
+    # PREDICTION_OUTPUT_COLUMNS adalah single source of truth — dipakai sama
+    # persis untuk CSV maupun untuk data yang dikirim ke Supabase, supaya
+    # keduanya selalu identik.
+    missing_pred_cols = [c for c in PREDICTION_OUTPUT_COLUMNS if c not in df.columns]
+    if missing_pred_cols:
+        print(f"  ⚠  Kolom hilang dari df, tidak akan ada di predictions_final.csv: "
+              f"{missing_pred_cols}")
+
+    pred_cols_avail = [c for c in PREDICTION_OUTPUT_COLUMNS if c in df.columns]
     df[pred_cols_avail].to_csv(pred_path, index=False)
     print(f"  ✓ predictions_final.csv ({len(df)} baris)")
+
+    # ── Kirim predictions ke Supabase (Prediction Storage) ───
+    # CSV tetap ditulis seperti sebelumnya (kompatibilitas dashboard lama).
+    # Setelah CSV berhasil dibuat, data yang sama (pred_cols_avail — identik
+    # dengan yang ditulis ke CSV) di-upsert (batch) ke Supabase tabel
+    # public.predictions. Kegagalan di sini TIDAK menggagalkan pipeline —
+    # hanya dicetak sebagai warning.
+    if _PREDICTION_REPO_AVAILABLE:
+        repo = PredictionRepository()
+        result = repo.upsert_predictions(df[pred_cols_avail])
+        if result["ok"]:
+            print(f"  ✓ Supabase predictions upsert: {result['sent']} baris "
+                  f"({result['batches']} batch)")
+        else:
+            print(f"  ⚠  Supabase predictions upsert dilewati/gagal: {result['error']}")
+    else:
+        print("  ⚠  Modul prediction_repository tidak terimport — "
+              "upsert Supabase dilewati.")
 
     # ── Summary ──────────────────────────────────────────────
     latest = df.iloc[-1]

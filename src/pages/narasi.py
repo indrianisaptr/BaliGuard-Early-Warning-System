@@ -18,6 +18,7 @@ from src.services.llm_service import (
     clean_output,
 )
 from src.services.forecast import forecast_months
+from src.repositories.narrative_repository import NarrativeRepository
 
 from src.utils import (
     sf, _tick, kpi_html, alert_html, status_dot,
@@ -213,34 +214,20 @@ def render(ctx: dict) -> None:
     master           = ctx['master']
     # BARU
     narratives_cache = ctx['narratives_cache']
-    # Load cache — gunakan session_state agar tidak hilang saat rerun
-    _nc_path = 'data/final/narratives_cache.json'
+    # ── PERUBAHAN: load narasi dari Supabase (NarrativeRepository), ──
+    # bukan lagi dari data/final/narratives_cache.json.
+    # Bentuk in-memory TIDAK berubah: tetap dict keyed by
+    # '{month}_{report_type}_{model_short_key}_{format}' agar SELURUH
+    # kode UI di bawah (yang mengakses narratives_cache[_cache_key])
+    # tidak perlu diubah sama sekali.
+    # narratives_cache: hanya menyimpan hasil generate pada SESSION INI.
+    # Tidak lagi memuat seluruh tabel via get_all() — terlalu mahal saat
+    # tabel narratives berisi ribuan baris. Setiap cek cache dilakukan
+    # on-demand via NarrativeRepository.get_latest() atau .exists().
     if 'narratives_cache' not in st.session_state:
         st.session_state['narratives_cache'] = {}
-    try:
-        if os.path.exists(_nc_path):
-            with open(_nc_path, 'r', encoding='utf-8') as _f:
-                _from_file = json.load(_f)
-            # Migrasi cache lama (key tanpa report_type)
-            _FORMAT_KEYS = ('paragraf', 'poin')
-            for _k, _v in _from_file.items():
-                _key_final = _k
-                # Migrasi tahap 1: key lama tanpa report_type
-                if '_' not in _k[4:]:
-                    _rt = _v.get('report_type', 'alert')
-                    _key_final = f"{_k}_{_rt}"
-                # Migrasi tahap 2: key tanpa suffix format di akhir
-                if not _key_final.endswith(_FORMAT_KEYS):
-                    _fmt = _v.get('format', 'paragraf')
-                    _v['format'] = _fmt  # pastikan field format ikut tersimpan
-                    _key_final = f"{_key_final}_{_fmt}"
-                else:
-                    _v.setdefault('format', _key_final.rsplit('_', 1)[-1])
-                st.session_state['narratives_cache'][_key_final] = _v
-    except Exception:
-        pass
     narratives_cache = st.session_state['narratives_cache']
-    
+
     if 'narasi_shown_keys' not in st.session_state:
         st.session_state['narasi_shown_keys'] = set()
     
@@ -763,11 +750,26 @@ def render(ctx: dict) -> None:
     ) if _is_fc_month else ""
 
     # Cache status for narasi_target
+    # Pertama cek session state (hasil generate session ini), baru cek Supabase.
+    # Menghindari query ke Supabase kalau narasi baru saja di-generate di sesi ini.
     _model_short_key = selected_model.replace('/', '_').replace('-', '_')
     _cache_key    = f"{narasi_target}_{report_type}_{_model_short_key}_{format_style}"
-    _has_cache    = _cache_key in narratives_cache
-    _cache_level  = narratives_cache[_cache_key].get('crisis_level','') if _has_cache else ''
-    _cache_tokens = narratives_cache[_cache_key].get('tokens', 0)        if _has_cache else 0
+    _session_hit  = narratives_cache.get(_cache_key)
+
+    if _session_hit:
+        _has_cache    = True
+        _cache_level  = _session_hit.get('crisis_level', '')
+        _cache_tokens = _session_hit.get('tokens', 0)
+    else:
+        # Cek ke Supabase: hanya 1 baris (exists), tidak memuat seluruh tabel.
+        try:
+            _repo_check = NarrativeRepository()
+            _exist_res  = _repo_check.exists(narasi_target, report_type, selected_model, format_style)
+            _has_cache  = bool(_exist_res.status and _exist_res.data)
+        except Exception:
+            _has_cache  = False
+        _cache_level  = ''
+        _cache_tokens = 0
 
     with _c_status:
         _status_clr = COLOR_MAP.get(_narasi_level, '#fff')
@@ -856,35 +858,112 @@ def render(ctx: dict) -> None:
     # ── Output area ──────────────────────────────────────
     _already_shown = _cache_key in st.session_state['narasi_shown_keys']
     if _has_cache and not gen_btn and _already_shown:
-        cached_n = narratives_cache[_cache_key]
-        _clv  = cached_n.get('crisis_level', '')
-        _clr  = COLOR_MAP.get(_clv, '#94a3b8')
-        st.markdown(
-            "<div style='display:flex;align-items:center;gap:10px;margin-bottom:12px'>"
-            "<div style='font-size:16px;font-weight:700;color:#FFFFFF;text-transform:uppercase;"
-            "letter-spacing:.1em'>NARASI TERSIMPAN</div>"
-            "<span style='background:" + _clr + "22;color:" + _clr + ";font-size:10px;font-weight:700;"
-            "padding:3px 10px;border-radius:20px;border:1px solid " + _clr + "44'>"
-            + EMOJI_MAP.get(_clv,'') + " " + _clv + "</span>"
-            "<span style='font-family:monospace;font-size:14px;color:#475569'>"
-            + cached_n.get('month','') + "</span>"
-            "<span style='font-size:10px;color:#334155'>·</span>"
-            "<span style='font-family:monospace;font-size:14px;color:#334155'>"
-            + str(cached_n.get('tokens',0)) + " tokens</span></div>"
-            "<div style='background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);"
-            "border-radius:14px;padding:26px 30px;line-height:1.95;font-size:14px;"
-            "color:#cbd5e1;border-top:3px solid " + _clr + "'>"
-            + "<div style='font-size:15px;line-height:1.75'>" + _format_narasi_html(cached_n["narrative"]) + "</div></div>",
-            unsafe_allow_html=True
-        )
-        _render_narasi_actions(
-            cached_n["narrative"],
-            cached_n.get('month', narasi_target),
-            cached_n.get('report_type', report_type),
-        )
+        cached_n = narratives_cache.get(_cache_key)
+        if cached_n is None:
+            # Data ada di Supabase tapi belum di session — ambil on-demand
+            try:
+                _repo_rd = NarrativeRepository()
+                _rd_res  = _repo_rd.get_latest(narasi_target, report_type, selected_model, format_style)
+                if _rd_res.status and _rd_res.data:
+                    _row = _rd_res.data
+                    cached_n = {
+                        'success': _row.get('success', True),
+                        'narrative': _row.get('narrative_text', ''),
+                        'tokens': _row.get('tokens_used', 0),
+                        'month': _row['month'],
+                        'crisis_level': _row.get('crisis_level_snapshot', ''),
+                        'report_type': _row['report_type'],
+                        'crisis_score': _row.get('crisis_score', 0),
+                        'format': _row.get('format_style', format_style),
+                    }
+                    st.session_state['narratives_cache'][_cache_key] = cached_n
+                    narratives_cache[_cache_key] = cached_n
+            except Exception:
+                cached_n = None
+        if cached_n:
+            _clv  = cached_n.get('crisis_level', '')
+            _clr  = COLOR_MAP.get(_clv, '#94a3b8')
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:10px;margin-bottom:12px'>"
+                "<div style='font-size:16px;font-weight:700;color:#FFFFFF;text-transform:uppercase;"
+                "letter-spacing:.1em'>NARASI TERSIMPAN</div>"
+                "<span style='background:" + _clr + "22;color:" + _clr + ";font-size:10px;font-weight:700;"
+                "padding:3px 10px;border-radius:20px;border:1px solid " + _clr + "44'>"
+                + EMOJI_MAP.get(_clv,'') + " " + _clv + "</span>"
+                "<span style='font-family:monospace;font-size:14px;color:#475569'>"
+                + cached_n.get('month','') + "</span>"
+                "<span style='font-size:10px;color:#334155'>·</span>"
+                "<span style='font-family:monospace;font-size:14px;color:#334155'>"
+                + str(cached_n.get('tokens',0)) + " tokens</span></div>"
+                "<div style='background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);"
+                "border-radius:14px;padding:26px 30px;line-height:1.95;font-size:14px;"
+                "color:#cbd5e1;border-top:3px solid " + _clr + "'>"
+                + "<div style='font-size:15px;line-height:1.75'>" + _format_narasi_html(cached_n["narrative"]) + "</div></div>",
+                unsafe_allow_html=True
+            )
+            _render_narasi_actions(
+                cached_n["narrative"],
+                cached_n.get('month', narasi_target),
+                cached_n.get('report_type', report_type),
+            )
+
+    # ── Cache hit saat tombol Generate ditekan ─────────────────────────────
+    # Tidak lagi memakai narratives_cache dict yang dimuat dari seluruh tabel.
+    # Cek session state dulu; kalau tidak ada, baru hit Supabase dengan
+    # get_latest() — hanya 1 baris, bukan SELECT *.
+    if gen_btn and groq_key and _has_cache:
+        cached_n = narratives_cache.get(_cache_key)
+        if cached_n is None:
+            try:
+                _repo_rd = NarrativeRepository()
+                _rd_res  = _repo_rd.get_latest(narasi_target, report_type, selected_model, format_style)
+                if _rd_res.status and _rd_res.data:
+                    _row = _rd_res.data
+                    cached_n = {
+                        'success': _row.get('success', True),
+                        'narrative': _row.get('narrative_text', ''),
+                        'tokens': _row.get('tokens_used', 0),
+                        'month': _row['month'],
+                        'crisis_level': _row.get('crisis_level_snapshot', ''),
+                        'report_type': _row['report_type'],
+                        'crisis_score': _row.get('crisis_score', 0),
+                        'format': _row.get('format_style', format_style),
+                    }
+                    st.session_state['narratives_cache'][_cache_key] = cached_n
+                    narratives_cache[_cache_key] = cached_n
+            except Exception as _e:
+                st.warning("⚠️ Gagal membaca narasi dari Supabase: " + str(_e))
+                cached_n = None
+        if cached_n:
+            _clv  = cached_n.get('crisis_level', '')
+            _clr  = COLOR_MAP.get(_clv, '#94a3b8')
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:10px;margin-bottom:12px'>"
+                "<div style='font-size:16px;font-weight:700;color:#FFFFFF;text-transform:uppercase;"
+                "letter-spacing:.1em'>NARASI TERSIMPAN</div>"
+                "<span style='background:" + _clr + "22;color:" + _clr + ";font-size:10px;font-weight:700;"
+                "padding:3px 10px;border-radius:20px;border:1px solid " + _clr + "44'>"
+                + EMOJI_MAP.get(_clv,'') + " " + _clv + "</span>"
+                "<span style='font-family:monospace;font-size:14px;color:#475569'>"
+                + cached_n.get('month','') + "</span>"
+                "<span style='font-size:10px;color:#334155'>·</span>"
+                "<span style='font-family:monospace;font-size:14px;color:#334155'>"
+                + str(cached_n.get('tokens',0)) + " tokens</span></div>"
+                "<div style='background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);"
+                "border-radius:14px;padding:26px 30px;line-height:1.95;font-size:14px;"
+                "color:#cbd5e1;border-top:3px solid " + _clr + "'>"
+                + "<div style='font-size:15px;line-height:1.75'>" + _format_narasi_html(cached_n["narrative"]) + "</div></div>",
+                unsafe_allow_html=True
+            )
+            _render_narasi_actions(
+                cached_n["narrative"],
+                cached_n.get('month', narasi_target),
+                cached_n.get('report_type', report_type),
+            )
+            st.session_state['narasi_shown_keys'].add(_cache_key)
 
     # ── PERUBAHAN 5: Generate utama — gunakan llm_service ──
-    if gen_btn and groq_key:
+    elif gen_btn and groq_key:
         with st.spinner(f"🤖 {selected_model} sedang menganalisis data {narasi_target}..."):
             try:
                 from groq import Groq as _Groq
@@ -984,9 +1063,31 @@ def render(ctx: dict) -> None:
                 narratives_cache[_cache_key] = result
                 st.session_state['narratives_cache'][_cache_key] = result
                 st.session_state['narasi_shown_keys'].add(_cache_key)
-                os.makedirs('data/final', exist_ok=True)
-                with open('data/final/narratives_cache.json', 'w', encoding='utf-8') as f:
-                    json.dump(narratives_cache, f, ensure_ascii=False, indent=2)
+                # ── PERUBAHAN: simpan ke Supabase via NarrativeRepository, ──
+                # bukan lagi tulis ke data/final/narratives_cache.json.
+                # Tidak lagi menulis ulang seluruh dataset — hanya insert
+                # satu baris baru (selaras append-only di Data Contract).
+                try:
+                    _repo = NarrativeRepository()
+                    _save_result = _repo.insert(
+                        month=narasi_target,
+                        report_type=report_type,
+                        data={
+                            'narrative_text': _narr_text,
+                            'crisis_level_snapshot': _narasi_level,
+                            'tokens_used': _tokens,
+                            'model_used': selected_model,
+                            'format_style': format_style,
+                            'success': True,
+                            'error_message': None,
+                            'generated_by': 'user',
+                        },
+                    )
+                    if not _save_result.status:
+                        st.warning("⚠️ Narasi tampil tapi GAGAL tersimpan ke Supabase: "
+                                   + str(_save_result.error))
+                except Exception as e:
+                    st.warning("⚠️ Narasi tampil tapi GAGAL tersimpan ke Supabase: " + str(e))
 
             except Exception as e:
                 st.error("❌ Error: " + str(e))
@@ -1101,8 +1202,35 @@ def render(ctx: dict) -> None:
         if _cmp_btn:
             _cmp_key_a = f"{_cmp_month_a}_{report_type}_{_model_short_key}_{_cmp_format}"
             _cmp_key_b = f"{_cmp_month_b}_{report_type}_{_model_short_key}_{_cmp_format}"
-            _cache_a   = narratives_cache.get(_cmp_key_a)
-            _cache_b   = narratives_cache.get(_cmp_key_b)
+
+            def _fetch_cmp_narasi(month: str, cache_key: str) -> dict | None:
+                """Ambil narasi untuk komparasi: session state dulu, lalu Supabase."""
+                hit = narratives_cache.get(cache_key)
+                if hit:
+                    return hit
+                try:
+                    _r = NarrativeRepository().get_latest(month, report_type, selected_model, _cmp_format)
+                    if _r.status and _r.data:
+                        _row = _r.data
+                        _d = {
+                            'success': _row.get('success', True),
+                            'narrative': _row.get('narrative_text', ''),
+                            'tokens': _row.get('tokens_used', 0),
+                            'month': _row['month'],
+                            'crisis_level': _row.get('crisis_level_snapshot', ''),
+                            'report_type': _row['report_type'],
+                            'crisis_score': _row.get('crisis_score', 0),
+                            'format': _row.get('format_style', _cmp_format),
+                        }
+                        st.session_state['narratives_cache'][cache_key] = _d
+                        narratives_cache[cache_key] = _d
+                        return _d
+                except Exception:
+                    pass
+                return None
+
+            _cache_a = _fetch_cmp_narasi(_cmp_month_a, _cmp_key_a)
+            _cache_b = _fetch_cmp_narasi(_cmp_month_b, _cmp_key_b)
 
             _missing = []
             if not _cache_a:

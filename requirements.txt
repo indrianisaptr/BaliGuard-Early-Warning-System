@@ -1,0 +1,4 @@
+# BaliGuard Automation Layer — dependency MINIMAL untuk fetch_usd.py
+# (tidak termasuk dependency pipeline ML / dashboard, di luar scope automation)
+requests>=2.31.0
+PyYAML>=6.0.1

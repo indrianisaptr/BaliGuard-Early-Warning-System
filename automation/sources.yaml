@@ -1,0 +1,20 @@
+# automation/config/sources.yaml — BaliGuard Automation: Source Contracts
+#
+# Kontrak schema antara automation dan pipeline ML.
+# Hari ini HANYA usd_idr yang diimplementasikan — entri source lain
+# (google_trends, gdelt, usgs_earthquake, open_meteo, bps) SENGAJA
+# belum ditambahkan, sesuai scope: USD/IDR saja.
+
+usd_idr:
+  mode: full                # full-automation, tidak butuh kurasi manusia
+  frequency: daily          # dijadwalkan harian (eksekusi job, bukan bagian scope hari ini)
+  key: month                # primary key logis di staging: 'YYYY-MM'
+  schema:
+    month: "string (YYYY-MM)"
+    usd_idr_avg: "float"
+    usd_idr_source: "string"     # 'exchangerate-api' | 'frankfurter' | 'cache'
+    fetched_at: "timestamp (ISO8601)"
+  validation:
+    usd_idr_avg_min: 5000        # sesuai sanity range Data Contract BaliGuard
+    usd_idr_avg_max: 30000
+    month_format: "YYYY-MM"
