@@ -330,6 +330,110 @@ def merge_bps_updates(master: pd.DataFrame, updates: dict) -> pd.DataFrame:
 
 
 # ════════════════════════════════════════════════════════════
+# 2b. LOAD & MERGE EXTERNAL FEATURES (sama persis dengan notebook 05
+#     Cell[4] — combined_additional_features_engineered_new.csv)
+# ════════════════════════════════════════════════════════════
+# AUDIT FINDING: update_pipeline.py sebelumnya TIDAK PERNAH membaca file
+# ini, sehingga 2 fitur training (gdelt_crisis_score_zscore,
+# disaster_risk_score_zscore) tidak pernah tersedia saat inference.
+# Fungsi-fungsi di bawah mereplikasi NB05 Cell[4] baris-per-baris.
+EXTERNAL_FEATURES_PATH = DATA_PRO / 'combined_additional_features_engineered_new.csv'
+
+
+def load_external_features() -> pd.DataFrame:
+    """
+    Baca & pra-proses combined_additional_features_engineered_new.csv.
+    IDENTIK dengan NB05 Cell[4]:
+      - date → month (period YYYY-MM)
+      - drop kolom 'date'
+      - groupby('month').mean(numeric_only=True) — hilangkan duplikasi month
+    Return df_ext kosong (hanya kolom 'month') kalau file tidak ditemukan,
+    supaya pipeline tetap jalan (fallback graceful, bukan crash) — TIDAK
+    ada di notebook (notebook asumsi file selalu ada), ditambahkan khusus
+    di sini karena update_pipeline.py harus tahan terhadap file hilang
+    di server produksi.
+    """
+    if not EXTERNAL_FEATURES_PATH.exists():
+        print(f"  ⚠  {EXTERNAL_FEATURES_PATH.name} tidak ditemukan di "
+              f"{EXTERNAL_FEATURES_PATH.parent} — fitur eksternal CSV dilewati "
+              f"(gdelt_crisis_score_zscore & disaster_risk_score_zscore TIDAK akan tersedia).")
+        return pd.DataFrame(columns=['month'])
+
+    df_ext = pd.read_csv(EXTERNAL_FEATURES_PATH)
+    df_ext['month'] = pd.to_datetime(df_ext['date']).dt.to_period('M').astype(str)
+    df_ext = df_ext.drop(columns=['date'])
+    df_ext = df_ext.groupby('month').mean(numeric_only=True).reset_index()
+    print(f"  ✓ External features CSV: {len(df_ext)} bulan "
+          f"({df_ext['month'].min()} → {df_ext['month'].max()})")
+    return df_ext
+
+
+def merge_external_features(df: pd.DataFrame, df_ext: pd.DataFrame) -> pd.DataFrame:
+    """
+    Merge left df_ext ke df utama — IDENTIK dengan NB05 Cell[4]:
+      - df (master) sebagai anchor: df.merge(df_ext, on='month', how='left')
+        → jumlah baris df TIDAK BOLEH berubah
+      - fillna(0) untuk seluruh kolom yang berasal dari df_ext
+
+    CATATAN PERILAKU MERGE (sama seperti notebook, TIDAK diubah):
+    df sudah punya beberapa kolom dengan nama sama seperti df_ext
+    (gdelt_crisis_score, economic_risk_score, disaster_risk_score,
+    external_risk_avg, external_risk_max, external_risk_range — sudah ada
+    dari master_dataset_clean.parquet/NB04). Karena merge() di notebook
+    TIDAK diberi parameter suffixes, pandas otomatis me-rename kolom yang
+    bentrok menjadi <kolom>_x (versi df/master) dan <kolom>_y (versi
+    df_ext/CSV) — inilah sebabnya di notebook hanya 2 dari 8 kandidat
+    FEATURES_EXTERNAL yang lolos filter `f in df.columns`
+    (gdelt_crisis_score_zscore, disaster_risk_score_zscore — nama unik,
+    tidak bentrok). Direplikasi apa adanya di sini.
+
+    Supaya kolom master yang SUDAH ADA sebelumnya (dipakai
+    PREDICTION_OUTPUT_COLUMNS untuk predictions_final.csv & Supabase)
+    tidak hilang gara-gara suffix _x/_y ini, versi "_x" (nilai asli
+    master — sumber kebenaran yang sudah dipakai output selama ini)
+    dikembalikan ke nama semula, dan versi "_y" (duplikat mentah dari
+    CSV, tidak dipakai FEATURES maupun output) dibuang. Langkah reconcile
+    ini TIDAK mengubah nilai fitur model sama sekali — 19 fitur training
+    tidak termasuk kolom-kolom yang bentrok ini (lihat FEATURES di bawah).
+    """
+    if df_ext.empty or list(df_ext.columns) == ['month']:
+        return df
+
+    df = df.copy()
+    df['month'] = df['month'].astype(str)
+
+    n_before = len(df)
+    df = df.merge(df_ext, on='month', how='left')
+    assert len(df) == n_before, (
+        "Merge left mengubah jumlah baris master — seharusnya tidak mungkin "
+        "(cek duplikasi 'month' di df_ext)"
+    )
+
+    # Kolom CSV eksternal yang benar-benar ada di df hasil merge (kolom
+    # yang bentrok nama tidak match di sini karena sudah jadi _x/_y —
+    # identik dengan notebook Cell[4]).
+    ext_cols = [c for c in df_ext.columns if c != 'month' and c in df.columns]
+    if ext_cols:
+        n_na = df[ext_cols].isna().sum().sum()
+        df[ext_cols] = df[ext_cols].fillna(0)
+        print(f"  ✓ External features merged: {ext_cols}")
+        print(f"  ✓ fillna(0) pada external features: {int(n_na)} NaN diisi 0")
+
+    # Reconcile kolom bentrok — pertahankan versi master (_x) dengan nama
+    # semula, buang versi CSV (_y). Tidak memengaruhi fitur model.
+    overlap_cols = [c for c in df_ext.columns
+                    if c != 'month' and f'{c}_x' in df.columns and f'{c}_y' in df.columns]
+    for c in overlap_cols:
+        df[c] = df[f'{c}_x']
+        df.drop(columns=[f'{c}_x', f'{c}_y'], inplace=True)
+    if overlap_cols:
+        print(f"  ℹ  Kolom bentrok dgn master (nilai master dipertahankan, "
+              f"versi CSV dibuang, TIDAK dipakai sbg fitur model): {overlap_cols}")
+
+    return df
+
+
+# ════════════════════════════════════════════════════════════
 # 3. FEATURE ENGINEERING (sama persis dengan notebook 04)
 # ════════════════════════════════════════════════════════════
 
@@ -511,8 +615,17 @@ def compute_crisis_score(df: pd.DataFrame) -> pd.DataFrame:
 # 5. RUN MODEL PREDICTIONS
 # ════════════════════════════════════════════════════════════
 
-# Fitur base (13) — urutan wajib sama dengan saat training
-FEATURES_BASE = [
+# ── Fitur training — IDENTIK dengan NB05 Cell[12]/Cell[16] ──────────────
+# AUDIT FINDING (sudah diperbaiki): FEATURES_BASE/FEATURES_EXTENDED versi
+# lama adalah TEBAKAN ("fitur yang umum dipakai"), BUKAN hasil replikasi
+# notebook — jumlah (13/20) dan isinya tidak cocok dengan training
+# (19 fitur, urutan berbeda, 2 fitur terakhir gdelt_crisis_score_zscore &
+# disaster_risk_score_zscore malah tidak ada sama sekali). Daftar di
+# bawah menggantikan keduanya dan disusun PERSIS seperti notebook:
+#   FEATURES_CORE (13) + FEATURES_LAG (4) + FEATURES_EXTERNAL (2)
+# lihat NB05 Cell[12] untuk definisi asli.
+
+FEATURES_CORE = [
     'wisman_growth_mom', 'wisman_growth_yoy', 'wisman_zscore',
     'usd_idr_avg', 'usd_volatility_3m', 'usd_change_mom',
     'tpk_bintang', 'tpk_change_mom',
@@ -521,17 +634,59 @@ FEATURES_BASE = [
     'month_num', 'is_peak_season',
 ]
 
-# Fitur extended (tambahan yang umum dipakai saat training dengan 17 fitur)
-# Disisipkan sesuai urutan yang lazim di notebook sklearn pipeline
-FEATURES_EXTENDED = FEATURES_BASE + [
+FEATURES_LAG = [
     'wisman_ma3',
     'wisman_trend_3m',
     'bali_share_change',
     'sentiment_trend_3m',
-    'usd_trend_3m',
-    'tpk_lag_1',
-    'tpk_ma3',
 ]
+
+# Kandidat fitur eksternal — sama seperti NB05 Cell[12] FEATURES_EXTERNAL.
+# Di notebook, 6 dari 8 kandidat ini bentrok nama dengan kolom yang sudah
+# ada di master_dataset_clean.parquet, sehingga ke-6-nya berubah nama jadi
+# <kolom>_x/_y saat merge (lihat merge_external_features() di atas) dan
+# GAGAL lolos filter `f in df.columns` — hanya 2 nama unik yang lolos:
+# gdelt_crisis_score_zscore & disaster_risk_score_zscore. Filter di bawah
+# mereplikasi hasil yang SAMA (bukan hardcode individual), supaya kalau
+# suatu saat reconcile kolom di merge_external_features() diubah, daftar
+# fitur ini tetap otomatis konsisten dengan apa yang benar-benar tersedia.
+FEATURES_EXTERNAL_CANDIDATES = [
+    'gdelt_crisis_score',
+    'economic_risk_score',
+    'disaster_risk_score',
+    'external_risk_avg',
+    'external_risk_max',
+    'external_risk_range',
+    'gdelt_crisis_score_zscore',
+    'disaster_risk_score_zscore',
+]
+
+# Kolom yang SENGAJA di-reconcile balik ke nama master di
+# merge_external_features() (lihat overlap_cols di sana) — bukan fitur
+# CSV eksternal yang unik, jadi TIDAK boleh ikut FEATURES walau namanya
+# match df.columns setelah reconcile. Harus expliсit karena reconcile
+# mengembalikan nama-nama ini ke df.columns (lihat catatan di atas).
+_EXTERNAL_RECONCILED_ALIASES = [
+    'gdelt_crisis_score', 'economic_risk_score', 'disaster_risk_score',
+    'external_risk_avg', 'external_risk_max', 'external_risk_range',
+]
+
+
+def build_features_list(df_columns) -> list:
+    """
+    Bangun daftar FEATURES final dari kolom df yang tersedia — replikasi
+    NB05 Cell[12]: FEATURES_CORE + FEATURES_LAG + FEATURES_EXTERNAL,
+    difilter hanya yang benar-benar ada di df, urutan dipertahankan.
+    Hasilnya HARUS 19 fitur & 2 terakhir HARUS gdelt_crisis_score_zscore,
+    disaster_risk_score_zscore (sesuai fakta audit) selama
+    merge_external_features() sudah dipanggil sebelumnya di df.
+    """
+    cols = set(df_columns)
+    features_external = [
+        f for f in FEATURES_EXTERNAL_CANDIDATES
+        if f in cols and f not in _EXTERNAL_RECONCILED_ALIASES
+    ]
+    return [f for f in FEATURES_CORE + FEATURES_LAG + features_external if f in cols]
 
 
 def _build_feature_matrix(df_model: pd.DataFrame,
@@ -601,20 +756,14 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
           f"(scaler={scaler.n_features_in_}, iso={iso.n_features_in_}, "
           f"rf={rf_model.n_features_in_})")
 
-    # Pilih feature list yang sesuai dengan expected_n
-    if expected_n <= len(FEATURES_BASE):
-        feat_list = FEATURES_BASE
-    else:
-        feat_list = FEATURES_EXTENDED
+    # Bangun daftar fitur final (urutan persis notebook), difilter ke
+    # kolom yang benar-benar tersedia di df. _build_feature_matrix()
+    # sendiri yang menangani kasus model lama dengan expected_n lebih
+    # kecil (ambil N kolom pertama sesuai urutan) — jadi tidak perlu
+    # branching base/extended manual di sini.
+    feat_list = build_features_list(df.columns)
 
-    # Baris yang punya semua fitur wajib (min base)
-    base_cols = [f for f in FEATURES_BASE if f in df.columns]
-    df_model  = df[base_cols + ['month', 'crisis_level']].dropna(subset=base_cols).copy()
-
-    # Gabungkan kolom extended yang mungkin ada di df asli
-    for extra_col in FEATURES_EXTENDED:
-        if extra_col not in df_model.columns and extra_col in df.columns:
-            df_model = df_model.join(df.set_index('month')[[extra_col]], on='month', how='left')
+    df_model = df[feat_list + ["month", "crisis_level"]].copy()
 
     X, cols_used = _build_feature_matrix(df_model, feat_list, expected_n)
 
@@ -812,10 +961,12 @@ def run_pipeline(verbose: bool = True):
         df = compute_crisis_score(df)
         score_summary = df.groupby('crisis_level').size()
         print(f"  Distribusi level: {score_summary.to_dict()}")
-        print(f"  Periode: {df['month'].min()} → {df['month'].max()}")
-
-        # ── Step 5: Run model predictions ────────────────────
-        print("\n[5/5] Menjalankan model predictions...")
+        print(f" Periode: {df['month'].min()} → {df['month'].max()}") 
+        df_ext = load_external_features() 
+        df = merge_external_features(df, df_ext) 
+        
+        # ── Step 5: Run model predictions ──────────────────── 
+        print("\n[5/5] Menjalankan model predictions...") 
         df = run_model_predictions(df)
 
         # ── Step 5b: Missing value handling ──────────────────
