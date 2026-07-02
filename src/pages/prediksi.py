@@ -21,6 +21,7 @@ from src.utils import (
     sf, _tick, kpi_html, alert_html, status_dot,
     LEVEL_COLORS, LABEL_ORDER,
     FEATURES_CORE, FEATURES_LAG,
+    LABEL_MANUSIAWI, DESKRIPSI_INDIKATOR,
 )
 
 
@@ -326,7 +327,7 @@ def render(ctx: dict) -> None:
     st.markdown("""
     <div style='text-align:center;margin-bottom:20px;margin-top:-16px'>
         <div class='engine-pill'>
-            <span class='engine-label'>Prediction Engine</span>
+            <span class='engine-label'>Mesin Prediksi</span>
             <span class='engine-desc'>Random Forest + Isolation Forest + Trend Ekstrapolasi &nbsp;·&nbsp; pola historis 2009–2024</span>
         </div>
     </div>
@@ -429,7 +430,7 @@ def render(ctx: dict) -> None:
                     "</div>"
                     "<div class='fc-conf-label'>"
                     "<span class='fc-conf-pct' style='color:{pc}'>{cf:.0f}%</span>"
-                    "<span class='fc-conf-txt'>confidence</span>"
+                    "<span class='fc-conf-txt'>keyakinan</span>"
                     "</div>"
                     "</div>"
                 ).format(tier=_tier_cls, clr=_clr, mo=_fc['month'],
@@ -440,7 +441,7 @@ def render(ctx: dict) -> None:
         st.markdown(_full_grid_html, unsafe_allow_html=True)
 
         st.markdown(
-            "<div class='fc-note'>⚠️ Proyeksi berdasarkan tren historis. Confidence menurun seiring jarak proyeksi.</div>",
+            "<div class='fc-note'>⚠️ Proyeksi berdasarkan tren historis. Tingkat keyakinan menurun seiring jarak proyeksi.</div>",
             unsafe_allow_html=True)
 
         # Track chart tab state here (rendered full-width later)
@@ -465,11 +466,14 @@ def render(ctx: dict) -> None:
             unsafe_allow_html=True)
 
         # ── Sliders with value pills rendered via HTML label ──
-        w_d = st.slider("Wisman (%)", -80, 50, 0, 5, key="sim_w")
+        w_d = st.slider("Wisman (%)", -80, 50, 0, 5, key="sim_w",
+                         help=DESKRIPSI_INDIKATOR.get('wisman'))
         st.markdown("<div class='slider-range-row'><span>-80%</span><span>+50%</span></div>", unsafe_allow_html=True)
-        u_d = st.slider("USD/IDR (%)", -10, 30, 0, 1, key="sim_u")
+        u_d = st.slider("USD/IDR (%)", -10, 30, 0, 1, key="sim_u",
+                         help=DESKRIPSI_INDIKATOR.get('usd_idr_avg'))
         st.markdown("<div class='slider-range-row'><span>-10%</span><span>+30%</span></div>", unsafe_allow_html=True)
-        s_d = st.slider("Sentimen", -1.0, 1.0, 0.0, 0.1, key="sim_s")
+        s_d = st.slider("Sentimen", -1.0, 1.0, 0.0, 0.1, key="sim_s",
+                         help=DESKRIPSI_INDIKATOR.get('avg_sentiment_monthly'))
         st.markdown("<div class='slider-range-row'><span>-1.0</span><span>+1.0</span></div>", unsafe_allow_html=True)
 
         sim_sc = simulate_score(dict(row_data), w_d, u_d, s_d)
@@ -519,13 +523,13 @@ def render(ctx: dict) -> None:
             f"<div class='bd-panel' style='margin-top:12px; background:rgba(255,255,255,0.015); border:1px solid rgba(255,255,255,0.05);'>"
             f"<div class='bd-panel-title' style='margin-bottom:10px; font-size:18px; letter-spacing:.1em;'>"
             f"<span style='display:inline-block;width:6px;height:6px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #e2e8f0;margin-right:4px;color:#e2e8f0;'></span>"
-            f"EXTERNAL RISK SCORE"
+            f"{LABEL_MANUSIAWI.get('external_risk_score', 'External Risk Score')}"
             f"</div>"
             f"<div style='display:grid; grid-template-columns:1fr 1fr; gap:8px;'>"
             
             # Card 1: Physical Risk
             f"<div style='background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:12px; text-align:left;'>"
-            f"<div style='font-size:11px; color:#e2e8f0; text-transform:uppercase; letter-spacing:.06em; font-weight:700;'>Physical Risk</div>"
+            f"<div style='font-size:11px; color:#e2e8f0; text-transform:uppercase; letter-spacing:.06em; font-weight:700;'>{LABEL_MANUSIAWI.get('physical_risk', 'Physical Risk')}</div>"
             f"<div style='margin-top:4px; display:flex; align-items:baseline; gap:6px;'>"
             f"<span style='font-family:\"JetBrains Mono\",monospace; font-size:22px; font-weight:800; color:#e8e4c9;'>{pr_pct}</span>"
             f"<span style='font-size:12px; color:#64748b; font-weight:600;'>/ 100</span>"
@@ -540,7 +544,7 @@ def render(ctx: dict) -> None:
 
             # Card 2: Media Risk
             f"<div style='background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:12px; text-align:left;'>"
-            f"<div style='font-size:11px; color:#e2e8f0; text-transform:uppercase; letter-spacing:.06em; font-weight:700;'>Media Risk</div>"
+            f"<div style='font-size:11px; color:#e2e8f0; text-transform:uppercase; letter-spacing:.06em; font-weight:700;'>{LABEL_MANUSIAWI.get('media_risk', 'Media Risk')}</div>"
             f"<div style='margin-top:4px; display:flex; align-items:baseline; gap:6px;'>"
             f"<span style='font-family:\"JetBrains Mono\",monospace; font-size:22px; font-weight:800; color:#e8e4c9;'>{mr_pct}</span>"
             f"<span style='font-size:12px; color:#64748b; font-weight:600;'>/ 100</span>"
@@ -555,7 +559,7 @@ def render(ctx: dict) -> None:
 
             # Card 3: Tourist Perception
             f"<div style='background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:12px; text-align:left;'>"
-            f"<div style='font-size:11px; color:#e2e8f0; text-transform:uppercase; letter-spacing:.06em; font-weight:700;'>Tourist Perception</div>"
+            f"<div style='font-size:11px; color:#e2e8f0; text-transform:uppercase; letter-spacing:.06em; font-weight:700;'>{LABEL_MANUSIAWI.get('tourist_perception', 'Tourist Perception')}</div>"
             f"<div style='margin-top:4px; display:flex; align-items:baseline; gap:6px;'>"
             f"<span style='font-family:\"JetBrains Mono\",monospace; font-size:22px; font-weight:800; color:#e8e4c9;'>{tp_pct}</span>"
             f"<span style='font-size:12px; color:#64748b; font-weight:600;'>/ 100</span>"
@@ -570,7 +574,7 @@ def render(ctx: dict) -> None:
 
             # Card 4: Composite External Risk Index
             f"<div style='background:rgba(59,130,246,0.03); border:1px solid rgba(59,130,246,0.15); border-radius:10px; padding:12px; text-align:left;'>"
-            f"<div style='font-size:11px; color:#3b82f6; text-transform:uppercase; letter-spacing:.06em; font-weight:800;'>External Risk Index</div>"
+            f"<div style='font-size:11px; color:#3b82f6; text-transform:uppercase; letter-spacing:.06em; font-weight:800;'>{LABEL_MANUSIAWI.get('external_risk_score', 'External Risk Index')}</div>"
             f"<div style='margin-top:4px; display:flex; align-items:baseline; gap:6px;'>"
             f"<span style='font-family:\"JetBrains Mono\",monospace; font-size:22px; font-weight:800; color:#3b82f6;'>{er_pct}</span>"
             f"<span style='font-size:12px; color:#3b82f6; font-weight:600; opacity:0.7;'>/ 100</span>"
@@ -659,7 +663,7 @@ def render(ctx: dict) -> None:
             st.session_state['pred_chart_tab'] = 'trend'
             st.rerun()
     with _chart_c2:
-        if st.button("Recovery Rate vs Baseline", key="pct_rec",
+        if st.button("Tingkat Pemulihan vs Baseline", key="pct_rec",
                      type="primary" if st.session_state['pred_chart_tab']=='recovery' else "secondary",
                      use_container_width=True):
             st.session_state['pred_chart_tab'] = 'recovery'
@@ -674,7 +678,7 @@ def render(ctx: dict) -> None:
     components.html("""
     <script>
     (function() {
-        const labels = ["Tren + Proyeksi", "Recovery Rate vs Baseline", "Peta Risiko Historis"];
+        const labels = ["Tren + Proyeksi", "Tingkat Pemulihan vs Baseline", "Peta Risiko Historis"];
         function boldTabBtns() {
             window.parent.document.querySelectorAll('.stButton button').forEach(btn => {
                 const txt = (btn.querySelector('p')?.innerText || btn.innerText || '').trim();
@@ -729,7 +733,7 @@ def render(ctx: dict) -> None:
                              annotation_text=lbl, annotation_position='right',
                              annotation_font_size=9, annotation_font_color=col)
         fig_fc.update_layout(
-            yaxis=dict(range=[0,100], title='Crisis Score',
+            yaxis=dict(range=[0,100], title=LABEL_MANUSIAWI.get('crisis_score_100', 'Skor Krisis'),
                        gridcolor='rgba(255,255,255,0.04)', color='#475569', tickfont=dict(size=10)),
             xaxis=dict(gridcolor='rgba(255,255,255,0.04)', color='#475569', tickfont=dict(size=10)),
             plot_bgcolor='rgba(8,16,32,0.5)', paper_bgcolor='rgba(0,0,0,0)',
@@ -742,7 +746,7 @@ def render(ctx: dict) -> None:
     elif _active_chart == 'recovery':
         st.markdown(
             "<div class='pred-section-hdr' style='margin-top:0'>"
-            "<div class='pred-section-hdr-text' style='color:#1e3a5f'>📉 RECOVERY RATE VS BASELINE 2017–2019</div>"
+            "<div class='pred-section-hdr-text' style='color:#1e3a5f'>📉 TINGKAT PEMULIHAN VS BASELINE 2017–2019</div>"
             "<div class='pred-section-hdr-line'></div>"
             "</div>", unsafe_allow_html=True)
         _precovid_mean = ctx.get('precovid_mean', 0.0)
@@ -762,7 +766,7 @@ def render(ctx: dict) -> None:
                 annotation_text='COVID', annotation_font_color='#ef4444')
             fig_rec.add_vline(x=sel_dt, line_dash='dot', line_color='#7dd3fc', line_width=1.2)
             fig_rec.update_layout(
-                yaxis=dict(title='Recovery (%)', gridcolor='rgba(255,255,255,0.04)', color='#475569'),
+                yaxis=dict(title=LABEL_MANUSIAWI.get('wisman_recovery_pct', 'Tingkat Pemulihan (%)'), gridcolor='rgba(255,255,255,0.04)', color='#475569'),
                 xaxis=dict(gridcolor='rgba(255,255,255,0.04)', color='#475569'),
                 plot_bgcolor='rgba(8,16,32,0.5)', paper_bgcolor='rgba(0,0,0,0)',
                 height=320, margin=dict(l=0, r=80, t=8, b=0),
@@ -774,7 +778,7 @@ def render(ctx: dict) -> None:
             st.markdown(
                 "<div style='background:rgba(255,255,255,0.02);border-radius:8px;"
                 "padding:8px 14px;font-size:12px;color:#475569;border:1px solid rgba(255,255,255,0.05)'>"
-                "Recovery <b style='color:#e2e8f0'>{mo}</b>: "
+                "Pemulihan <b style='color:#e2e8f0'>{mo}</b>: "
                 "<span style='color:{rc};font-weight:700;font-size:14px'>{rv:.1f}%</span>"
                 " dari baseline ({bsl:,} wisman/bln)</div>".format(
                     mo=sel, rc=_rcol, rv=_recovery_pct, bsl=int(_precovid_mean)),
@@ -801,9 +805,9 @@ def render(ctx: dict) -> None:
             fig_r2.add_hline(y=0, line_dash='dash', line_color='rgba(255,255,255,0.08)', line_width=1)
             fig_r2.add_vline(x=0, line_dash='dash', line_color='rgba(255,255,255,0.08)', line_width=1)
             fig_r2.update_layout(
-                xaxis=dict(title='Wisman Growth MoM (%)',
+                xaxis=dict(title=LABEL_MANUSIAWI.get('wisman_growth_mom', 'Pertumbuhan Wisatawan (%)'),
                            gridcolor='rgba(255,255,255,0.04)', color='#475569'),
-                yaxis=dict(title='Avg Sentimen',
+                yaxis=dict(title=LABEL_MANUSIAWI.get('avg_sentiment_monthly', 'Sentimen Rata-rata'),
                            gridcolor='rgba(255,255,255,0.04)', color='#475569'),
                 plot_bgcolor='rgba(8,16,32,0.5)', paper_bgcolor='rgba(0,0,0,0)',
                 height=320, margin=dict(l=0, r=0, t=10, b=0),

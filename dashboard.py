@@ -49,7 +49,10 @@ def _load_css() -> str:
 st.markdown(f'<style>{_load_css()}</style>', unsafe_allow_html=True)
 
 # ── Load data & model ─────────────────────────────────────────────────
-from src.utils   import load_data, load_models, load_nav_icons
+from src.utils   import (
+    load_data, load_models, load_nav_icons,
+    LABEL_MANUSIAWI, DESKRIPSI_INDIKATOR,
+)
 from src.sidebar import render_sidebar
 from src.shared  import build_context
 
@@ -212,9 +215,11 @@ def _kpi_card_html(label, value, sub, delta, level=None, use_dot=False):
   <div class="kpi-c-delta">{delta}</div>
 </div>"""
 
+_rf_label = "Prediksi Model"
+
 _cards = [
     _kpi_card_html("LEVEL KRISIS", _level,
-                   (_proj_badge_html + f" RF: {_rf_pred}") if _proj_badge_html else f"RF: {_rf_pred}",
+                   (_proj_badge_html + f" {_rf_label}: {_rf_pred}") if _proj_badge_html else f"{_rf_label}: {_rf_pred}",
                    f"<span style='color:#334155;font-size:10px'>{_prev_month or '—'}</span>",
                    _level, use_dot=True),
     _kpi_card_html("CRISIS SCORE", f"{_score:.1f}",
@@ -368,14 +373,30 @@ with st.expander("Tabel Data Prediksi Lengkap", expanded=False):
             except Exception:
                 pass
 
+    # [BARU - Sprint 1B] Header kolom memakai LABEL_MANUSIAWI; help tooltip
+    # memakai DESKRIPSI_INDIKATOR jika tersedia. Nama kolom DataFrame asli
+    # (kunci dict di bawah) tidak diubah sama sekali.
+    _col_config = {
+        'month':              st.column_config.TextColumn(
+                                   LABEL_MANUSIAWI.get('month', 'Bulan'), width='small'),
+        'crisis_level':       st.column_config.TextColumn(
+                                   LABEL_MANUSIAWI.get('crisis_level', 'Level'), width='small'),
+        'rf_predicted_level': st.column_config.TextColumn(
+                                   LABEL_MANUSIAWI.get('rf_predicted_level', 'RF Pred.'), width='small',
+                                   help=DESKRIPSI_INDIKATOR.get('random_forest')),
+        'iso_anomaly':        st.column_config.NumberColumn(
+                                   LABEL_MANUSIAWI.get('iso_anomaly', 'Anomali'), width='small',
+                                   help=DESKRIPSI_INDIKATOR.get('isolation_forest')),
+    }
+    for _c in _disp:
+        if _c not in _col_config:
+            _col_config[_c] = st.column_config.TextColumn(
+                LABEL_MANUSIAWI.get(_c, _c),
+                help=DESKRIPSI_INDIKATOR.get(_c))
+
     st.dataframe(_df_show, use_container_width=True, height=420,
                  hide_index=True,
-                 column_config={
-                     'month':              st.column_config.TextColumn('Bulan',    width='small'),
-                     'crisis_level':       st.column_config.TextColumn('Level',    width='small'),
-                     'rf_predicted_level': st.column_config.TextColumn('RF Pred.', width='small'),
-                     'iso_anomaly':        st.column_config.NumberColumn('Anomali', width='small'),
-                 })
+                 column_config=_col_config)
 
     _dl_cols = [c for c in ['month','wisman','crisis_score_100','crisis_level',
                              'rf_predicted_level','rf_confidence','iso_anomaly']

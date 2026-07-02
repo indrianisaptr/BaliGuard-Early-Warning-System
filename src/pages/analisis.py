@@ -57,7 +57,11 @@ def render(ctx: dict) -> None:
     score_delta      = ctx.get('score_delta', 0)
     score_trend      = ctx.get('score_trend', 'STABIL')
     dominant_factor  = ctx.get('dominant_factor', 'N/A')
-    anomaly_exp      = ctx.get('anomaly_exp', f'Z-score {sf(row_data.get("wisman_zscore",0)):.1f}')
+    anomaly_exp      = ctx.get(
+        'anomaly_exp',
+        f'{LABEL_MANUSIAWI.get("wisman_zscore", "Penyimpangan dari Rata-rata")}: '
+        f'{sf(row_data.get("wisman_zscore",0)):.1f}'
+    )
 
     FEATURES = [f for f in FEATURES_CORE + FEATURES_LAG if f in master.columns]
     _tick("nav_start_analisis")
@@ -219,18 +223,29 @@ def render(ctx: dict) -> None:
         # [DIUBAH] Label teknis diganti bahasa manusiawi
         _anom_label = "⚠️ Ya, terdeteksi anomali" if is_anom else "✅ Tidak, kondisi normal"
         indicators = [
-            ("Jumlah Wisatawan Mancanegara",        f"{int(round(wisman)):,} orang"),
-            ("Tingkat Pemulihan vs 2017–2019",       f"{recovery_pct:.1f}%"),
-            ("Tingkat Hunian Hotel Berbintang",      f"{tpk:.1f}%"),
-            ("Kurs USD/IDR Rata-rata Bulan Ini",     f"Rp {usd_avg:,.0f}"),
-            ("Tingkat Inflasi Bali",                 f"{inflasi:.2f}%"),
-            ("Sentimen Rata-rata Ulasan Wisatawan",  f"{sent:+.3f}"),
-            ("Pangsa Wisatawan Bali dari Nasional",  f"{bali_shr:.1f}%"),
-            ("Penyimpangan Wisatawan dari Normal",   f"{sf(row_data.get('wisman_zscore',0)):.2f} (Z-score)"),
+            (LABEL_MANUSIAWI.get('wisman', "Jumlah Wisatawan Mancanegara"),
+                f"{int(round(wisman)):,} orang"),
+            (LABEL_MANUSIAWI.get('wisman_recovery_pct', "Tingkat Pemulihan vs 2017–2019"),
+                f"{recovery_pct:.1f}%"),
+            (LABEL_MANUSIAWI.get('tpk_bintang', "Tingkat Hunian Hotel Berbintang"),
+                f"{tpk:.1f}%"),
+            (LABEL_MANUSIAWI.get('usd_idr_avg', "Kurs USD/IDR Rata-rata Bulan Ini"),
+                f"Rp {usd_avg:,.0f}"),
+            (LABEL_MANUSIAWI.get('inflasi_processed', "Tingkat Inflasi Bali"),
+                f"{inflasi:.2f}%"),
+            (LABEL_MANUSIAWI.get('avg_sentiment_monthly', "Sentimen Rata-rata Ulasan Wisatawan"),
+                f"{sent:+.3f}"),
+            (LABEL_MANUSIAWI.get('bali_share_pct', "Pangsa Wisatawan Bali dari Nasional"),
+                f"{bali_shr:.1f}%"),
+            (LABEL_MANUSIAWI.get('wisman_zscore', "Penyimpangan Wisatawan dari Normal"),
+                f"{sf(row_data.get('wisman_zscore',0)):.2f}"),
             ("Keterangan Anomali",                   anomaly_exp),
-            ("Terdeteksi Anomali oleh Model",        _anom_label),
-            ("Prediksi Level Krisis (Random Forest)",rf_pred),
-            ("Tingkat Keyakinan Prediksi Model",     f"{conf:.0f}%"),
+            (LABEL_MANUSIAWI.get('iso_anomaly', "Terdeteksi Anomali oleh Model"),
+                _anom_label),
+            (LABEL_MANUSIAWI.get('rf_predicted_level', "Prediksi Level Krisis (Random Forest)"),
+                rf_pred),
+            (LABEL_MANUSIAWI.get('rf_confidence', "Tingkat Keyakinan Prediksi Model"),
+                f"{conf:.0f}%"),
             ("Perubahan Skor Krisis",                f"{score_delta:+.1f} ({score_trend})"),
             ("Faktor Paling Dominan",                dominant_factor),
         ]

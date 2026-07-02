@@ -80,7 +80,7 @@ LABEL_MANUSIAWI: dict[str, str] = {
     "wisnus":                    "Jumlah Wisatawan Nusantara",
     "wisman_growth_mom":         "Pertumbuhan Wisatawan vs Bulan Lalu (%)",
     "wisman_growth_yoy":         "Pertumbuhan Wisatawan vs Tahun Lalu (%)",
-    "wisman_zscore":             "Penyimpangan Wisatawan dari Rata-rata Historis (Z-score)",
+    "wisman_zscore":             "Penyimpangan Jumlah Wisatawan dari Rata-rata Historis",
     "wisman_ma3":                "Rata-rata Kunjungan 3 Bulan Terakhir",
     "wisman_recovery_pct":       "Tingkat Pemulihan vs Baseline 2017–2019 (%)",
     "wisman_lag_1":              "Jumlah Wisatawan Bulan Lalu",
@@ -114,15 +114,15 @@ LABEL_MANUSIAWI: dict[str, str] = {
     "sentiment_trend_3m":        "Arah Tren Sentimen 3 Bulan",
 
     # ── Risiko eksternal ─────────────────────────────────────────────
-    "gdelt_crisis_score":        "Indeks Risiko Pemberitaan Internasional (GDELT)",
+    "gdelt_crisis_score":        "Indeks Risiko Pemberitaan Internasional",
     "disaster_risk_score":       "Indeks Risiko Bencana Alam",
     "external_risk_avg":         "Indeks Risiko Eksternal Gabungan",
-    "external_risk_max":         "Risiko Eksternal Tertinggi (Shock Detector)",
-    "external_risk_range":       "Divergensi Risiko Eksternal",
+    "external_risk_max":         "Risiko Eksternal Tertinggi",
+    "external_risk_range":       "Selisih Risiko Eksternal (Tertinggi vs Terendah)",
     "physical_risk_score":       "Risiko Fisik (Gempa & Bencana)",
     "media_risk_score":          "Risiko Pemberitaan Negatif di Media",
     "tourist_perception_score":  "Indeks Persepsi Wisatawan",
-    "external_risk_score":       "Indeks Risiko Eksternal (Komposit)",
+    "external_risk_score":       "Indeks Risiko Eksternal (Gabungan)",
     "eq_risk_score":             "Indeks Risiko Gempa Bumi",
 
     # ── Crisis score & level ──────────────────────────────────────────
@@ -134,14 +134,14 @@ LABEL_MANUSIAWI: dict[str, str] = {
     "crisis_component_sentiment":"Komponen Sentimen Ulasan (dalam Skor Krisis)",
 
     # ── Output model ML ───────────────────────────────────────────────
-    "rf_predicted_level":        "Prediksi Level Krisis (Random Forest)",
-    "rf_confidence":             "Tingkat Keyakinan Prediksi Model (%)",
-    "iso_anomaly":               "Terdeteksi sebagai Anomali (Ya=1 / Tidak=0)",
-    "iso_score":                 "Skor Anomali Isolation Forest",
-    "prob_aman":                 "Probabilitas Status AMAN (%)",
-    "prob_waspada":              "Probabilitas Status WASPADA (%)",
-    "prob_siaga":                "Probabilitas Status SIAGA (%)",
-    "prob_krisis":               "Probabilitas Status KRISIS (%)",
+    "rf_predicted_level":        "Prediksi Level Krisis (Model AI)",
+    "rf_confidence":             "Tingkat Keyakinan Prediksi (%)",
+    "iso_anomaly":               "Deteksi Perubahan Mendadak",
+    "iso_score":                 "Skor Anomali",
+    "prob_aman":                 "Probabilitas Level AMAN (%)",
+    "prob_waspada":              "Probabilitas Level WASPADA (%)",
+    "prob_siaga":                "Probabilitas Level SIAGA (%)",
+    "prob_krisis":               "Probabilitas Level KRISIS (%)",
 
     # ── Fitur waktu & kontekstual ─────────────────────────────────────
     "month":                     "Bulan",
@@ -150,6 +150,112 @@ LABEL_MANUSIAWI: dict[str, str] = {
     "is_covid_period":           "Periode COVID-19 (Ya/Tidak)",
     "is_postcovid":              "Periode Pasca-COVID (Ya/Tidak)",
     "is_anomaly":                "Teridentifikasi Anomali Historis",
+}
+
+
+# ══════════════════════════════════════════════════════════════════════
+# [BARU – Sprint 1B] DESKRIPSI_INDIKATOR — penjelasan statis 1–2 kalimat
+# per indikator, bahasa awam, untuk dipakai sebagai tooltip / help text.
+# ══════════════════════════════════════════════════════════════════════
+# Berbeda dari interpretasi_indikator(): dict ini TIDAK bergantung pada
+# nilai numerik — isinya penjelasan tetap tentang APA indikator itu,
+# bukan bagaimana MEMBACA nilainya bulan ini. Keduanya saling melengkapi:
+#   - DESKRIPSI_INDIKATOR[kolom]   → "Apa ini?"      (untuk tooltip/help)
+#   - interpretasi_indikator(...)  → "Apa artinya sekarang?" (dinamis)
+#
+# Murni tambahan (additive) — TIDAK mengubah interpretasi_indikator(),
+# TIDAK mengubah LABEL_MANUSIAWI, dan tidak ada logika/fungsi lain yang
+# tersentuh oleh penambahan dict ini.
+#
+# Cara pakai (mis. di dashboard.py / analisis.py):
+#   st.caption(DESKRIPSI_INDIKATOR.get(nama_kolom, ""))
+#   # atau sebagai parameter help= pada widget Streamlit:
+#   st.metric(..., help=DESKRIPSI_INDIKATOR.get("external_risk_score"))
+#
+# Dua entri terakhir ("random_forest", "isolation_forest") bukan nama
+# kolom dataframe, melainkan glosarium istilah model ML yang dipakai di
+# narasi dashboard — disertakan di sini supaya satu tempat rujukan.
+# ─────────────────────────────────────────────────────────────────────
+DESKRIPSI_INDIKATOR: dict[str, str] = {
+    # ── Indikator pariwisata ──────────────────────────────────────────
+    "wisman":                    "Jumlah wisatawan mancanegara yang berkunjung ke Bali pada bulan tersebut, berdasarkan data resmi BPS.",
+    "wisnus":                    "Jumlah wisatawan domestik (dalam negeri) yang berkunjung ke Bali pada bulan tersebut.",
+    "wisman_growth_mom":         "Persentase perubahan jumlah wisatawan mancanegara dibanding satu bulan sebelumnya.",
+    "wisman_growth_yoy":         "Persentase perubahan jumlah wisatawan mancanegara dibanding bulan yang sama di tahun lalu.",
+    "wisman_zscore":             "Seberapa jauh jumlah wisatawan bulan ini menyimpang dari rata-rata historis. Nilai yang jauh dari nol menandakan kondisi tidak biasa.",
+    "wisman_ma3":                "Rata-rata jumlah wisatawan selama 3 bulan terakhir, dipakai untuk melihat tren tanpa terganggu fluktuasi bulanan.",
+    "wisman_recovery_pct":       "Persentase pemulihan jumlah wisatawan dibanding kondisi normal sebelum pandemi COVID-19 (2017–2019).",
+    "wisman_lag_1":               "Jumlah wisatawan mancanegara pada satu bulan sebelumnya, dipakai sebagai pembanding.",
+    "wisman_lag_3":               "Jumlah wisatawan mancanegara pada tiga bulan sebelumnya, dipakai sebagai pembanding.",
+    "wisman_trend_3m":           "Arah kecenderungan (naik, turun, atau stabil) jumlah wisatawan dalam 3 bulan terakhir.",
+    "bali_share_pct":            "Persentase kunjungan wisatawan mancanegara ke Bali dibanding total kunjungan ke seluruh Indonesia.",
+    "bali_share_change":         "Perubahan pangsa wisatawan Bali terhadap total nasional dibanding bulan sebelumnya.",
+
+    # ── Akomodasi ─────────────────────────────────────────────────────
+    "tpk_bintang":               "Persentase kamar hotel berbintang yang terisi tamu pada bulan tersebut.",
+    "tpk_non_bintang":           "Persentase kamar hotel non-berbintang (melati/homestay) yang terisi tamu pada bulan tersebut.",
+    "tpk_change_mom":            "Perubahan tingkat hunian hotel dibanding satu bulan sebelumnya.",
+    "tpk_ma3":                   "Rata-rata tingkat hunian hotel selama 3 bulan terakhir.",
+    "tpk_lag_1":                 "Tingkat hunian hotel pada satu bulan sebelumnya.",
+    "lama_menginap_bintang":     "Rata-rata jumlah malam tamu menginap di hotel berbintang.",
+    "lama_menginap_non_bintang": "Rata-rata jumlah malam tamu menginap di hotel non-berbintang.",
+
+    # ── Ekonomi & moneter ─────────────────────────────────────────────
+    "usd_idr_avg":               "Nilai tukar rupiah terhadap dolar Amerika Serikat, rata-rata pada bulan tersebut.",
+    "usd_change_mom":            "Persentase perubahan kurs USD/IDR dibanding satu bulan sebelumnya.",
+    "usd_volatility_3m":         "Tingkat fluktuasi (naik-turun) kurs USD/IDR selama 3 bulan terakhir. Semakin tinggi, semakin tidak stabil kondisi kursnya.",
+    "inflasi_processed":         "Tingkat kenaikan harga barang dan jasa secara umum di Bali pada bulan tersebut.",
+    "economic_risk_score":       "Menggambarkan tekanan kondisi ekonomi global terhadap sektor pariwisata.",
+
+    # ── Sentimen ──────────────────────────────────────────────────────
+    "avg_sentiment_monthly":     "Rata-rata nada (positif atau negatif) ulasan wisatawan dari media sosial dan platform ulasan pada bulan tersebut.",
+    "pct_positive_monthly":      "Persentase ulasan wisatawan yang bernada positif pada bulan tersebut.",
+    "pct_negative_monthly":      "Persentase ulasan wisatawan yang bernada negatif pada bulan tersebut.",
+    "pct_neutral_monthly":       "Persentase ulasan wisatawan yang bernada netral pada bulan tersebut.",
+    "sentiment_lag_1":           "Skor sentimen ulasan wisatawan pada satu bulan sebelumnya.",
+    "sentiment_trend_3m":        "Arah kecenderungan sentimen ulasan wisatawan dalam 3 bulan terakhir.",
+
+    # ── Risiko eksternal ─────────────────────────────────────────────
+    "gdelt_crisis_score":        "Menggambarkan intensitas dan nada pemberitaan media internasional terkait pariwisata Bali.",
+    "disaster_risk_score":       "Menggambarkan risiko bencana alam (gempa, cuaca ekstrem, dan sejenisnya) berdasarkan data BMKG dan sumber terkait.",
+    "external_risk_avg":         "Rata-rata gabungan dari seluruh indikator risiko eksternal: risiko fisik, pemberitaan media, dan persepsi wisatawan.",
+    "external_risk_max":         "Nilai risiko eksternal tertinggi yang tercatat pada bulan tersebut, dipakai untuk mendeteksi lonjakan risiko mendadak.",
+    "external_risk_range":       "Selisih antara risiko eksternal tertinggi dan terendah, menggambarkan seberapa besar perbedaan tekanan antar indikator risiko.",
+    "physical_risk_score":       "Menggambarkan risiko akibat bencana alam dan kondisi fisik lingkungan.",
+    "media_risk_score":          "Menggambarkan intensitas pemberitaan negatif terkait pariwisata Bali.",
+    "tourist_perception_score":  "Menggambarkan persepsi wisatawan berdasarkan indikator eksternal seperti tren pencarian dan kondisi ekonomi.",
+    "external_risk_score":       "Gabungan indikator risiko eksternal seperti bencana, pemberitaan media, dan persepsi wisatawan.",
+    "eq_risk_score":             "Menggambarkan tingkat risiko gempa bumi di wilayah Bali berdasarkan data historis dan pemantauan terkini.",
+
+    # ── Crisis score & level ──────────────────────────────────────────
+    "crisis_score":              "Skor gabungan yang mengukur tingkat tekanan terhadap sektor pariwisata Bali dari berbagai indikator.",
+    "crisis_score_100":          "Skor Krisis yang telah dikonversi ke skala 0–100 agar lebih mudah dibaca.",
+    "crisis_level":              "Kategori status pariwisata (AMAN, WASPADA, SIAGA, atau KRISIS) berdasarkan Skor Krisis bulan tersebut.",
+    "crisis_component_tourism":  "Kontribusi kondisi kunjungan wisatawan terhadap Skor Krisis total.",
+    "crisis_component_economy":  "Kontribusi kondisi ekonomi (kurs dan inflasi) terhadap Skor Krisis total.",
+    "crisis_component_sentiment":"Kontribusi sentimen ulasan wisatawan terhadap Skor Krisis total.",
+
+    # ── Output model ML ───────────────────────────────────────────────
+    "rf_predicted_level":        "Kategori status pariwisata hasil klasifikasi model machine learning berdasarkan seluruh indikator bulan tersebut.",
+    "rf_confidence":             "Seberapa yakin model terhadap prediksi level krisis yang dihasilkan. Semakin tinggi, semakin dapat diandalkan.",
+    "iso_anomaly":               "Menunjukkan apakah kondisi bulan tersebut terdeteksi sebagai perubahan atau kondisi yang tidak biasa dibanding pola historis.",
+    "iso_score":                 "Skor yang menunjukkan seberapa besar penyimpangan kondisi bulan tersebut dari pola normal historis.",
+    "prob_aman":                 "Peluang (dalam persen) bahwa kondisi bulan tersebut berada pada level AMAN menurut model.",
+    "prob_waspada":              "Peluang (dalam persen) bahwa kondisi bulan tersebut berada pada level WASPADA menurut model.",
+    "prob_siaga":                "Peluang (dalam persen) bahwa kondisi bulan tersebut berada pada level SIAGA menurut model.",
+    "prob_krisis":               "Peluang (dalam persen) bahwa kondisi bulan tersebut berada pada level KRISIS menurut model.",
+
+    # ── Fitur waktu & kontekstual ─────────────────────────────────────
+    "month":                     "Bulan yang sedang ditampilkan atau dianalisis.",
+    "month_num":                 "Nomor urut bulan dalam satu tahun (1–12).",
+    "is_peak_season":            "Menandakan apakah bulan tersebut termasuk musim puncak kunjungan wisatawan, misalnya libur akhir tahun.",
+    "is_covid_period":           "Menandakan apakah bulan tersebut termasuk periode pandemi COVID-19.",
+    "is_postcovid":              "Menandakan apakah bulan tersebut termasuk periode setelah pandemi COVID-19 mereda.",
+    "is_anomaly":                "Menandakan apakah bulan tersebut pernah teridentifikasi sebagai kondisi tidak biasa secara historis.",
+
+    # ── Glosarium model ML (bukan nama kolom, untuk rujukan tooltip) ──
+    "random_forest":             "Model machine learning yang digunakan untuk mengklasifikasikan tingkat krisis pariwisata berdasarkan berbagai indikator.",
+    "isolation_forest":          "Model yang digunakan untuk mendeteksi perubahan atau kondisi yang tidak biasa dibanding pola historis.",
 }
 
 
@@ -498,7 +604,23 @@ def level_from_score(s: float) -> str:
 @st.cache_data(show_spinner=False)
 def load_data() -> tuple:
     master = pd.read_parquet(DATA_DIR / 'master_dataset_clean.parquet')
-    pred   = pd.read_csv(DATA_DIR / 'predictions_final.csv')
+
+    # Predictions: coba Supabase dulu, fallback ke CSV lokal kalau repository
+    # belum dikonfigurasi (mis. SUPABASE_URL belum ada) atau fetch gagal.
+    pred = None
+    try:
+        from src.repositories.prediction_repository import PredictionRepository
+        repo = PredictionRepository()
+        if repo.is_configured():
+            pred = repo.get_predictions_dataframe()
+            print("[load_data] Predictions loaded from Supabase")
+    except Exception:
+        pred = None
+
+    if pred is None:
+        print("[load_data] Supabase unavailable, fallback to local CSV")
+        pred = pd.read_csv(DATA_DIR / 'predictions_final.csv')
+
     cache  = {}
     p = DATA_DIR / 'narratives_cache.json'
     if p.exists():

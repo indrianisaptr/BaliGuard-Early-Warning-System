@@ -194,7 +194,18 @@ def render(ctx: dict) -> None:
     media_risk_score         = ctx.get('media_risk', row_data.get('media_risk_score'))
     tourist_perception_score = ctx.get('tourist_perception', row_data.get('tourist_perception_score'))
     external_risk_score      = ctx.get('external_risk', row_data.get('external_risk_score'))
-    
+    # ── [BARU – Sprint 1A] field tambahan, SUDAH tersedia di ctx (shared.py) ──
+    # Tidak ada perhitungan baru — hanya membaca key yang sudah dibangun build_context().
+    dominant_factor  = ctx.get('dominant_factor', 'N/A')
+    score_delta      = ctx.get('score_delta', 0)
+    score_trend      = ctx.get('score_trend', 'STABIL')
+    # ── [BARU – Refinement] evidence numerik, SUDAH tersedia di ctx/row_data ──
+    # Sama seperti baris di atas: hanya .get(), tidak ada hitung ulang apa pun.
+    crisis_score_100    = ctx.get('crisis_score_100', score)
+    wisman_growth_mom   = ctx.get('wisman_growth_mom', row_data.get('wisman_growth_mom'))
+    usd_volatility_3m   = ctx.get('usd_volatility_3m', row_data.get('usd_volatility_3m'))
+    pct_negative_monthly = ctx.get('pct_negative_monthly', row_data.get('pct_negative_monthly'))
+
     _tick("nav_start_overview")
 
     # ── Override container: hapus border tebal, pakai divider tipis ──
@@ -211,6 +222,296 @@ def render(ctx: dict) -> None:
     }
     </style>
     """, unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════
+    # [BARU – Sprint 1A / Refinement] Section: Mengapa Status Saat Ini Muncul?
+    # Tujuan: explainability tampil SEBELUM grafik, bukan setelah.
+    # Sumber data: 100% dari ctx/row_data/prev_row yang sudah dihitung
+    # shared.build_context(). Tidak ada pemanggilan model atau
+    # perhitungan ulang crisis score di sini.
+    # ── [Refinement kedua] Disederhanakan dari 4 card menjadi 3 blok:
+    # Faktor Dominan → Mengapa? → Dampaknya. Grid 4-kolom (Physical/Media/
+    # Tourist/External) DIHAPUS dari sini karena sudah tampil lengkap di
+    # section "External Risk Monitor" di bawah — panel ini cukup menyebut
+    # SATU-DUA kontributor terbesar secara kalimat, bukan mengulang tabel.
+    # ══════════════════════════════════════════════════════════════
+    st.markdown("""
+    <style>
+    .why-now-box {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 14px;
+        padding: 20px 24px;
+        margin-bottom: 24px;
+    }
+    .why-now-title {
+        font-family: 'DM Sans', sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .why-now-flow {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+    }
+    .flow-arrow {
+        font-size: 13px;
+        color: #475569;
+        padding: 4px 0;
+        line-height: 1;
+    }
+    .ev-section {
+        width: 100%;
+        background: rgba(255,255,255,0.025);
+        border-left: 3px solid rgba(255,255,255,0.15);
+        border-radius: 8px;
+        padding: 12px 16px;
+    }
+    .ev-label {
+        font-family: 'DM Sans', sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 8px;
+    }
+    .ev-main-row {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .ev-name {
+        font-size: 13.5px;
+        color: #e2e8f0;
+        font-weight: 600;
+    }
+    .ev-value {
+        font-family: 'DM Serif Display', serif;
+        font-size: 20px;
+        font-weight: 700;
+    }
+    .ev-status {
+        font-size: 12px;
+        color: #94a3b8;
+    }
+    .ev-text {
+        font-size: 13px;
+        color: #cbd5e1;
+        line-height: 1.6;
+    }
+    .ev-text b { color: #e2e8f0; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ── Bucket Rendah/Sedang/Tinggi: AMBANG SAMA PERSIS dengan _risk_color()
+    # di bagian "External Risk Monitor" di bawah (30 / 60). Ini bukan
+    # threshold baru — hanya dipakai ulang supaya panel & monitor konsisten.
+    def _ev_bucket(pct):
+        if pct is None:
+            return ("N/A", "#64748b")
+        pct = float(pct)
+        pct = pct * 100 if pct <= 1 else pct
+        if pct < 30:
+            return ("rendah", "#00c794")
+        if pct < 60:
+            return ("sedang", "#fbbf24")
+        return ("tinggi", "#d90000")
+
+    def _ev_pct_fmt(pct):
+        if pct is None:
+            return "N/A"
+        pct = float(pct)
+        pct = pct * 100 if pct <= 1 else pct
+        return f"{pct:.1f}%"
+
+    def _ev_wisman_fmt(val):
+        return f"{val:,.0f}".replace(",", ".") + " wisatawan"
+
+    # ── 1. FAKTOR DOMINAN ──────────────────────────────────────────
+    # dominant_factor & anomaly_exp 100% dari ctx (build_context()).
+    # Tidak ada z-score atau kalkulasi baru — hanya format tampilan.
+    _anomaly_exp = ctx.get('anomaly_exp', '')
+
+    if dominant_factor == 'Kunjungan Wisatawan':
+        _dom_name, _dom_clr = "Kunjungan Wisatawan", "#f87171"
+        _dom_value = _ev_wisman_fmt(wisman)
+    elif dominant_factor == 'Risiko Eksternal':
+        _dom_name, _dom_clr = "External Risk", "#fbbf24"
+        _dom_value = _ev_pct_fmt(external_risk_score)
+    elif dominant_factor == 'Tekanan Kurs':
+        _dom_name, _dom_clr = "Kurs USD/IDR", "#fbbf24"
+        _dom_value = f"Rp {usd_avg:,.0f}"
+    elif dominant_factor == 'Sentimen Negatif':
+        _dom_name, _dom_clr = "Sentimen Wisatawan", "#f87171"
+        _dom_value = f"{sent:.2f}"
+    else:
+        _dom_name, _dom_clr = "Tidak Ada Faktor Dominan", "#4ade80"
+        _dom_value = "Normal"
+
+    _section1_html = f"""
+        <div class='ev-section' style='border-left-color:{_dom_clr}'>
+            <div class='ev-label'>Faktor Dominan</div>
+            <div class='ev-main-row'>
+                <span class='ev-name'>{_dom_name}</span>
+                <span class='ev-value' style='color:{_dom_clr}'>{_dom_value}</span>
+            </div>
+        </div>
+    """
+
+    # ── 2. MENGAPA? ─────────────────────────────────────────────────
+    # Hanya menyebut 1–2 kontributor TERBESAR sebagai kalimat, bukan
+    # tabel/grid lengkap — nilai sub-komponen (Physical/Media/Tourist)
+    # sengaja TIDAK diulang di sini karena sudah tersaji lengkap di
+    # "External Risk Monitor" di bawah. Ini hanya jembatan, bukan duplikat.
+    if dominant_factor == 'Risiko Eksternal':
+        _components = [("Media Risk", media_risk_score), ("Tourist Perception", tourist_perception_score),
+                        ("Physical Risk", physical_risk_score)]
+        _components = [(lab, v) for lab, v in _components if v is not None]
+        _components.sort(key=lambda c: (c[1] if c[1] > 1 else c[1] * 100), reverse=True)
+        if _components:
+            _top_lab, _top_val = _components[0]
+            _why_txt = f"<b>{_top_lab}</b> menjadi komponen terbesar (<b>{_ev_pct_fmt(_top_val)}</b>)."
+            if len(_components) > 1:
+                _lbl2, _ = _ev_bucket(_components[1][1])
+                _why_txt += f" <b>{_components[1][0]}</b> berada pada kategori {_lbl2} (<b>{_ev_pct_fmt(_components[1][1])}</b>)."
+        else:
+            _why_txt = "Rincian komponen risiko eksternal dapat dilihat pada External Risk Monitor di bawah."
+    elif dominant_factor == 'Kunjungan Wisatawan':
+        if wisman_growth_mom is not None:
+            _g = float(wisman_growth_mom)
+            _arah = "naik" if _g > 0 else "turun" if _g < 0 else "stabil"
+            _why_txt = f"Kunjungan wisatawan tercatat <b>{_arah} {abs(_g):.1f}%</b> dibanding bulan sebelumnya."
+        elif _anomaly_exp:
+            _why_txt = f"Kunjungan wisatawan {_anomaly_exp}."
+        else:
+            _why_txt = "Data pertumbuhan wisatawan bulan ini tidak tersedia."
+    elif dominant_factor == 'Tekanan Kurs':
+        _why_txt = f"Kurs USD/IDR naik menjadi <b>Rp {usd_avg:,.0f}</b> dibanding bulan sebelumnya, menambah beban biaya kunjungan wisatawan asing."
+    elif dominant_factor == 'Sentimen Negatif':
+        _why_txt = f"Sentimen ulasan wisatawan melemah menjadi <b>{sent:.2f}</b> dibanding bulan sebelumnya."
+        if pct_negative_monthly is not None:
+            _why_txt += f" Proporsi ulasan negatif tercatat <b>{_ev_pct_fmt(pct_negative_monthly)}</b>."
+    else:
+        _why_txt = "Seluruh indikator utama berada dalam rentang aman, tidak ada faktor yang menonjol signifikan bulan ini."
+
+    _section2_html = f"""
+        <div class='ev-section'>
+            <div class='ev-label'>Mengapa?</div>
+            <div class='ev-text'>{_why_txt}</div>
+        </div>
+    """
+
+    # ── 3. DAMPAKNYA ─────────────────────────────────────────────────
+    # crisis_score_100, score_delta, score_trend, level, color 100% dari
+    # ctx — tidak ada logika klasifikasi atau hitungan baru di sini.
+    _trend_verb = {'MENINGKAT': 'Naik', 'MENURUN': 'Turun', 'STABIL': 'Relatif stabil'}[score_trend]
+    _trend_clr  = {'MENINGKAT': '#f87171', 'MENURUN': '#00c794', 'STABIL': '#93c5fd'}[score_trend]
+    if score_trend == 'STABIL':
+        _score_status = f"{_trend_verb} (perubahan {score_delta:+.1f} poin) dibanding bulan sebelumnya"
+    else:
+        _score_status = f"{_trend_verb} {abs(score_delta):.1f} poin dibanding bulan sebelumnya"
+
+    _section3_html = f"""
+        <div class='ev-section' style='border-left-color:{color}'>
+            <div class='ev-label'>Dampaknya</div>
+            <div class='ev-main-row'>
+                <span class='ev-name'>Crisis Score</span>
+                <span class='ev-value' style='color:#93c5fd'>{crisis_score_100:.1f}</span>
+            </div>
+            <div class='ev-status' style='color:{_trend_clr};margin-bottom:8px'>{_score_status}</div>
+            <div class='ev-value' style='color:{color};font-size:22px'>{level}</div>
+        </div>
+    """
+
+    _arrow = "<div class='flow-arrow'>&#8595;</div>"
+    _panel_html = _arrow.join([_section1_html, _section2_html, _section3_html])
+
+    st.markdown(f"""
+    <div class='why-now-box'>
+        <div class='why-now-title'>Mengapa Status Saat Ini Muncul?</div>
+        <div class='why-now-flow'>{_panel_html}</div>
+    </div>
+    """, unsafe_allow_html=True)
+    # ── [AKHIR SISIPAN Sprint 1A / Refinement Evidence Panel] ────────
+
+    # ══════════════════════════════════════════════════════════════
+    # [REVISI – Sprint 2.2] Panel Transparansi: Metodologi Crisis Score
+    # Sesuai revisi: bukan panel terpisah yang selalu tampil (redundan
+    # dengan panel "Mengapa Status Saat Ini Muncul?" di atas), tapi
+    # expander tertutup ("klik kalau ingin tahu") dan disederhanakan
+    # dari 5 langkah menjadi 3 (Input → Analisis → Output). Tanpa
+    # menyebut Random Forest / Isolation Forest / SHAP / istilah teknis
+    # lain. Semua angka via ctx.get(...) — tidak ada perhitungan ulang.
+    # Reuse class CSS why-now-flow/flow-arrow/ev-section/ev-label/
+    # ev-main-row/ev-name/ev-value/ev-status/ev-text yang sudah ada —
+    # tidak menambah CSS global baru.
+    # ══════════════════════════════════════════════════════════════
+    with st.expander("Bagaimana Crisis Score dihitung?"):
+        _meta_input_html = """
+            <div class='ev-section'>
+                <div class='ev-label'>Input</div>
+                <div class='ev-text'>
+                    Wisatawan · Hunian Hotel · Inflasi · Kurs · Sentimen Wisatawan · Risiko Eksternal
+                </div>
+            </div>
+        """
+
+        _meta_analisis_html = """
+            <div class='ev-section'>
+                <div class='ev-label'>Analisis</div>
+                <div class='ev-text'>
+                    Sistem menganalisis seluruh indikator di atas untuk menghasilkan Crisis Score.
+                </div>
+            </div>
+        """
+
+        _meta_crisis_score = ctx.get("crisis_score_100", ctx.get("score"))
+        _meta_level = ctx["level"]
+        _meta_color = ctx["color"]
+        _meta_kategori = [
+            ("0–29", "AMAN"),
+            ("30–44", "WASPADA"),
+            ("45–59", "SIAGA"),
+            ("60–100", "KRISIS"),
+        ]
+        _meta_kategori_html = "&nbsp;&nbsp;·&nbsp;&nbsp;".join(
+            f"<span style='color:#94a3b8'>{_rng}</span> "
+            f"<b style='color:{_this_clr}'>{_lv}</b>"
+            for _rng, _lv, _this_clr in (
+                (r, lv, _meta_color if lv == _meta_level else "#94a3b8")
+                for r, lv in _meta_kategori
+            )
+        )
+        _meta_output_html = f"""
+            <div class='ev-section' style='border-left-color:{_meta_color}'>
+                <div class='ev-label'>Output</div>
+                <div class='ev-main-row'>
+                    <span class='ev-name'>Crisis Score</span>
+                    <span class='ev-value' style='color:#93c5fd'>{_meta_crisis_score:.1f}</span>
+                </div>
+                <div class='ev-status'>Semakin tinggi skor, semakin tinggi tingkat risiko.</div>
+                <div class='ev-value' style='color:{_meta_color};font-size:18px;margin-top:6px'>{_meta_level}</div>
+                <div class='ev-text' style='margin-top:6px'>{_meta_kategori_html}</div>
+                <div class='ev-text' style='margin-top:8px'>
+                    Level risiko digunakan sebagai dasar rekomendasi tindakan pada dashboard.
+                </div>
+            </div>
+        """
+
+        _meta_panel_html = _arrow.join([
+            _meta_input_html, _meta_analisis_html, _meta_output_html,
+        ])
+        st.markdown(f"<div class='why-now-flow'>{_meta_panel_html}</div>", unsafe_allow_html=True)
+    # ── [AKHIR REVISI Sprint 2.2 / Panel Metodologi Crisis Score] ───
 
     # ── Charts — langsung tanpa container blok ──────────────────────
     st.plotly_chart(_build_overview_fig2(str(sel), predictions),

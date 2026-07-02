@@ -7,7 +7,7 @@ tidak disentuh di sini.
 """
 from __future__ import annotations
 
-from automation.process.common_checks import (
+from automation.validation.common_checks import (
     ValidationResult,
     check_month_format,
     check_not_null,

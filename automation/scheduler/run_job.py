@@ -17,7 +17,10 @@ import sys
 
 from automation.config.settings import LOG_FILE, LOG_LEVEL, ensure_dirs
 from automation.fetch.usd_idr import FetchError, fetch_usd_idr_latest
-from automation.process.validate_usd_idr import clean_usd_record, validate_usd_record
+from automation.validation.validate_usd_idr import (
+    clean_usd_record,
+    validate_usd_record,
+)
 from automation.storage.staging_writer import write_staging
 
 logger = logging.getLogger("automation.scheduler.run_job")

@@ -24,9 +24,13 @@ Untuk data BPS (wisman, TPK, inflasi):
   - Contoh: data/raw/updates/wisman_update.csv
 """
 
-import os, sys, warnings
-from datetime import datetime
+import os, sys, uuid, warnings
+from datetime import datetime, timezone
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import numpy as np
 import pandas as pd
@@ -65,11 +69,59 @@ except ImportError:
 # isinya ke Supabase via batch upsert. Kalau modul/kredensial tidak
 # tersedia, pipeline tetap jalan seperti biasa (CSV tetap jadi sumber
 # kebenaran untuk dashboard lama) — upsert hanya di-skip dengan warning.
+# Import struktur target project adalah src/repositories/ (lihat docstring
+# metadata_repository.py & prediction_repository.py). Dicoba dulu supaya
+# konsisten dengan arsitektur; fallback ke flat import untuk kondisi saat
+# ini di mana update_pipeline.py masih dijalankan dari root dan kedua
+# repository berada satu folder dengannya. Sebelum deploy, sebaiknya
+# repository dipindah ke src/repositories/ dan fallback ini dihapus.
 try:
-    from prediction_repository import PredictionRepository
+    from src.repositories.prediction_repository import PredictionRepository
     _PREDICTION_REPO_AVAILABLE = True
 except ImportError:
-    _PREDICTION_REPO_AVAILABLE = False
+    try:
+        from prediction_repository import PredictionRepository
+        _PREDICTION_REPO_AVAILABLE = True
+    except ImportError:
+        _PREDICTION_REPO_AVAILABLE = False
+
+# ── Metadata Storage (Supabase) bridge ────────────────────────
+# Sama seperti PredictionRepository di atas: kalau modul/kredensial tidak
+# tersedia, pipeline tetap jalan seperti biasa — upsert metadata hanya
+# di-skip dengan warning, tidak menggagalkan pipeline.
+try:
+    from src.repositories.metadata_repository import MetadataRepository
+    _METADATA_REPO_AVAILABLE = True
+except ImportError:
+    try:
+        from metadata_repository import MetadataRepository
+        _METADATA_REPO_AVAILABLE = True
+    except ImportError:
+        _METADATA_REPO_AVAILABLE = False
+
+# ── Pipeline Log Storage (Supabase) bridge ────────────────────
+# Sama seperti PredictionRepository/MetadataRepository di atas: kalau
+# modul/kredensial tidak tersedia, pipeline tetap jalan seperti biasa —
+# insert log hanya di-skip dengan warning, tidak menggagalkan pipeline.
+try:
+    from src.repositories.pipeline_log_repository import PipelineLogRepository
+    _PIPELINE_LOG_REPO_AVAILABLE = True
+except ImportError:
+    try:
+        from pipeline_log_repository import PipelineLogRepository
+        _PIPELINE_LOG_REPO_AVAILABLE = True
+    except ImportError:
+        _PIPELINE_LOG_REPO_AVAILABLE = False
+
+# Versi pipeline saat ini. Tidak ada mekanisme versioning otomatis di
+# repo ini (bukan hasil kalkulasi). Update manual setiap ada perubahan
+# besar pipeline — mis. perubahan step/urutan run_pipeline(), perubahan
+# skema PREDICTION_OUTPUT_COLUMNS, atau perubahan logic crisis score.
+# Perubahan kecil/kosmetik di luar pipeline (mis. tampilan Dashboard)
+# TIDAK perlu menaikkan versi ini — versi ini murni menandai versi
+# update_pipeline.py, bukan versi Dashboard (lihat field terpisah
+# `dashboard_version` di metadata).
+PIPELINE_VERSION = "1.0.0"
 
 # ── Kolom output final predictions_final.csv ─────────────────
 # Single source of truth: dipakai baik untuk to_csv() maupun untuk data
@@ -532,6 +584,7 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
         df['prob_siaga']         = 0.3
         df['prob_waspada']       = 0.3
         df['prob_aman']          = 0.1
+        df["iso_score"]          = 0.0
         return df
 
     if not all(p.exists() for p in [scaler_path, rf_path, iso_path, le_path]):
@@ -583,6 +636,7 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
     try:
         iso_pred = iso.predict(X_scaled)
         df_model['iso_anomaly'] = (iso_pred == -1).astype(int)
+        df_model["iso_score"] = iso.decision_function(X_scaled)
     except Exception as e:
         print(f"  ⚠  IsolationForest predict gagal: {e}")
         df_model['iso_anomaly'] = 0
@@ -608,7 +662,7 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
         return _rule_based(df)
 
     # Merge back ke df utama
-    pred_cols = ['month', 'iso_anomaly', 'rf_predicted_level', 'rf_confidence',
+    pred_cols = ['month', 'iso_anomaly', 'iso_score', 'rf_predicted_level', 'rf_confidence',
                  'prob_krisis', 'prob_siaga', 'prob_waspada', 'prob_aman']
     df = df.merge(df_model[pred_cols], on='month', how='left', suffixes=('', '_new'))
     for col in pred_cols[1:]:
@@ -625,101 +679,299 @@ def run_model_predictions(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ════════════════════════════════════════════════════════════
+# 5b. MISSING VALUE HANDLING (post-processing, sebelum output disimpan)
+# ════════════════════════════════════════════════════════════
+# Dijalankan SETELAH seluruh feature engineering (rebuild_features),
+# crisis score (compute_crisis_score), dan model prediction
+# (run_model_predictions) selesai — TIDAK mengubah rumus/logic apa pun
+# di fungsi-fungsi tersebut. Ini murni post-processing pembersihan NaN
+# yang memang secara natural muncul dari pct_change()/rolling() (baris
+# awal deret waktu) dan dari kolom risk score eksternal yang datang
+# apa adanya dari sumber lain (mis. baris baru hasil merge_bps_updates
+# yang belum kebagian nilai risk score terbaru).
+#
+# Dipanggil SATU KALI di run_pipeline(), tepat sebelum df dipakai untuk
+# to_parquet() / to_csv() / upsert ke Supabase — supaya master parquet,
+# predictions_final.csv, dan data yang dikirim ke PredictionRepository
+# semuanya konsisten menerima versi df yang sama-sama sudah bersih.
+FILL_ZERO_COLS   = ['wisman_growth_mom', 'wisman_growth_yoy',
+                     'wisman_zscore', 'usd_volatility_3m']
+FFILL_COLS       = ['gdelt_crisis_score', 'economic_risk_score',
+                     'disaster_risk_score']
+
+
+def handle_missing_values(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Isi nilai NaN pada kolom-kolom tertentu sebelum output disimpan.
+    - FILL_ZERO_COLS : NaN → 0
+    - FFILL_COLS     : forward fill (nilai bulan sebelumnya)
+    Tidak mengubah kolom lain maupun rumus feature engineering yang sudah ada.
+    """
+    df = df.copy()
+
+    zero_cols_avail = [c for c in FILL_ZERO_COLS if c in df.columns]
+    if zero_cols_avail:
+        # Normalisasi inf/-inf → 0 DULU, sebelum fillna(0). pct_change()
+        # bisa menghasilkan inf/-inf kalau nilai bulan sebelumnya 0 (mis.
+        # wisman/usd_idr_avg = 0 di suatu bulan) — bukan NaN, jadi tidak
+        # akan tertangkap oleh fillna() saja. Rumus pct_change() sendiri
+        # TIDAK diubah; ini murni pembersihan hasil akhirnya di post-processing.
+        n_inf = np.isinf(df[zero_cols_avail]).sum().sum()
+        if n_inf:
+            df[zero_cols_avail] = df[zero_cols_avail].replace([np.inf, -np.inf], 0)
+            print(f"  ✓ Missing value handling: {int(n_inf)} nilai inf/-inf "
+                  f"dinormalisasi jadi 0 pada kolom {zero_cols_avail}")
+
+        n_before = df[zero_cols_avail].isna().sum().sum()
+        df[zero_cols_avail] = df[zero_cols_avail].fillna(0)
+        if n_before:
+            print(f"  ✓ Missing value handling: {int(n_before)} NaN diisi 0 "
+                  f"pada kolom {zero_cols_avail}")
+
+    ffill_cols_avail = [c for c in FFILL_COLS if c in df.columns]
+    if ffill_cols_avail:
+        n_before = df[ffill_cols_avail].isna().sum().sum()
+        df[ffill_cols_avail] = df[ffill_cols_avail].ffill()
+        n_after = df[ffill_cols_avail].isna().sum().sum()
+        if n_before:
+            print(f"  ✓ Missing value handling: forward fill pada kolom "
+                  f"{ffill_cols_avail} ({int(n_before)} NaN sebelum, "
+                  f"{int(n_after)} NaN tersisa setelah ffill)")
+        if n_after:
+            # ffill tidak bisa mengisi NaN di baris paling awal (tidak ada
+            # nilai sebelumnya untuk di-forward-fill). Dicetak sebagai
+            # warning eksplisit supaya tidak diam-diam lolos ke output.
+            print(f"  ⚠  Masih ada {int(n_after)} NaN di {ffill_cols_avail} "
+                  f"setelah ffill (kemungkinan di baris paling awal dataset, "
+                  f"tidak ada nilai sebelumnya untuk di-forward-fill).")
+
+    return df
+
+
+# ════════════════════════════════════════════════════════════
 # 6. MAIN PIPELINE
 # ════════════════════════════════════════════════════════════
 
 def run_pipeline(verbose: bool = True):
-    print("\n" + "═" * 60)
-    print("   BaliGuard — Update Pipeline")
-    print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("═" * 60)
+    # ── Pipeline Log: init state histori run ini ─────────────
+    # run_id & started_at dicatat SEBELUM step apa pun dijalankan, supaya
+    # log tetap bisa ditulis walau pipeline gagal di step paling awal.
+    # status default "FAILED" (pesimis) — baru diubah eksplisit jadi
+    # "SUCCESS" tepat sebelum return df di akhir try. Ini supaya SEMUA
+    # jalur keluar non-normal (exception ataupun sys.exit di bawah) tetap
+    # tercatat sebagai FAILED, bukan salah tercatat SUCCESS.
+    # started_at pakai UTC (timezone-aware), bukan datetime.now() lokal —
+    # supaya konsisten kalau server pindah VPS/Railway/Docker dengan
+    # timezone berbeda. Ini KHUSUS untuk field log started_at/finished_at
+    # yang dikirim ke Supabase; print header/notes di bawah tetap pakai
+    # datetime.now() lokal apa adanya (hanya tampilan konsol, tidak
+    # disimpan sebagai kolom timestamp).
+    run_id               = str(uuid.uuid4())
+    started_at            = datetime.now(timezone.utc)
+    status                = "FAILED"
+    error_message         = None
+    prediction_uploaded   = False
+    metadata_uploaded     = False
+    latest_month          = None
+    prediction_rows       = None
 
-    # ── Load master dataset ──────────────────────────────────
-    master_path = DATA_FIN / 'master_dataset_clean.parquet'
-    pred_path   = DATA_FIN / 'predictions_final.csv'
+    try:
+        print("\n" + "═" * 60)
+        print("   BaliGuard — Update Pipeline")
+        print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print("═" * 60)
 
-    if not master_path.exists():
-        print("✗ master_dataset_clean.parquet tidak ditemukan.")
-        print("   Jalankan notebook 01-04 terlebih dahulu.")
-        sys.exit(1)
+        # ── Load master dataset ──────────────────────────────
+        master_path = DATA_FIN / 'master_dataset_clean.parquet'
+        pred_path   = DATA_FIN / 'predictions_final.csv'
 
-    df = pd.read_parquet(master_path)
-    df['month'] = df['month'].astype(str).str[:7]
-    print(f"\n ✓ Master dataset: {len(df)} baris, {df['month'].min()} → {df['month'].max()}")
+        if not master_path.exists():
+            print("✗ master_dataset_clean.parquet tidak ditemukan.")
+            print("   Jalankan notebook 01-04 terlebih dahulu.")
+            sys.exit(1)
 
-    # ── Step 1: Baca USD/IDR dari staging (tanpa fetch) ──────
-    print("\n[1/5] Membaca data USD/IDR dari automation staging...")
-    usd_df = update_usd_idr()
+        df = pd.read_parquet(master_path)
+        df['month'] = df['month'].astype(str).str[:7]
+        print(f"\n ✓ Master dataset: {len(df)} baris, {df['month'].min()} → {df['month'].max()}")
 
-    # ── Step 2: Load BPS manual updates ─────────────────────
-    print("\n[2/5] Mengecek update data BPS...")
-    bps_updates = load_bps_updates()
-    df = merge_bps_updates(df, bps_updates)
+        # ── Step 1: Baca USD/IDR dari staging (tanpa fetch) ──
+        print("\n[1/5] Membaca data USD/IDR dari automation staging...")
+        usd_df = update_usd_idr()
 
-    # ── Step 3: Rebuild features ─────────────────────────────
-    print("\n[3/5] Rebuild fitur engineering...")
-    df = rebuild_features(df, usd_df)
+        # ── Step 2: Load BPS manual updates ─────────────────
+        print("\n[2/5] Mengecek update data BPS...")
+        bps_updates = load_bps_updates()
+        df = merge_bps_updates(df, bps_updates)
 
-    # ── Step 4: Recompute crisis score ───────────────────────
-    print("\n[4/5] Menghitung ulang crisis score...")
-    df = compute_crisis_score(df)
-    score_summary = df.groupby('crisis_level').size()
-    print(f"  Distribusi level: {score_summary.to_dict()}")
-    print(f"  Periode: {df['month'].min()} → {df['month'].max()}")
+        # ── Step 3: Rebuild features ──────────────────────────
+        print("\n[3/5] Rebuild fitur engineering...")
+        df = rebuild_features(df, usd_df)
 
-    # ── Step 5: Run model predictions ────────────────────────
-    print("\n[5/5] Menjalankan model predictions...")
-    df = run_model_predictions(df)
+        # ── Step 4: Recompute crisis score ───────────────────
+        print("\n[4/5] Menghitung ulang crisis score...")
+        df = compute_crisis_score(df)
+        score_summary = df.groupby('crisis_level').size()
+        print(f"  Distribusi level: {score_summary.to_dict()}")
+        print(f"  Periode: {df['month'].min()} → {df['month'].max()}")
 
-    # ── Save outputs ─────────────────────────────────────────
-    print("\n Menyimpan output...")
+        # ── Step 5: Run model predictions ────────────────────
+        print("\n[5/5] Menjalankan model predictions...")
+        df = run_model_predictions(df)
 
-    # Simpan master dataset (parquet)
-    df.to_parquet(master_path, index=False)
-    print(f"  ✓ master_dataset_clean.parquet ({len(df)} baris)")
+        # ── Step 5b: Missing value handling ──────────────────
+        # SATU lokasi, dijalankan setelah seluruh feature engineering +
+        # model prediction selesai dan SEBELUM df dipakai untuk output
+        # apa pun (parquet, CSV, upsert Supabase) — supaya ketiganya
+        # menerima persis df yang sama, sudah bersih dari NaN target.
+        print("\n Membersihkan missing values sebelum output...")
+        df = handle_missing_values(df)
 
-    # Simpan predictions CSV
-    # PREDICTION_OUTPUT_COLUMNS adalah single source of truth — dipakai sama
-    # persis untuk CSV maupun untuk data yang dikirim ke Supabase, supaya
-    # keduanya selalu identik.
-    missing_pred_cols = [c for c in PREDICTION_OUTPUT_COLUMNS if c not in df.columns]
-    if missing_pred_cols:
-        print(f"  ⚠  Kolom hilang dari df, tidak akan ada di predictions_final.csv: "
-              f"{missing_pred_cols}")
+        # ── Save outputs ──────────────────────────────────────
+        print("\n Menyimpan output...")
 
-    pred_cols_avail = [c for c in PREDICTION_OUTPUT_COLUMNS if c in df.columns]
-    df[pred_cols_avail].to_csv(pred_path, index=False)
-    print(f"  ✓ predictions_final.csv ({len(df)} baris)")
+        # Simpan master dataset (parquet)
+        df.to_parquet(master_path, index=False)
+        print(f"  ✓ master_dataset_clean.parquet ({len(df)} baris)")
 
-    # ── Kirim predictions ke Supabase (Prediction Storage) ───
-    # CSV tetap ditulis seperti sebelumnya (kompatibilitas dashboard lama).
-    # Setelah CSV berhasil dibuat, data yang sama (pred_cols_avail — identik
-    # dengan yang ditulis ke CSV) di-upsert (batch) ke Supabase tabel
-    # public.predictions. Kegagalan di sini TIDAK menggagalkan pipeline —
-    # hanya dicetak sebagai warning.
-    if _PREDICTION_REPO_AVAILABLE:
-        repo = PredictionRepository()
-        result = repo.upsert_predictions(df[pred_cols_avail])
-        if result["ok"]:
-            print(f"  ✓ Supabase predictions upsert: {result['sent']} baris "
-                  f"({result['batches']} batch)")
+        # Simpan predictions CSV
+        # PREDICTION_OUTPUT_COLUMNS adalah single source of truth — dipakai sama
+        # persis untuk CSV maupun untuk data yang dikirim ke Supabase, supaya
+        # keduanya selalu identik.
+        missing_pred_cols = [c for c in PREDICTION_OUTPUT_COLUMNS if c not in df.columns]
+        if missing_pred_cols:
+            print(f"  ⚠  Kolom hilang dari df, tidak akan ada di predictions_final.csv: "
+                  f"{missing_pred_cols}")
+
+        pred_cols_avail = [c for c in PREDICTION_OUTPUT_COLUMNS if c in df.columns]
+        df[pred_cols_avail].to_csv(pred_path, index=False)
+        print(f"  ✓ predictions_final.csv ({len(df)} baris)")
+
+        # ── Kirim predictions ke Supabase (Prediction Storage) ─
+        # CSV tetap ditulis seperti sebelumnya (kompatibilitas dashboard lama).
+        # Setelah CSV berhasil dibuat, data yang sama (pred_cols_avail — identik
+        # dengan yang ditulis ke CSV) di-upsert (batch) ke Supabase tabel
+        # public.predictions. Kegagalan di sini TIDAK menggagalkan pipeline —
+        # hanya dicetak sebagai warning. Hasilnya disimpan ke prediction_uploaded
+        # untuk dicatat di pipeline log di bawah.
+        if _PREDICTION_REPO_AVAILABLE:
+            repo = PredictionRepository()
+            result = repo.upsert_predictions(df[pred_cols_avail])
+            prediction_uploaded = bool(result["ok"])
+            if result["ok"]:
+                print(f"  ✓ Supabase predictions upsert: {result['sent']} baris "
+                      f"({result['batches']} batch)")
+            else:
+                print(f"  ⚠  Supabase predictions upsert dilewati/gagal: {result['error']}")
         else:
-            print(f"  ⚠  Supabase predictions upsert dilewati/gagal: {result['error']}")
-    else:
-        print("  ⚠  Modul prediction_repository tidak terimport — "
-              "upsert Supabase dilewati.")
+            print("  ⚠  Modul prediction_repository tidak terimport — "
+                  "upsert Supabase dilewati.")
 
-    # ── Summary ──────────────────────────────────────────────
-    latest = df.iloc[-1]
-    print("\n" + "═" * 60)
-    print(f"  Pipeline selesai!")
-    print(f"  Bulan terbaru  : {latest['month']}")
-    print(f"  Crisis Score   : {latest['crisis_score_100']:.1f}/100")
-    print(f"  Level          : {latest['crisis_level']}")
-    print(f"  USD/IDR        : Rp {latest.get('usd_idr_avg', 0):,.0f}")
-    print("═" * 60 + "\n")
+        # ── Kirim metadata ke Supabase (Metadata Storage) ─────
+        # Dijalankan LANGSUNG SETELAH upsert_predictions di atas selesai
+        # (berhasil ataupun gagal/skip — metadata tetap dicoba dikirim supaya
+        # summary run selalu tercatat). Seluruh nilai diambil dari variabel
+        # yang sudah ada di run_pipeline() ini, bukan hasil kalkulasi baru.
+        # Field yang memang tidak tersedia di update_pipeline.py (training
+        # terjadi di notebook, bukan di sini) diisi None apa adanya.
+        # CATATAN: pipeline ini tidak membedakan "bulan data terakhir" vs
+        # "bulan prediksi terakhir" sebagai dua nilai terpisah — df sudah
+        # merge data + prediksi jadi satu, jadi keduanya bersumber dari
+        # df['month'].max() yang sama (bulan terakhir di master dataset
+        # setelah rebuild_features + predictions). Nilai ini juga disimpan
+        # ke latest_month/prediction_rows untuk dipakai ulang di pipeline
+        # log di bawah — bukan dihitung ulang.
+        latest_month    = str(df['month'].max())
+        prediction_rows = len(df)
 
-    return df
+        if _METADATA_REPO_AVAILABLE:
+            metadata_repo = MetadataRepository()
+            metadata = {
+                "model_version": None,
+                "training_date": None,
+                "latest_prediction_month": latest_month,
+                "latest_data_month": latest_month,
+                "prediction_rows": prediction_rows,
+                "pipeline_version": PIPELINE_VERSION,
+                "dashboard_version": None,
+                "notes": f"Auto-updated by update_pipeline.py pada "
+                         f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            }
+            meta_result = metadata_repo.upsert_metadata(metadata)
+            metadata_uploaded = bool(meta_result["ok"])
+            if meta_result["ok"]:
+                print("  ✓ Supabase metadata upsert: berhasil")
+            else:
+                print(f"  ⚠  Supabase metadata upsert dilewati/gagal: {meta_result['error']}")
+        else:
+            print("  ⚠  Modul metadata_repository tidak terimport — "
+                  "upsert metadata Supabase dilewati.")
+
+        # ── Summary ────────────────────────────────────────────
+        latest = df.iloc[-1]
+        print("\n" + "═" * 60)
+        print(f"  Pipeline selesai!")
+        print(f"  Bulan terbaru  : {latest['month']}")
+        print(f"  Crisis Score   : {latest['crisis_score_100']:.1f}/100")
+        print(f"  Level          : {latest['crisis_level']}")
+        print(f"  USD/IDR        : Rp {latest.get('usd_idr_avg', 0):,.0f}")
+        print("═" * 60 + "\n")
+
+        status = "SUCCESS"
+        return df
+
+    except SystemExit as e:
+        # sys.exit(1) di guard "master_dataset_clean.parquet tidak
+        # ditemukan" adalah SystemExit, BUKAN subclass Exception — kalau
+        # tidak ditangkap terpisah, error_message akan tetap None
+        # walaupun status sudah "FAILED" (default pesimis di atas).
+        # Ditangkap eksplisit terpisah dari except Exception di bawah
+        # supaya jelas dua jenis kegagalan ini dibedakan.
+        # str(e) dari SystemExit hanya berupa exit code (mis. "1") —
+        # tidak informatif di tabel pipeline_logs. Dibungkus dengan label
+        # supaya histori log langsung terbaca tanpa perlu menebak artinya.
+        error_message = f"Pipeline dihentikan (SystemExit: {e.code})"
+        raise
+
+    except Exception as e:
+        error_message = str(e)
+        raise
+
+    finally:
+        # ── Pipeline Log: catat histori run ini ke Supabase ──
+        # Dijalankan di finally supaya SELALU tercoba, baik pipeline
+        # sukses (status="SUCCESS") maupun gagal (status="FAILED",
+        # error_message terisi). Kegagalan insert_log sendiri TIDAK
+        # menggagalkan/menutupi exception asli pipeline (exception asli
+        # tetap di-raise ulang di blok except di atas) — hanya dicetak
+        # sebagai warning, konsisten dengan pola Prediction/Metadata di atas.
+        # finished_at juga pakai UTC, konsisten dengan started_at, supaya
+        # duration_seconds tetap benar terlepas timezone server.
+        finished_at       = datetime.now(timezone.utc)
+        duration_seconds  = (finished_at - started_at).total_seconds()
+
+        if _PIPELINE_LOG_REPO_AVAILABLE:
+            log_repo = PipelineLogRepository()
+            log_data = {
+                "run_id": run_id,
+                "started_at": started_at.isoformat(),
+                "finished_at": finished_at.isoformat(),
+                "duration_seconds": duration_seconds,
+                "status": status,
+                "latest_month": latest_month,
+                "prediction_rows": prediction_rows,
+                "prediction_uploaded": prediction_uploaded,
+                "metadata_uploaded": metadata_uploaded,
+                "pipeline_version": PIPELINE_VERSION,
+                "error_message": error_message,
+            }
+            log_result = log_repo.insert_log(log_data)
+            if log_result["ok"]:
+                print("  ✓ Supabase pipeline log insert: berhasil")
+            else:
+                print(f"  ⚠  Supabase pipeline log insert dilewati/gagal: {log_result['error']}")
+        else:
+            print("  ⚠  Modul pipeline_log_repository tidak terimport — "
+                  "insert log Supabase dilewati.")
 
 
 if __name__ == '__main__':

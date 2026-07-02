@@ -117,7 +117,9 @@ class PredictionRepository:
         # Pastikan semua nilai numpy -> tipe Python native (json-serializable)
         for row in records:
             for k, v in row.items():
-                if hasattr(v, "item"):  # numpy scalar
+                if pd.isna(v):
+                    row[k] = None
+                elif hasattr(v, "item"):
                     row[k] = v.item()
 
         return records
@@ -171,3 +173,85 @@ class PredictionRepository:
                 raise
 
         return summary
+
+    # ── Fetch: Supabase -> pandas.DataFrame ─────────────────────────
+    def get_predictions_dataframe(self) -> pd.DataFrame:
+        """
+        Ambil seluruh baris dari public.predictions, diurutkan month ASC,
+        dan kembalikan sebagai pandas.DataFrame yang skema & dtype-nya
+        kompatibel dengan hasil pd.read_csv("predictions_final.csv").
+
+        Tidak mengubah write path (upsert_predictions, _dataframe_to_records,
+        constructor, validasi, batching, logging) — method ini murni
+        tambahan read-only di sisi yang sama dengan client Supabase yang
+        sudah ada.
+
+        Kolom yang diambil & urutannya mengikuti PREDICTIONS_COLUMNS
+        (bukan SELECT * dan bukan daftar kolom baru), karena sudah
+        diverifikasi identik 1:1 dengan kolom data di 002_create_predictions.sql.
+
+        PostgREST membatasi jumlah baris per response (default umumnya
+        1000). Pagination ditangani via `.range()` supaya data tidak
+        terpotong diam-diam kalau tabel predictions tumbuh melewati
+        batas tersebut di masa depan.
+
+        Return:
+            pandas.DataFrame dengan kolom PREDICTIONS_COLUMNS, terurut
+            month ASC, RangeIndex 0..n-1. Kalau tabel kosong, kembalikan
+            DataFrame kosong (0 baris) dengan kolom PREDICTIONS_COLUMNS
+            tetap ada — bukan exception.
+
+        Raises:
+            RuntimeError: kalau repository belum dikonfigurasi (SDK/
+                kredensial belum tersedia) — caller perlu cek
+                is_configured() dulu kalau ingin menghindari exception ini,
+                sama seperti pola `client` property di atas.
+        """
+        if not self.is_configured():
+            raise RuntimeError(
+                "PredictionRepository belum dikonfigurasi (SUPABASE_URL/"
+                "SUPABASE_SERVICE_KEY/paket supabase belum tersedia) — "
+                "tidak bisa fetch predictions."
+            )
+
+        select_cols = ",".join(PREDICTIONS_COLUMNS)
+        page_size = 1000
+        offset = 0
+        rows: list[dict] = []
+
+        while True:
+            response = (
+                self.client.table(PREDICTIONS_TABLE)
+                .select(select_cols)
+                .order("month", desc=False)
+                .range(offset, offset + page_size - 1)
+                .execute()
+            )
+            page = response.data or []
+            rows.extend(page)
+            if len(page) < page_size:
+                break
+            offset += page_size
+
+        if not rows:
+            return pd.DataFrame(columns=PREDICTIONS_COLUMNS)
+
+        df = pd.DataFrame(rows, columns=PREDICTIONS_COLUMNS)
+        df = df.reset_index(drop=True)
+
+        # month: pastikan string, pertahankan format YYYY-MM (defensive,
+        # karena kolom sudah text di skema, tapi tetap dijaga independen
+        # dari detail tipe sisi DB — konsisten dengan kontrak di write path).
+        df["month"] = df["month"].astype(str).str[:7]
+
+        # Seluruh kolom numerik: konversi aman supaya dtype mendekati
+        # hasil pd.read_csv() (int64/float64), bukan tetap object dtype
+        # akibat hasil JSON dari Supabase API.
+        numeric_cols = [
+            c for c in PREDICTIONS_COLUMNS
+            if c not in ("month", "crisis_level", "rf_predicted_level")
+        ]
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+        return df

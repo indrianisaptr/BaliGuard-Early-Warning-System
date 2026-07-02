@@ -277,8 +277,8 @@ def render(ctx: dict) -> None:
                     Mengubah Data Menjadi Laporan Siap Baca
                 </div>
                 <div style='font-size:13px;color:#6ee7b7;line-height:1.8;max-width:560px'>
-                    Narasi AI menganalisis output model ML — crisis score, prediksi RF, anomali,
-                    wisman, sentimen — lalu <b>menyusunnya menjadi laporan Bahasa Indonesia</b>
+                    Narasi AI menganalisis kondisi pariwisata Bali — skor kondisi, prediksi tingkat risiko,
+                    perubahan indikator utama, dan sentimen wisatawan — lalu <b>menyusunnya menjadi laporan Bahasa Indonesia</b>
                     yang siap digunakan pemangku kebijakan dan dinas pariwisata.
                 </div>
             </div>
@@ -360,13 +360,13 @@ def render(ctx: dict) -> None:
         },
         'predict': {
             'icon':'🔮','title':'Prediksi AI','desc':'Proyeksi + skenario risiko',
-            'detail':'Prediksi 3–6 bulan ke depan berbasis tren ML, faktor risiko, dan rekomendasi antisipatif.',
+            'detail':'Prediksi 3–6 bulan ke depan berbasis tren data historis, faktor risiko, dan rekomendasi antisipatif.',
             'color':'#FF6C43','bg':'rgba(251,146,60,0.12)','border':'rgba(255,108,67,0.30)',
         },
         # ── PATCH A1: SWOT report type ──────────────────────────────
         'swot': {
             'icon':'🧭','title':'Analisis SWOT','desc':'Kekuatan · Kelemahan · Peluang · Ancaman',
-            'detail':'Peta strategis kondisi pariwisata Bali: 4 kuadran SWOT berbasis data ML & indikator terkini.',
+            'detail':'Peta strategis kondisi pariwisata Bali: 4 kuadran SWOT berbasis hasil analisis data & indikator terkini.',
             'color':'#fcd34d','bg':'rgba(245,158,11,0.08)','border': 'rgba(245,158,11,0.30)',
         },
         # ────────────────────────────────────────────────────────────
@@ -966,7 +966,13 @@ def render(ctx: dict) -> None:
     elif gen_btn and groq_key:
         with st.spinner(f"🤖 {selected_model} sedang menganalisis data {narasi_target}..."):
             try:
-                from groq import Groq as _Groq
+                from groq import (
+                    Groq as _Groq,
+                    APITimeoutError as _GroqTimeoutError,
+                    APIConnectionError as _GroqConnectionError,
+                    AuthenticationError as _GroqAuthError,
+                    RateLimitError as _GroqRateLimitError,
+                )
 
                 # ── Ambil data row ──────────────────────────────
                 if _is_fc_month:
@@ -999,15 +1005,35 @@ def render(ctx: dict) -> None:
                 }
                 _max_tok = _MAX_TOKENS_BY_TYPE.get(report_type, 1024)
 
-                _client   = _Groq(api_key=groq_key)
+                _client   = _Groq(api_key=groq_key, timeout=30.0)
                 _response = _client.chat.completions.create(
                     model=selected_model,
                     messages=[{'role': 'user', 'content': _prompt}],
                     temperature=0.7, max_tokens=_max_tok,
+                    timeout=30.0,
                     **({'reasoning_effort': 'none'} if 'qwen' in selected_model else {}),
                 )
-                _narr_text = clean_output(_response.choices[0].message.content)
-                _tokens    = _response.usage.prompt_tokens + _response.usage.completion_tokens
+
+                # ── Validasi struktur response sebelum diakses ──
+                if not getattr(_response, 'choices', None):
+                    raise ValueError(
+                        "Groq API mengembalikan response tanpa hasil (choices kosong). "
+                        "Coba generate ulang."
+                    )
+                _choice = _response.choices[0]
+                _message = getattr(_choice, 'message', None)
+                if _message is None or getattr(_message, 'content', None) is None:
+                    raise ValueError(
+                        "Groq API mengembalikan response tanpa konten narasi yang valid. "
+                        "Coba generate ulang."
+                    )
+
+                _narr_text = clean_output(_message.content)
+                _usage     = getattr(_response, 'usage', None)
+                _tokens    = (
+                    (_usage.prompt_tokens + _usage.completion_tokens)
+                    if _usage is not None else 0
+                )
                 # ── END PERUBAHAN 5 ─────────────────────────────
 
                 # ── Safety net bahasa: perbaiki/hapus aksara non-Latin yang bocor ──
@@ -1026,8 +1052,6 @@ def render(ctx: dict) -> None:
                 if _non_latin.search(_narr_text):
                     _narr_text = _non_latin.sub('', _narr_text)
                     _narr_text = re.sub(r' {2,}', ' ', _narr_text).strip()
-
-                _tokens    = _response.usage.prompt_tokens + _response.usage.completion_tokens
 
                 result = {
                     'success': True,
@@ -1089,8 +1113,30 @@ def render(ctx: dict) -> None:
                 except Exception as e:
                     st.warning("⚠️ Narasi tampil tapi GAGAL tersimpan ke Supabase: " + str(e))
 
+            except _GroqTimeoutError:
+                st.error(
+                    "⏱️ Permintaan ke Groq API melebihi batas waktu (timeout). "
+                    "Server AI mungkin sedang sibuk — silakan coba lagi."
+                )
+            except _GroqAuthError:
+                st.error(
+                    "🔑 API key Groq tidak valid atau tidak memiliki akses. "
+                    "Periksa konfigurasi GROQ_API di secrets/environment."
+                )
+            except _GroqRateLimitError:
+                st.error(
+                    "🚦 Batas penggunaan (rate limit) Groq API tercapai. "
+                    "Silakan tunggu beberapa saat sebelum mencoba lagi."
+                )
+            except _GroqConnectionError:
+                st.error(
+                    "🌐 Gagal terhubung ke Groq API. Periksa koneksi jaringan "
+                    "lalu coba lagi."
+                )
+            except ValueError as e:
+                st.error("⚠️ " + str(e))
             except Exception as e:
-                st.error("❌ Error: " + str(e))
+                st.error("❌ Terjadi kesalahan tak terduga saat membuat narasi: " + str(e))
 
     elif not gen_btn and not _already_shown:
         st.markdown("""
