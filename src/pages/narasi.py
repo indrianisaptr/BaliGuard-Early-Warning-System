@@ -76,13 +76,25 @@ def _render_narasi_actions(narrative_text: str, month: str, report_type: str) ->
     """, height=60)
 
 def _get_groq_key() -> str:
-    """Ambil Groq API key dari st.secrets atau environment variable."""
+    """Ambil Groq API key dari Streamlit Secrets atau environment."""
+
     try:
-        return st.secrets.get("GROQ_API", "") or st.secrets.get("groq_api", "")
+        return (
+            st.secrets.get("GROQ_API", "")
+            or st.secrets.get("GROQ_API_KEY", "")
+            or st.secrets.get("groq_api", "")
+            or st.secrets.get("groq_api_key", "")
+        )
     except Exception:
         pass
+
     import os
-    return os.getenv("GROQ_API", "")
+
+    return (
+        os.getenv("GROQ_API")
+        or os.getenv("GROQ_API_KEY")
+        or ""
+    )
 
 # ── Helper: bold judul section SWOT ────────────────────────
 _SWOT_HEADINGS = [
