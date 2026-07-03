@@ -44,8 +44,11 @@ jobs:
           cache: 'pip'
           cache-dependency-path: requirements.txt
 
-      - name: Install dependencies (automation layer only)
+      - name: Install automation dependencies
         run: pip install -r requirements.txt
+
+      - name: Install pipeline dependencies
+        run: pip install -r requirements-pipeline.txt
 
       - name: Run automation jobs (fetch + validasi)
         env:
