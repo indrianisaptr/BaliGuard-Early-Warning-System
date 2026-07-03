@@ -31,3 +31,14 @@
 2026-07-03 07:05:24,086 [INFO] automation.storage.staging_writer: staging_write source=usd_idr key=2026-07 path=/home/runner/work/MultiMetode/MultiMetode/automation/data/staging/usd_idr/2026-07.json
 2026-07-03 07:05:24,086 [INFO] automation.scheduler.run_job: [4/4] Tersimpan di: /home/runner/work/MultiMetode/MultiMetode/automation/data/staging/usd_idr/2026-07.json
 2026-07-03 07:05:24,086 [INFO] automation.scheduler.run_job: Job usd_idr SELESAI sukses untuk month=2026-07
+2026-07-03 15:19:36,880 [INFO] automation.scheduler.run_job: [1/4] Fetch USD/IDR mulai (target_month=current)
+2026-07-03 15:19:37,053 [INFO] automation.fetch.usd_idr: fetch_usd_idr_latest result={'month': '2026-07', 'usd_idr_avg': 17989.44, 'usd_idr_source': 'exchangerate-api', 'fetched_at': '2026-07-03T15:19:36.880590+00:00'}
+2026-07-03 15:19:37,053 [INFO] automation.scheduler.run_job: [1/4] Fetch selesai: {'month': '2026-07', 'usd_idr_avg': 17989.44, 'usd_idr_source': 'exchangerate-api', 'fetched_at': '2026-07-03T15:19:36.880590+00:00'}
+2026-07-03 15:19:37,053 [INFO] automation.scheduler.run_job: [2/4] Validasi mulai
+2026-07-03 15:19:37,053 [INFO] automation.scheduler.run_job: [2/4] Validasi lolos
+2026-07-03 15:19:37,053 [INFO] automation.scheduler.run_job: [3/4] Cleaning ringan mulai
+2026-07-03 15:19:37,053 [INFO] automation.scheduler.run_job: [3/4] Cleaning selesai: {'month': '2026-07', 'usd_idr_avg': 17989.44, 'usd_idr_source': 'exchangerate-api', 'fetched_at': '2026-07-03T15:19:36.880590+00:00'}
+2026-07-03 15:19:37,053 [INFO] automation.scheduler.run_job: [4/4] Simpan ke staging mulai
+2026-07-03 15:19:37,054 [INFO] automation.storage.staging_writer: staging_write source=usd_idr key=2026-07 path=/home/runner/work/MultiMetode/MultiMetode/automation/data/staging/usd_idr/2026-07.json
+2026-07-03 15:19:37,054 [INFO] automation.scheduler.run_job: [4/4] Tersimpan di: /home/runner/work/MultiMetode/MultiMetode/automation/data/staging/usd_idr/2026-07.json
+2026-07-03 15:19:37,054 [INFO] automation.scheduler.run_job: Job usd_idr SELESAI sukses untuk month=2026-07
