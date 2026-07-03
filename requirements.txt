@@ -1,4 +1,27 @@
-# BaliGuard Automation Layer — dependency MINIMAL untuk fetch_usd.py
-# (tidak termasuk dependency pipeline ML / dashboard, di luar scope automation)
-requests>=2.31.0
-PyYAML>=6.0.1
+# Core dashboard
+streamlit
+plotly
+
+# Data processing
+pandas
+numpy
+pyarrow
+
+# Machine Learning (dipakai src/repositories & src/services untuk load model/inference)
+scikit-learn
+joblib
+
+# Image handling
+Pillow
+
+# Backend / storage
+supabase
+
+# LLM
+groq
+
+# HTTP client — dipakai src/services/llm_service.py (import top-level)
+requests
+
+# Date arithmetic — dipakai src/services/forecast.py (import top-level)
+python-dateutil
