@@ -851,6 +851,22 @@ def render(ctx: dict) -> None:
     gen_btn = st.button(_btn_label, type="primary",
                         use_container_width=True, disabled=not bool(groq_key))
 
+    # ── DEBUG SEMENTARA — audit runtime, hapus setelah selesai ──
+    st.info(
+        f"""
+DEBUG
+gen_btn={gen_btn}
+has_cache={_has_cache}
+groq_key={bool(groq_key)}
+cache_key={_cache_key}
+month={narasi_target}
+report={report_type}
+model={selected_model}
+format={format_style}
+"""
+    )
+    # ── END DEBUG SEMENTARA ──────────────────────────────
+
     # ── Divider ──────────────────────────────────────────
     st.markdown("<div style='border-top:1px solid rgba(255,255,255,0.06);margin:20px 0'></div>",
                 unsafe_allow_html=True)
@@ -912,6 +928,7 @@ def render(ctx: dict) -> None:
     # Cek session state dulu; kalau tidak ada, baru hit Supabase dengan
     # get_latest() — hanya 1 baris, bukan SELECT *.
     if gen_btn and groq_key and _has_cache:
+        st.warning("MASUK BRANCH CACHE")  # DEBUG SEMENTARA
         cached_n = narratives_cache.get(_cache_key)
         if cached_n is None:
             try:
@@ -964,6 +981,7 @@ def render(ctx: dict) -> None:
 
     # ── PERUBAHAN 5: Generate utama — gunakan llm_service ──
     elif gen_btn and groq_key:
+        st.warning("MASUK BRANCH GENERATE BARU")  # DEBUG SEMENTARA
         with st.spinner(f"🤖 {selected_model} sedang menganalisis data {narasi_target}..."):
             try:
                 from groq import (
@@ -1006,6 +1024,7 @@ def render(ctx: dict) -> None:
                 _max_tok = _MAX_TOKENS_BY_TYPE.get(report_type, 1024)
 
                 _client   = _Groq(api_key=groq_key, timeout=30.0)
+                st.success("AKAN MEMANGGIL GROQ")  # DEBUG SEMENTARA
                 _response = _client.chat.completions.create(
                     model=selected_model,
                     messages=[{'role': 'user', 'content': _prompt}],
