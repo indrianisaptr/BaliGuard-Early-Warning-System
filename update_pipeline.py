@@ -24,7 +24,7 @@ Untuk data BPS (wisman, TPK, inflasi):
   - Contoh: data/raw/updates/wisman_update.csv
 """
 
-import os, sys, uuid, warnings
+import os, sys, uuid, warnings, json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1036,9 +1036,23 @@ def run_pipeline(verbose: bool = True):
 
         if _METADATA_REPO_AVAILABLE:
             metadata_repo = MetadataRepository()
+
+            # Read latest trained model metadata
+            model_version = None
+            training_date = None
+            model_meta_path = MDL_DIR / 'model_metadata.json'
+            if model_meta_path.exists():
+                try:
+                    with open(model_meta_path) as f:
+                        model_meta = json.load(f)
+                    model_version = model_meta.get("model_version")
+                    training_date = model_meta.get("training_date")
+                except Exception as e:
+                    print(f"  ⚠  Gagal membaca model_metadata.json: {e}")
+
             metadata = {
-                "model_version": None,
-                "training_date": None,
+                "model_version": model_version,
+                "training_date": training_date,
                 "latest_prediction_month": latest_month,
                 "latest_data_month": latest_month,
                 "prediction_rows": prediction_rows,

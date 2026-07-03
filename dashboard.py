@@ -418,7 +418,7 @@ st.markdown("""
     <span style='font-size:10px;color:#1e293b'>
         Data: BPS Bali · Bank Indonesia · Google Hotels &nbsp;|&nbsp;
         Model: Isolation Forest + Random Forest + XLM-RoBERTa &nbsp;|&nbsp;
-        Narasi: Groq LLM (llama-3.3-70b-versatile / llama-3.1-8b / qwen3-32b / llama-4-scout)
+        Narasi: Groq LLM (gpt-oss-120b / llama-3.1-8b / qwen3-32b / llama-4-scout)
     </span>
 </div>
 """, unsafe_allow_html=True)

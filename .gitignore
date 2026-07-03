@@ -1,7 +1,15 @@
 # This is a comment
 
-# Ignore a specific file
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables
 .env
+.env.*
+
+# Ignore a specific file
 .streamlit/secrets.toml
 /secrets/
 
@@ -11,3 +19,11 @@ scraping_scripts/logs/
 # Runtime files
 .last_attempt
 .last_ip
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter
+.ipynb_checkpoints/

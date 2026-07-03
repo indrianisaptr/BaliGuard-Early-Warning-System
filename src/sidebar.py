@@ -89,10 +89,23 @@ def render_sidebar(ctx: dict) -> tuple:
 
         # Tahun dropdown
         list_tahun = sorted(set(m[:4] for m in avail), reverse=True)
-        selected_year = st.selectbox("Tahun", list_tahun, key='year_sel')
 
-        # Bulan dropdown (nama Indonesia)
-        avail_months = sorted([m for m in avail if m.startswith(selected_year)], reverse=True)
+        default_year = "2026"
+        year_index = list_tahun.index(default_year) if default_year in list_tahun else 0
+
+        selected_year = st.selectbox(
+            "Tahun",
+            list_tahun,
+            index=year_index,
+            key="year_sel"
+        )
+
+        # Bulan dropdown
+        avail_months = sorted(
+            [m for m in avail if m.startswith(selected_year)],
+            reverse=True
+        )
+
         format_bulan = {}
         for m in avail_months:
             label = NAMA_BULAN_ID.get(m[5:7], m[5:7])
@@ -100,10 +113,19 @@ def render_sidebar(ctx: dict) -> tuple:
                 label += " [PROYEKSI]"
             format_bulan[m] = label
 
+        default_month = "2026-04"
+        month_index = (
+            avail_months.index(default_month)
+            if default_month in avail_months
+            else 0
+        )
+
         sel = st.selectbox(
-            "Bulan", avail_months,
+            "Bulan",
+            avail_months,
+            index=month_index,
             format_func=lambda x: format_bulan.get(x, x),
-            key='month_sel'
+            key="month_sel"
         )
 
         st.divider()

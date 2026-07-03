@@ -283,7 +283,7 @@ Diasumsikan ada di root project (tidak termasuk paket ini): `data/final/`, `mode
 
 **Catatan**:
 - **Tidak diimpor file manapun** di paket ini (dikonfirmasi via grep). `pages/narasi.py` memanggil Groq API langsung + pakai `services/llm_service.py`, bukan modul ini.
-- Model di-hardcode `'llama-3.3-70b-versatile'`, tidak mendukung pilihan 4 model seperti di UI `narasi.py`.
+- Model tidak lagi di-hardcode — dibaca dari environment variable `GROQ_MODEL` (default `openai/gpt-oss-120b`, model `llama-3.3-70b-versatile` sebelumnya sudah deprecated). Modul ini tetap tidak mendukung pilihan 4 model seperti di UI `narasi.py`, hanya satu model dari `GROQ_MODEL`.
 - Tidak punya `NARASI_RULE` atau kontrol format paragraf/poin — kalau modul ini pernah dipanggil ulang tanpa sadar menggantikan `llm_service.py`, hasil narasi akan beda signifikan format & kualitasnya.
 
 **Ringkasan**: Dead code — tidak dipakai di alur eksekusi dashboard saat ini.

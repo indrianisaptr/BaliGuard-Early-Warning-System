@@ -459,7 +459,8 @@ dominant_factor = max(factors, key=factors.get)
 Kedua kolom `usd_volatility_3m` dan `pct_negative_monthly` sekarang tersimpan di `predictions_final.csv` (patch NB05). Untuk bulan 2025–2026, `usd_volatility_3m = 0` karena data kurs tidak ter-update — sehingga `dominant_factor` selalu jatuh ke "Kunjungan Wisatawan" untuk periode tersebut. Ini **bukan bug**, tapi keterbatasan data.
 
 ### Groq API & Model
-- Model: `llama-3.3-70b-versatile`
+- Model: dikonfigurasi via environment variable `GROQ_MODEL`, default `openai/gpt-oss-120b` (lihat `GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")` di NB06 & di `narrative_engine.py` hasil generate). Tidak lagi di-hardcode.
+- Model sebelumnya, `llama-3.3-70b-versatile`, sudah deprecated dan tidak lagi dipakai sebagai default produksi.
 - Temperature: 0.7
 - Max tokens: 1024
 - API key: dari `.env` file (`GROQ_API_KEY`)

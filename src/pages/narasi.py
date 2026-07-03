@@ -497,8 +497,8 @@ def render(ctx: dict) -> None:
     </div>""", unsafe_allow_html=True)
 
     GROQ_MODELS = {
-        'llama-3.3-70b-versatile': {
-            'label': 'Llama 3.3 70B', 'tag': 'Terbaik',
+        'openai/gpt-oss-120b': {
+            'label': 'GPT-OSS 120B', 'tag': 'Terbaik',
             'desc': 'Akurasi tinggi, analisis mendalam',
             'color': '#a78bfa', 'bg': 'rgba(167,139,250,0.12)', 'border': 'rgba(167,139,250,0.30)',
             'icon': '🏆',
@@ -524,7 +524,7 @@ def render(ctx: dict) -> None:
     }
 
     if 'selected_model_key' not in st.session_state:
-        st.session_state['selected_model_key'] = 'llama-3.3-70b-versatile'
+        st.session_state['selected_model_key'] = 'openai/gpt-oss-120b'
 
     # ── Warna tiap model MENGIKUTI POSISI KOLOM tipe laporan di atasnya ──
     # Kolom 0: Quick Summary (biru), Kolom 1: Emergency Alert (merah),
@@ -1012,6 +1012,7 @@ def render(ctx: dict) -> None:
                     temperature=0.7, max_tokens=_max_tok,
                     timeout=30.0,
                     **({'reasoning_effort': 'none'} if 'qwen' in selected_model else {}),
+                    **({'reasoning_effort': 'low'} if 'gpt-oss' in selected_model else {}),
                 )
 
                 # ── Validasi struktur response sebelum diakses ──
@@ -1027,8 +1028,18 @@ def render(ctx: dict) -> None:
                         "Groq API mengembalikan response tanpa konten narasi yang valid. "
                         "Coba generate ulang."
                     )
+                if not _message.content.strip():
+                    _finish = getattr(_choice, 'finish_reason', None)
+                    _reasoning_present = bool(getattr(_message, 'reasoning', None))
+                    raise ValueError(
+                        "Groq API mengembalikan content kosong (kemungkinan seluruh token habis "
+                        "terpakai untuk reasoning internal model, bukan output akhir). "
+                        f"finish_reason={_finish}, reasoning_field_terisi={_reasoning_present}. "
+                        "Coba generate ulang atau naikkan max_tokens."
+                    )
 
                 _narr_text = clean_output(_message.content)
+
                 _usage     = getattr(_response, 'usage', None)
                 _tokens    = (
                     (_usage.prompt_tokens + _usage.completion_tokens)
@@ -1052,6 +1063,15 @@ def render(ctx: dict) -> None:
                 if _non_latin.search(_narr_text):
                     _narr_text = _non_latin.sub('', _narr_text)
                     _narr_text = re.sub(r' {2,}', ' ', _narr_text).strip()
+
+                # ── Guard: cegah UI "sukses" palsu & insert gagal ke Supabase ──
+                # Kalau sanitasi (CJK fix / non-latin strip) menghabisi seluruh
+                # isi narasi, hentikan di sini sebelum render UI sukses dan
+                # sebelum Repository.insert() dipanggil dengan success=True.
+                if not _narr_text.strip():
+                    raise ValueError(
+                        "Narasi hasil sanitasi kosong."
+                    )
 
                 result = {
                     'success': True,

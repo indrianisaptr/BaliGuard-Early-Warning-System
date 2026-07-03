@@ -3,6 +3,10 @@ import json
 import numpy as np
 from groq import Groq
 
+# Model default Groq. llama-3.3-70b-versatile telah di-deprecate,
+# migrasi ke gpt-oss-120b. Bisa dioverride via env var GROQ_MODEL.
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+
 LEVEL_DESC = {
     'AMAN'    : 'kondisi pariwisata normal, tidak ada indikasi krisis',
     'WASPADA' : 'ada sinyal awal yang perlu dipantau',
@@ -118,7 +122,7 @@ def generate(pred_row: dict, report_type: str = 'summary',
         ctx      = build_context(pred_row, history_rows, narratives_cache)
         client   = Groq(api_key=api_key)
         response = client.chat.completions.create(
-            model       = 'llama-3.3-70b-versatile',
+            model       = GROQ_MODEL,
             messages    = [{'role': 'user', 'content': build_prompt(ctx, report_type)}],
             temperature = 0.7,
             max_tokens  = 1024

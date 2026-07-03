@@ -15,7 +15,7 @@ Apa yang dilakukan:
   7. Tampilkan evaluation metrics
 """
 
-import warnings, os
+import warnings, os, json
 from datetime import datetime
 from pathlib import Path
 
@@ -421,6 +421,16 @@ def save_outputs(df: pd.DataFrame, scaler, iso, rf, le, feat_cols):
     joblib.dump(rf,     MDL_DIR / 'model_random_forest.pkl')
     joblib.dump(le,     MDL_DIR / 'label_encoder.pkl')
     print(f"\n  ✓ Models saved → {MDL_DIR}/")
+
+    # Write latest trained model metadata (version + training timestamp)
+    # supaya update_pipeline.py bisa membacanya saat mengisi kolom
+    # model_version/training_date di Supabase pipeline_metadata.
+    training_dt = datetime.now()
+    with open(MDL_DIR / 'model_metadata.json', 'w') as f:
+        json.dump({
+            "model_version": training_dt.strftime('rf_%Y-%m-%d_%H%M%S'),
+            "training_date": training_dt.isoformat(),
+        }, f)
 
     # Predictions CSV — skema IDENTIK dengan PREDICTION_OUTPUT_COLUMNS
     # di update_pipeline.py (31 kolom, single source of truth untuk CSV
