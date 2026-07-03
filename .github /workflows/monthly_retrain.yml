@@ -1,0 +1,97 @@
+name: Monthly ML Pipeline — Update & Retrain
+
+# ─────────────────────────────────────────────────────────────────────
+# Menjalankan satu siklus bulanan penuh, BERURUTAN, tanpa mengubah
+# kode update_pipeline.py / retrain_model.py sedikit pun:
+#   1. update_pipeline.py  → rebuild fitur, crisis score, prediksi
+#   2. retrain_model.py    → retrain scaler + IsolationForest + RandomForest
+#
+# CATATAN PENTING (baca sebelum mengandalkan cron ini sepenuhnya):
+# update_pipeline.py mengharapkan file update BPS manual di
+# data/raw/updates/*.csv (wisman_update.csv, tpk_update.csv, dst) SUDAH
+# ada sebelum run — itu proses manual di luar workflow ini. Kalau file
+# belum diletakkan, pipeline tetap jalan (tidak crash) tapi tidak ada
+# bulan baru yang ditambahkan, hanya rebuild fitur atas data existing.
+# Karena itu cron di bawah sengaja diberi jeda beberapa hari dari awal
+# bulan (asumsi rilis data BPS), TAPI paling aman workflow ini dipicu
+# manual (workflow_dispatch) SETELAH Anda commit file update BPS.
+# ─────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    # Tanggal 5 tiap bulan, 01:00 UTC (≈08:00 WIB). Geser sesuai jadwal
+    # rilis data BPS yang sebenarnya Anda pakai.
+    - cron: '0 1 5 * *'
+  workflow_dispatch: {}   # rekomendasi: trigger manual setelah upload data BPS terbaru
+
+concurrency:
+  group: monthly-retrain
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # commit model baru & predictions_final.csv kembali ke repo
+
+jobs:
+  update-and-retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-pipeline.txt
+
+      - name: Install dependencies (automation + ML pipeline)
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-pipeline.txt
+
+      - name: Run update_pipeline.py
+        env:
+          PYTHONUNBUFFERED: '1'
+          # ── Opsional: hanya perlu diisi jika Anda ingin fitur upsert
+          # ke Supabase (PredictionRepository/MetadataRepository/
+          # PipelineLogRepository) aktif. Tanpa ini, pipeline tetap
+          # jalan normal (import-nya dibungkus try/except di dalam
+          # update_pipeline.py) — hanya upsert Supabase yang di-skip
+          # dengan warning, CSV/parquet tetap tersimpan seperti biasa.
+          # Sesuaikan NAMA env var ini dengan yang benar-benar dibaca
+          # di src/repositories/*.py (file itu tidak saya terima).
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python update_pipeline.py
+
+      - name: Run retrain_model.py
+        env:
+          PYTHONUNBUFFERED: '1'
+        run: python retrain_model.py
+
+      - name: Commit & push updated data + models
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/final data/processed models
+          if git diff --cached --quiet; then
+            echo "Tidak ada perubahan output — skip commit."
+          else
+            git commit -m "chore(pipeline): monthly update + retrain [skip ci]"
+            git push
+          fi
+
+      - name: Upload run artifacts (predictions & model metrics)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baliguard-monthly-run-${{ github.run_number }}
+          path: |
+            data/final/predictions_final.csv
+            models/feature_importance.csv
+          retention-days: 90

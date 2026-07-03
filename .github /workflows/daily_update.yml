@@ -1,0 +1,71 @@
+name: Daily Automation — Fetch USD/IDR
+
+# ─────────────────────────────────────────────────────────────────────
+# Menjalankan layer automation/ (BUKAN update_pipeline.py — itu bulanan).
+# Tugas: fetch USD/IDR harian → tulis ke automation/data/staging/,
+# lewat automation/scheduler/run_all_jobs.py (menjalankan seluruh job
+# yang terdaftar, termasuk automation/fetch/usd_idr.py + validasi).
+#
+# update_pipeline.py TIDAK PERNAH fetch API sendiri (lihat komentar di
+# dalamnya) — dia hanya membaca staging yang ditulis workflow ini.
+# ─────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    # 22:00 UTC = 05:00 WIB / 06:00 WITA hari berikutnya.
+    # Sesuaikan jika sumber data USD/IDR punya jam update sendiri
+    # (mis. kalau sumbernya BI/Yahoo Finance yang update pagi WIB,
+    # geser cron ini beberapa jam setelah itu).
+    - cron: '0 22 * * *'
+  workflow_dispatch: {}   # tombol "Run workflow" manual di tab Actions
+
+# Mencegah dua run tumpang tindih (mis. run terjadwal + manual bersamaan)
+# yang bisa menyebabkan race condition saat commit staging.
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # perlu untuk commit hasil staging kembali ke repo
+
+jobs:
+  fetch-usd-idr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies (automation layer only)
+        run: pip install -r requirements.txt
+
+      - name: Run automation jobs (fetch + validasi)
+        env:
+          # Jika automation/fetch/usd_idr.py butuh API key eksternal
+          # (mis. exchangerate API, BI API, dsb), tambahkan di sini,
+          # misal: FX_API_KEY: ${{ secrets.FX_API_KEY }}
+          # Saya tidak punya isi file tsb, jadi cek sendiri env var
+          # apa yang dia baca (os.environ / os.getenv) lalu daftarkan
+          # sebagai GitHub Secret dengan nama yang sama persis.
+          PYTHONUNBUFFERED: '1'
+        run: python -m automation.scheduler.run_all_jobs
+
+      - name: Commit & push staging changes (jika ada)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add automation/data/staging automation/logs
+          if git diff --cached --quiet; then
+            echo "Tidak ada perubahan staging/log — skip commit."
+          else
+            git commit -m "chore(automation): daily USD/IDR fetch [skip ci]"
+            git push
+          fi

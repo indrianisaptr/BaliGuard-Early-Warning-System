@@ -1,0 +1,28 @@
+# BaliGuard — dependency TAMBAHAN untuk update_pipeline.py & retrain_model.py
+# Terpisah dari requirements.txt (yang eksplisit hanya untuk automation/fetch)
+# supaya workflow harian (fetch USD/IDR) tetap ringan & cepat, sementara
+# workflow bulanan (ML pipeline) install dependency yang lebih berat.
+#
+# Sumber: import yang ditemukan langsung di update_pipeline.py & retrain_model.py
+#   - pandas, numpy            -> data processing
+#   - scikit-learn              -> RandomForest, IsolationForest, StandardScaler, dll
+#   - joblib                    -> load/save model .pkl
+#   - pyarrow                   -> to_parquet()/read_parquet() (engine default pandas)
+#   - python-dotenv              -> load_dotenv() di update_pipeline.py
+
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+joblib>=1.3.0
+pyarrow>=14.0.0
+python-dotenv>=1.0.0
+
+# ── Opsional ──────────────────────────────────────────────────────────
+# update_pipeline.py mencoba import PredictionRepository / MetadataRepository /
+# PipelineLogRepository dari src/repositories/ — TAPI dibungkus try/except
+# ImportError, jadi pipeline tetap jalan (CSV tetap ditulis) walau paket ini
+# tidak terpasang. Uncomment baris di bawah HANYA jika Anda ingin fitur
+# upsert ke Supabase benar-benar aktif di GitHub Actions, dan sesuaikan
+# nama paketnya dengan yang dipakai di src/repositories/*.py (file tsb
+# tidak saya terima, jadi saya tidak bisa memastikan nama paket clientnya).
+# supabase>=2.0.0
