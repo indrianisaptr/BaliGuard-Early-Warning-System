@@ -285,11 +285,11 @@ This table makes explicit how each external data source maps to a specific compo
 
 ## Installation
 
-Clone the repository:
+### Clone the Repository
 
 ```bash
-git clone <repository-url>
-cd MultiMetode
+git clone https://github.com/indrianisaptr/BaliGuard-Early-Warning-System.git
+cd BaliGuard-Early-Warning-System
 ```
 
 Install dependencies:
@@ -375,9 +375,11 @@ This project is released under the MIT License. See the `LICENSE` file for detai
 
 ## Citation
 
+If you use this repository for academic purposes, please cite this project:
+
 ```
 BaliGuard: Early Warning System for Bali Tourism Crisis Monitoring.
-[BaliGuard Team(s)], 2026.
+[Author Name(s)], 2026.
 Available at: https://baliguard.streamlit.app
 ```
 
