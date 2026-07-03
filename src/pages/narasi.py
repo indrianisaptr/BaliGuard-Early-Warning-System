@@ -857,7 +857,7 @@ def render(ctx: dict) -> None:
 
     # ── Output area ──────────────────────────────────────
     _already_shown = _cache_key in st.session_state['narasi_shown_keys']
-    if _has_cache and not gen_btn and _already_shown:
+    if _has_cache and not gen_btn:
         cached_n = narratives_cache.get(_cache_key)
         if cached_n is None:
             # Data ada di Supabase tapi belum di session — ambil on-demand
@@ -1158,7 +1158,7 @@ def render(ctx: dict) -> None:
             except Exception as e:
                 st.error("❌ Terjadi kesalahan tak terduga saat membuat narasi: " + str(e))
 
-    elif not gen_btn and not _already_shown:
+    elif not gen_btn and not _has_cache:
         st.markdown("""
         <div style='background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);
                     border-radius:14px;padding:48px;text-align:center'>
