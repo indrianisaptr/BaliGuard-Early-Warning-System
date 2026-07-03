@@ -375,11 +375,9 @@ This project is released under the MIT License. See the `LICENSE` file for detai
 
 ## Citation
 
-If you use this repository for academic purposes, please cite this project:
-
 ```
 BaliGuard: Early Warning System for Bali Tourism Crisis Monitoring.
-[Author Name(s)], 2026.
+[BaliGuard Team(s)], 2026.
 Available at: https://baliguard.streamlit.app
 ```
 
