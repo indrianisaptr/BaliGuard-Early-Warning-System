@@ -1,275 +1,400 @@
 # BaliGuard
 
-<!--
-Badge GitHub Actions sengaja belum dipasang di sini. Rencana: tambahkan
-setelah beberapa kali run sukses di production (daily_update.yml &
-monthly_retrain.yml), supaya badge yang tampil di halaman depan repo
-selalu hijau — badge merah lebih buruk daripada tidak ada badge.
+Early Warning System for Bali Tourism Crisis Monitoring, combining machine learning, multilingual sentiment analysis, and AI-generated narrative reporting.
 
-![Daily Automation](https://github.com/<owner>/<repo>/actions/workflows/daily_update.yml/badge.svg)
-![Monthly ML Pipeline](https://github.com/<owner>/<repo>/actions/workflows/monthly_retrain.yml/badge.svg)
--->
+## Live Demo
 
-**AI-powered Early Warning System for Bali Tourism Crisis Monitoring.**
+**[https://baliguard.streamlit.app](https://baliguard.streamlit.app)**
 
-BaliGuard is a machine learning system that continuously scores the health of Bali's tourism sector — from visitor arrivals and exchange rate pressure to sentiment and external shocks (disasters, global events) — and classifies each month into one of four crisis levels (**AMAN → WASPADA → SIAGA → KRISIS**). Predictions are served through an interactive Streamlit dashboard with AI-generated narrative reports, backed by a production-style pipeline that runs on a schedule via GitHub Actions.
+The dashboard is live and reads directly from Supabase, so it always reflects the latest predictions produced by the automation and ML pipeline layers.
 
-- 🤖 **Machine Learning** — Random Forest classification + Isolation Forest anomaly detection
-- ⚙️ **Automation** — scheduled data ingestion, fully decoupled from the ML pipeline
-- 📊 **Streamlit Dashboard** — 5-page interactive interface with KPIs, forecasts, and scenario simulation
-- 🔁 **GitHub Actions** — production scheduler for daily data fetch and monthly retraining
-- ☁️ **Supabase** — persistent storage for predictions, metadata, narratives, and pipeline run logs
-- 🚨 **Early Warning System** — four-level crisis classification designed to support decision-making, not just forecasting
+## Overview
 
----
+BaliGuard continuously monitors the health of Bali's tourism sector by combining tourism, economic, sentiment, and external risk indicators into a single composite Crisis Score (0-100). The score is mapped to four severity levels — AMAN, WASPADA, SIAGA, KRISIS — and served through an interactive Streamlit dashboard.
 
-## Project Status
+The system is composed of three independent layers: a scheduled automation layer that ingests external data, a machine learning pipeline that engineers features and produces predictions, and a dashboard layer that reads those predictions and generates AI narrative reports. Data is persisted end-to-end in Supabase, and the full pipeline runs on a schedule via GitHub Actions.
 
-| Component      | Status              |
-| -------------- | ------------------- |
-| Dashboard      | ✅ Production Ready |
-| ML Pipeline    | ✅ Production Ready |
-| Automation     | ✅ Production Ready |
-| GitHub Actions | ✅ Active           |
-| Supabase       | ✅ Connected        |
-
----
-
-## Architecture Overview
+## Production Workflow
 
 ```
 External Data
-      │
-      ▼
+      |
+      v
   Automation
-      │
-      ▼
+      |
+      v
 Feature Engineering
-      │
-      ▼
+      |
+      v
 Machine Learning
-      │
-      ▼
+      |
+      v
   Predictions
-      │
-      ▼
+      |
+      v
    Supabase
-      │
-      ▼
+      |
+      v
+Streamlit Dashboard
+      |
+      v
+  AI Narrative
+```
+
+Automation only fetches and stages external data. The ML pipeline reads staged data and never calls external APIs directly. The dashboard only reads predictions from Supabase. Each layer can be modified, tested, or re-run independently.
+
+### Architecture Diagram
+
+The diagram above shows the logical data flow. A rendered architecture diagram (PNG/SVG) is available under `reports/figures/` — see `architecture_diagram.png` for a visual overview of how the automation, ML pipeline, Supabase, and dashboard layers connect, including the GitHub Actions schedule that triggers each layer.
+
+## Dashboard Features
+
+The dashboard is organized into five pages, all driven by a shared context built from the latest predictions and metadata.
+
+**Overview & Timeline**
+Landing page with current crisis level, Crisis Score, USD/IDR rate, and tourist arrivals as KPI cards. Includes historical charts for tourist arrivals, exchange rate, and Crisis Score with level bands, an External Risk Monitor (Physical Risk, Media Risk, Tourist Perception), and a downloadable data table.
+
+**Detailed Analysis**
+Breaks the Crisis Score down into its contributing components (tourism, economic conditions, sentiment, external risk), shows the Random Forest class probability distribution, and ranks the features most influential to the current prediction. Includes a full indicator table with anomaly detection status.
+
+**Sentiment Analysis**
+Reports the aggregate sentiment classification for the selected month (positive, negative, neutral) based on multilingual review analysis, alongside a historical sentiment trend, a sentiment gauge, and a six-month comparison chart.
+
+**Prediction & Projection**
+Generates a configurable multi-month forecast (3 to 12 months) with a confidence level that decreases with projection distance, and a real-time scenario simulator that recalculates the Crisis Score as tourist arrivals, exchange rate, and sentiment inputs are adjusted. Includes a risk breakdown and level-specific recommendations.
+
+**AI Narrative**
+Converts the current data state into a ready-to-use Bahasa Indonesia report using an LLM. See below for details.
+
+## AI Narrative
+
+The AI Narrative page turns model outputs into structured, human-readable reports intended for internal briefings, early warning communication, and press material.
+
+Report types:
+
+- Quick Summary — a two to three sentence status update
+- Emergency Alert — status, key indicators, and an immediate recommendation for SIAGA/KRISIS conditions
+- Laporan Bulanan (Monthly Report) — executive summary, indicator analysis, driving factors, and recommendations
+- Prediksi AI (AI Prediction) — three to six month outlook with scenario-based risk
+- Analisis SWOT — strengths, weaknesses, opportunities, and threats based on the current data
+
+Supported models, served via the Groq API: GPT-OSS 120B, Llama 3.1 8B, Qwen3 32B, and Llama 4 Scout, selectable per report for a trade-off between accuracy, speed, and narrative style.
+
+Additional capabilities:
+
+- Narrative caching per month, report type, model, and format, backed by Supabase, so previously generated reports are served without a repeated LLM call
+- Multiple output formats (paragraph or bullet-point)
+- Side-by-side comparison of narratives between two different periods for the same report type
+- Copy-to-clipboard and TXT export for generated narratives
+
+## Machine Learning
+
+The pipeline builds a monthly time series from raw tourism, economic, sentiment, and external risk data and produces two model outputs per month.
+
+- **Preprocessing and feature engineering** — growth rates, rolling statistics, z-scores, volatility, seasonality, and normalized external risk indicators
+- **Crisis Score** — a weighted composite of tourism, economic, sentiment, and external risk components, with a pre-COVID baseline floor rule
+- **External Risk Score** — a weighted composite of Physical Risk, Media Risk, and Tourist Perception (35 percent, 35 percent, and 30 percent respectively), each normalized to a 0-100 scale
+- **Random Forest Classifier** — predicts the crisis level (AMAN, WASPADA, SIAGA, KRISIS) with per-class probabilities and a confidence score
+- **Isolation Forest** — unsupervised anomaly detection used as a supporting signal alongside the classifier
+- **Sentiment Classification** — multilingual review sentiment (English, Indonesian, Chinese) via an XLM-RoBERTa model, aggregated into a monthly sentiment score
+- **Forecasting** — trend extrapolation over historical patterns (2009-2024) combined with the trained models to project the Crisis Score forward, with confidence decreasing as the projection horizon increases
+
+`retrain_model.py` rebuilds the scaler and retrains both models on the latest processed dataset.
+
+### ML Pipeline Diagram
+
+```
+Raw Data
+   |
+   v
+Cleaning
+   |
+   v
+Feature Engineering
+   |
+   v
+Random Forest + Isolation Forest
+   |
+   v
+Crisis Score
+   |
+   v
+Prediction
+   |
+   v
+Dashboard
+```
+
+## Automation
+
+The automation layer is a self-contained data ingestion component, fully decoupled from the ML pipeline. It fetches, validates, and stages external data; `update_pipeline.py` consumes staged data only and never calls an external API directly.
+
+| Workflow            | Schedule | Purpose                                              |
+| ------------------- | -------- | ---------------------------------------------------- |
+| Daily Automation    | Daily    | Fetch USD/IDR, validate, write to staging            |
+| Monthly ML Pipeline | Monthly  | Run update pipeline, retrain models, update Supabase |
+
+Both workflows are defined as GitHub Actions and can also be triggered manually from the Actions tab. See `automation/README.md` for full documentation of the automation layer.
+
+### Automation Diagram
+
+```
+Daily GitHub Actions
+        |
+        v
+  Fetch USD/IDR
+        |
+        v
+   Staging Data
+        |
+        v
+Monthly Update Pipeline
+        |
+        v
+     Retraining
+        |
+        v
+      Supabase
+        |
+        v
 Streamlit Dashboard
 ```
 
-The system is split into independent layers on purpose: **automation** only fetches and stages external data, the **ML pipeline** only reads that staged data (never calls external APIs itself), and the **dashboard** only reads predictions — each layer can be changed, tested, or re-run without touching the others.
+## Supabase
 
----
+Supabase is the persistence layer shared by the pipeline and the dashboard.
 
-## Key Features
-
-| Feature                                | Description                                                                                                                                          |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Automated Data Collection**    | `automation/` fetches external data (e.g. USD/IDR exchange rate), validates it, and writes it to a staging layer — independent of the ML pipeline |
-| **Feature Engineering**          | Rebuilds growth rates, rolling statistics, z-scores, volatility, seasonality, and external risk indicators from raw sources                          |
-| **Crisis Score**                 | A weighted composite score (tourism, economy, sentiment, external risk components) mapped to four severity levels                                    |
-| **Random Forest Classification** | Predicts`crisis_level` (AMAN / WASPADA / SIAGA / KRISIS) with per-class probabilities                                                              |
-| **Isolation Forest**             | Unsupervised anomaly detection as a supporting signal alongside crisis classification                                                                |
-| **Automated Retraining**         | `retrain_model.py` rebuilds the scaler and retrains both models on the latest processed dataset                                                    |
-| **GitHub Actions Scheduler**     | Daily automation run + monthly pipeline/retraining run, without manual intervention                                                                  |
-| **Streamlit Dashboard**          | Multi-page interface: Overview & Timeline, Detailed Analysis, Sentiment, Prediction & Projection, AI Narrative                                       |
-| **LLM Narrative**                | AI-generated situation reports (summary / alert / monthly, paragraph or bullet format) via Groq LLM                                                  |
-| **Supabase Integration**         | Predictions, metadata, pipeline run logs, and narrative history are persisted to Supabase                                                            |
-
----
-
-## Technology Stack
-
-| Category           | Technology                                     |
-| ------------------ | ---------------------------------------------- |
-| Language           | Python                                         |
-| Data Processing    | Pandas, NumPy                                  |
-| Machine Learning   | Scikit-Learn (Random Forest, Isolation Forest) |
-| Model Persistence  | Joblib, Parquet                                |
-| Dashboard          | Streamlit, Plotly                              |
-| LLM / Narrative    | Groq API                                       |
-| Backend / Storage  | Supabase                                       |
-| Automation         | Python (`requests`, `PyYAML`)              |
-| CI/CD & Scheduling | GitHub Actions                                 |
-| Configuration      | python-dotenv                                  |
-
----
+| Table                 | Purpose                                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------ |
+| `predictions`       | Monthly Crisis Score, crisis level, model probabilities, and indicator values produced by the pipeline |
+| `narratives`        | Cached AI-generated narrative reports, keyed by month, report type, model, and format                  |
+| `pipeline_metadata` | Metadata describing each pipeline run, such as the dataset version and model version used              |
+| `pipeline_logs`     | Execution logs for automation and pipeline runs, used for auditing and troubleshooting                 |
 
 ## Repository Structure
 
 ```
-notebooks/           # NB01–NB06: EDA → preprocessing → sentiment → feature engineering → modeling → LLM narrative
-automation/           # Data ingestion layer: fetch, validate, stage external data (see automation/README.md)
-models/               # Trained model artifacts (.pkl): Random Forest, Isolation Forest, scaler, label encoder
-data/                 # raw / processed / final datasets produced by the pipeline
-dashboard.py          # Streamlit dashboard entry point
-update_pipeline.py    # Monthly ML update: reads staging, rebuilds features, computes crisis score, predicts
-retrain_model.py      # Retrains Random Forest & Isolation Forest on the latest processed dataset
-src/                  # Dashboard source: config, shared context builder, pages, services, components
-docs/                 # Additional project documentation
+notebooks/            NB01-NB06: EDA, preprocessing, sentiment, feature engineering, modeling, LLM narrative
+automation/            Data ingestion layer: fetch, validate, stage external data
+models/                Trained model artifacts: Random Forest, Isolation Forest, scaler, label encoder
+data/                  Raw, processed, and final datasets
+src/
+  components/          Reusable dashboard UI components
+  services/            Business logic (LLM service, forecasting, and other domain services)
+  pages/               Streamlit page modules (overview, detailed analysis, sentiment, prediction, narrative)
+  repositories/        Data access layer for Supabase (e.g. narrative repository)
+  config.py            Application configuration and constants
+  shared.py            Shared context builder consumed by all dashboard pages
+dashboard.py           Streamlit dashboard entry point
+update_pipeline.py     Monthly ML update: reads staging, rebuilds features, computes Crisis Score, predicts
+retrain_model.py       Retrains Random Forest and Isolation Forest on the latest processed dataset
+docs/                  Additional project documentation
 ```
 
----
+### Repository Layout — Folder Purpose
 
-## Machine Learning Pipeline
+| Folder                  | Purpose                                                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `notebooks/`          | Exploratory analysis and pipeline development (EDA, preprocessing, sentiment, feature engineering, modeling, LLM narrative) |
+| `automation/`         | Fetches, validates, and stages external data; fully decoupled from the ML pipeline                                          |
+| `models/`             | Trained model artifacts: Random Forest, Isolation Forest, scaler, label encoder                                             |
+| `data/raw/`           | Unmodified source data as downloaded from external providers                                                                |
+| `data/processed/`     | Cleaned, per-source datasets ready for feature engineering                                                                  |
+| `data/final/`         | Final merged dataset, predictions, and evaluation figures used by the dashboard                                             |
+| `src/pages/`          | Streamlit page modules — Overview, Detailed Analysis, Sentiment, Prediction, Narrative                                     |
+| `src/services/`       | Business logic — forecasting, scenario simulation, and the LLM narrative service                                           |
+| `src/repositories/`   | Data access layer for Supabase (predictions, narratives, metadata, logs)                                                    |
+| `src/components/`     | Reusable dashboard UI components (badges, cards)                                                                            |
+| `src/infra/`          | Infrastructure clients, such as the Supabase client                                                                         |
+| `database/migration/` | SQL migration scripts for the Supabase schema                                                                               |
+| `docs/`               | Pipeline documentation, migration notes, and evaluation baseline                                                            |
+| `reports/figures/`    | Generated charts and diagrams (confusion matrix, crisis timeline, architecture diagram)                                     |
 
-```
-Raw Data
-      │
-      ▼
-Feature Engineering
-      │
-      ▼
-Crisis Score
-      │
-      ▼
-   Training
-      │
-      ▼
-  Prediction
-      │
-      ▼
-  Dashboard
-```
+## Dashboard Preview
 
-The pipeline builds a monthly time series of tourism, economic, sentiment, and external risk features, computes a weighted crisis score, and feeds those features into a Random Forest classifier (crisis level) and an Isolation Forest (anomaly signal). Results are written to `predictions_final.csv` / `master_dataset_clean.parquet` and consumed by the dashboard.
+### Overview & Timeline
 
----
+Current status, historical trends, and external risk monitor.
 
-## Automation
+![Overview and Timeline](assets/Overview.png)
 
-The `automation/` folder is a self-contained data ingestion layer, fully decoupled from the ML pipeline — it only fetches, validates, and stages external data; `update_pipeline.py` never calls an external API directly.
+### Detailed Analysis
 
-| Workflow            | Schedule | Purpose                                          |
-| ------------------- | -------- | ------------------------------------------------ |
-| Daily Automation    | Daily    | Fetch USD/IDR → Validation → Staging           |
-| Monthly ML Pipeline | Monthly  | Update Pipeline → Retraining → Update Supabase |
+Crisis Score breakdown, model probabilities, and feature importance.
 
-See [`automation/README.md`](automation/README.md) for complete automation documentation.
+![Detailed Analysis](assets/Analisis.png)
 
----
+### Sentiment Analysis
 
-## GitHub Actions
+Multilingual sentiment classification and historical trend.
 
-| Workflow           | Trigger  | Purpose                      |
-| ------------------ | -------- | ---------------------------- |
-| Daily Automation   | Schedule | Fetch USD/IDR                |
-| Monthly Retraining | Schedule | Update Pipeline + Retraining |
+![Sentiment Analysis](assets/Sentimen.png)
 
-Both workflows can also be triggered manually from the GitHub Actions tab.
+### Prediction & Projection
 
----
+Multi-month forecast and scenario simulator.
 
-## Getting Started
+![Prediction and Projection](assets/Prediksi.png)
 
-**Clone the repository**
+### AI Narrative
+
+Generated report and period-to-period comparison.
+
+![AI Narrative](assets/Narasi.png)
+
+## Technology Stack
+
+| Category             | Technology                                                      |
+| -------------------- | --------------------------------------------------------------- |
+| Language             | Python                                                          |
+| Data Processing      | Pandas, NumPy                                                   |
+| Machine Learning     | Scikit-learn (Random Forest, Isolation Forest)                  |
+| Sentiment Analysis   | XLM-RoBERTa                                                     |
+| Model Persistence    | Joblib, Parquet                                                 |
+| Dashboard            | Streamlit, Plotly                                               |
+| LLM / Narrative      | Groq API (GPT-OSS 120B, Llama 3.1 8B, Qwen3 32B, Llama 4 Scout) |
+| Backend / Storage    | Supabase                                                        |
+| Automation           | Python (requests, PyYAML)                                       |
+| CI/CD and Scheduling | GitHub Actions                                                  |
+| Configuration        | python-dotenv                                                   |
+
+## Dataset Summary
+
+| Source                      | Frequency       | Purpose                                                 |
+| --------------------------- | --------------- | ------------------------------------------------------- |
+| BPS (Badan Pusat Statistik) | Monthly         | Tourist arrivals, hotel occupancy, tourism statistics   |
+| Bank Indonesia              | Daily           | USD/IDR exchange rate                                   |
+| BMKG                        | Monthly         | Earthquake and extreme weather signals — Physical Risk |
+| GDELT                       | Daily / Monthly | Global media tone — Media Risk                         |
+| Google Trends               | Monthly         | Search interest signal — Tourist Perception            |
+| World Bank                  | Monthly         | Economic risk index — Tourist Perception               |
+| Digital tourism reviews     | Continuous      | Multilingual review text — Sentiment Analysis          |
+
+This table makes explicit how each external data source maps to a specific component of the Crisis Score (tourism, economic, sentiment, or external risk).
+
+## Data Sources
+
+- Tourist arrival counts (wisman)
+- Hotel occupancy rate (TPK)
+- USD/IDR exchange rate
+- Inflation rate
+- Tourist review text, for sentiment analysis
+- BMKG data, for earthquake and extreme weather signals (Physical Risk)
+- GDELT, for global media tone (Media Risk)
+- Google Trends and an economic risk index (Tourist Perception)
+
+## Installation
+
+Clone the repository:
 
 ```bash
 git clone <repository-url>
 cd MultiMetode
 ```
 
-**Install dependencies**
+Install dependencies:
 
 ```bash
 # Automation layer (fetch, validation, staging)
 pip install -r requirements.txt
 
-# ML pipeline (feature engineering, crisis score, modeling)
+# ML pipeline (feature engineering, Crisis Score, modeling)
 pip install -r requirements-pipeline.txt
 
 # Dashboard
-pip install streamlit plotly groq pyarrow joblib python-dotenv
+pip install streamlit plotly groq supabase pyarrow joblib python-dotenv
 ```
 
-**Run the dashboard**
+Configure environment variables (Supabase and Groq credentials) in a `.env` file before running any component.
+
+## Running
+
+Dashboard:
 
 ```bash
 streamlit run dashboard.py
 ```
 
-**Run the ML update pipeline**
+Automation (data fetch and staging):
+
+```bash
+python automation/run.py
+```
+
+ML update pipeline:
 
 ```bash
 python update_pipeline.py
 ```
 
-**Run model retraining**
+Model retraining:
 
 ```bash
 python retrain_model.py
 ```
 
----
+## Deployment
 
-## Project Workflow
+The dashboard is deployed on Streamlit Community Cloud. Predictions, narratives, and pipeline metadata are read from Supabase at runtime, so the deployed dashboard always reflects the latest data produced by the automation and ML pipeline layers, without requiring a redeploy.
 
-```
-External Sources
-      │
-      ▼
-  Automation
-      │
-      ▼
-    Staging
-      │
-      ▼
-Update Pipeline
-      │
-      ▼
-   Retraining
-      │
-      ▼
-  Predictions
-      │
-      ▼
-   Dashboard
-```
+## Project Status
 
----
-
-## Future Improvements
-
-- [ ] Additional external data sources beyond USD/IDR
-- [ ] Weather API integration for climate-related risk signals
-- [ ] Additional ML models for comparison/ensembling
-- [ ] Monitoring for automation and pipeline job health
-- [ ] Alerting on repeated fetch, validation, or pipeline failures
-- [ ] CI/CD enhancements (e.g. automated tests before deployment)
-
----
+| Component      | Status                                            |
+| -------------- | ------------------------------------------------- |
+| Dashboard      | Production, deployed on Streamlit Community Cloud |
+| ML Pipeline    | Production                                        |
+| Automation     | Production                                        |
+| GitHub Actions | Active                                            |
+| Supabase       | Connected                                         |
 
 ## Project Highlights
 
-✓ Automated data ingestion, decoupled from Machine Learning
-
-✓ Feature engineering pipeline consistent with model training
-
-✓ Machine Learning retraining pipeline (Random Forest + Isolation Forest)
-
-✓ GitHub Actions automation for daily fetch and monthly retraining
-
-✓ Multi-page Streamlit dashboard with AI-generated narrative reports
-
-✓ Supabase integration for predictions, metadata, and pipeline history
-
----
+- Automated, scheduled data collection decoupled from the machine learning pipeline
+- Feature engineering pipeline consistent between training and inference
+- Random Forest classification combined with Isolation Forest anomaly detection
+- Composite Crisis Score and External Risk Score with transparent, documented weighting
+- Multilingual sentiment analysis (English, Indonesian, Chinese)
+- Configurable multi-month forecasting with a real-time scenario simulator
+- Multi-model AI narrative generation with caching and period-to-period comparison
+- Monthly automated retraining via GitHub Actions
+- Persistent storage of predictions, narratives, and pipeline history in Supabase
+- Production deployment on Streamlit Community Cloud
 
 ## Documentation
 
-| Document                                            | Description                                                                                                                        |
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [`automation/README.md`](automation/README.md)     | Full documentation of the automation layer: folder structure, components, daily/monthly workflows, design principles               |
-| [`docs/`](docs/)                                   | Additional project documentation                                                                                                   |
-| [`evaluation_baseline.md`](evaluation_baseline.md) | Baseline model evaluation metrics, recorded before retraining, used as the reference point for measuring future retraining results |
-| `README.md`                                       | This document — project overview, architecture, features, and getting started guide                                               |
-
----
+| Document                   | Description                                                                           |
+| -------------------------- | ------------------------------------------------------------------------------------- |
+| `automation/README.md`   | Full documentation of the automation layer                                            |
+| `docs/`                  | Additional project documentation                                                      |
+| `evaluation_baseline.md` | Baseline model evaluation metrics, used as the reference point for retraining results |
+| `README.md`              | This document                                                                         |
 
 ## License
 
-This project is released under the [MIT License]().
+This project is released under the MIT License. See the `LICENSE` file for details.
 
-See the [LICENSE](LICENSE) file for details.
+## Citation
+
+If you use this repository for academic purposes, please cite this project:
+
+```
+BaliGuard: Early Warning System for Bali Tourism Crisis Monitoring.
+[Author Name(s)], 2026.
+Available at: https://baliguard.streamlit.app
+```
+
+## Acknowledgements
+
+BaliGuard relies on data and infrastructure provided by:
+
+- BPS (Badan Pusat Statistik) Bali
+- Bank Indonesia
+- BMKG & USGS
+- Google Trends
+- World Bank
+- Hotel Reviews
+- Kaggle
+- Tourist Reviews
+- Groq
+- Supabase
+- Streamlit
