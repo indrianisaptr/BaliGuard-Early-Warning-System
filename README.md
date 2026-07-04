@@ -287,22 +287,22 @@ BaliGuard/
 
 ### Repository Layout — Folder Purpose
 
-| Folder                  | Purpose                                                                                                                     |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `notebooks/`          | Exploratory analysis and pipeline development (EDA, preprocessing, sentiment, feature engineering, modeling, LLM narrative) |
-| `automation/`         | Fetches, validates, and stages external data; fully decoupled from the ML pipeline                                          |
-| `models/`             | Trained model artifacts: Random Forest, Isolation Forest, scaler, label encoder                                             |
-| `data/raw/`           | Unmodified source data as downloaded from external providers                                                                |
-| `data/processed/`     | Cleaned, per-source datasets ready for feature engineering                                                                  |
-| `data/final/`         | Final merged dataset, predictions, and evaluation figures used by the dashboard                                             |
-| `src/pages/`          | Streamlit page modules — Overview, Detailed Analysis, Sentiment, Prediction, Narrative                                     |
+| Folder                  | Purpose                                                                                                                                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `notebooks/`          | Exploratory analysis and pipeline development (EDA, preprocessing, sentiment, feature engineering, modeling, LLM narrative)                                                                              |
+| `automation/`         | Fetches, validates, and stages external data; fully decoupled from the ML pipeline                                                                                                                       |
+| `models/`             | Trained model artifacts: Random Forest, Isolation Forest, scaler, label encoder                                                                                                                          |
+| `data/raw/`           | Unmodified source data as downloaded from external providers                                                                                                                                             |
+| `data/processed/`     | Cleaned, per-source datasets ready for feature engineering                                                                                                                                               |
+| `data/final/`         | Final merged dataset, predictions, and evaluation figures used by the dashboard                                                                                                                          |
+| `src/pages/`          | Streamlit page modules — Overview, Detailed Analysis, Sentiment, Prediction, Narrative                                                                                                                  |
 | `src/services/`       | Business logic — dynamic forecasting (`forecast.py`), explanation generation (`explanation_service.py`), LLM narrative generation (`llm_service.py`), and scenario simulation (`simulation.py`) |
-| `src/repositories/`   | Data access layer for Supabase (`prediction_repository.py`, `narrative_repository.py`, `metadata_repository.py`, `pipeline_log_repository.py`) |
-| `src/components/`     | Reusable dashboard UI components (badges, cards)                                                                            |
-| `src/infra/`          | Infrastructure clients, such as the Supabase client                                                                         |
-| `database/migration/` | SQL migration scripts for the Supabase schema                                                                               |
-| `docs/`               | Pipeline documentation, migration notes, and evaluation baseline                                                            |
-| `reports/figures/`    | Generated charts and diagrams (confusion matrix, crisis timeline, architecture diagram)                                     |
+| `src/repositories/`   | Data access layer for Supabase (`prediction_repository.py`, `narrative_repository.py`, `metadata_repository.py`, `pipeline_log_repository.py`)                                                   |
+| `src/components/`     | Reusable dashboard UI components (badges, cards)                                                                                                                                                         |
+| `src/infra/`          | Infrastructure clients, such as the Supabase client                                                                                                                                                      |
+| `database/migration/` | SQL migration scripts for the Supabase schema                                                                                                                                                            |
+| `docs/`               | Pipeline documentation, migration notes, and evaluation baseline                                                                                                                                         |
+| `reports/figures/`    | Generated charts and diagrams (confusion matrix, crisis timeline, architecture diagram)                                                                                                                  |
 
 ## Dashboard Preview
 
@@ -497,9 +497,10 @@ BaliGuard relies on data and infrastructure provided by:
 
 # 👥 Authors & Contributors
 
-This project was developed collaboratively as part of the **BaliGuard – Early Warning System for Bali Tourism Crisis Detection**.
+This project was developed collaboratively as part of the **BaliGuard – Early Warning System for Bali Tourism Crisis Monitoring**.
 
 ### 👩‍💻 Indri Anisa Putri *(Project Lead)*
+
 - Project architecture & system design
 - Machine Learning pipeline development
 - MLOps automation & CI/CD integration
@@ -518,6 +519,7 @@ This project was developed collaboratively as part of the **BaliGuard – Early 
 </p>
 
 ### 👩‍💻 Tiksna Apsari
+
 - Development of **Time Series Preprocessing**
 - Development of **Merge & Feature Engineering**
 - Support for backend development in the **`src/`** modules
@@ -533,6 +535,7 @@ This project was developed collaboratively as part of the **BaliGuard – Early 
 </p>
 
 ### 👩‍💻 Dama Angelina
+
 - Dashboard styling (CSS)
 - UI refinement
 - Dashboard visualization improvements
@@ -544,6 +547,7 @@ This project was developed collaboratively as part of the **BaliGuard – Early 
 </p>
 
 ### 👩‍💻 Indira Utari
+
 - Data collection support
 - Dataset preparation
 - Supporting project resources
