@@ -327,8 +327,8 @@ def render(ctx: dict) -> None:
     st.markdown("""
     <div style='text-align:center;margin-bottom:20px;margin-top:-16px'>
         <div class='engine-pill'>
-            <span class='engine-label'>Mesin Prediksi</span>
-            <span class='engine-desc'>Random Forest + Isolation Forest + Trend Ekstrapolasi &nbsp;·&nbsp; pola historis 2009–2024</span>
+            <span class='engine-label'>Prediction Engine</span>
+            <span class='engine-desc'>Historical Data • Machine Learning • Dynamic Forecasting</span>
         </div>
     </div>
     """, unsafe_allow_html=True)

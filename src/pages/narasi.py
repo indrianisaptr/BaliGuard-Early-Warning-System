@@ -286,7 +286,7 @@ def render(ctx: dict) -> None:
                     🤖 AI NARRATIVE ENGINE · Powered by Groq
                 </div>
                 <div style='font-size:22px;color:#bbf7d0;line-height:1.3;margin-bottom:8px;font-weight:600'>
-                    Mengubah Data Menjadi Laporan Siap Baca
+                    Dari Data Menjadi Insight dan Rekomendasi
                 </div>
                 <div style='font-size:13px;color:#6ee7b7;line-height:1.8;max-width:560px'>
                     Narasi AI menganalisis kondisi pariwisata Bali — skor kondisi, prediksi tingkat risiko,
@@ -297,11 +297,12 @@ def render(ctx: dict) -> None:
             <div style='text-align:center;background:rgba(0,0,0,0.25);border-radius:12px;
                         padding:14px 20px;border:1px solid rgba(74,222,128,0.15)'>
                 <div style='font-size:10px;color:rgba(74,222,128,0.6);text-transform:uppercase;
-                            letter-spacing:.08em;margin-bottom:4px'>PROVIDER</div>
                 <div style='font-family:monospace;font-size:13px;color:#4ade80;font-weight:700'>
-                    Groq Cloud API
+                    Narrative Engine
+                    LLM-powered
+                    Data-driven
+                    Context-aware
                 </div>
-                <div style='font-size:12px;color:#86efac;margin-top:6px'>Latensi &lt; 1 detik · Gratis</div>
             </div>
         </div>
     </div>
@@ -318,23 +319,23 @@ def render(ctx: dict) -> None:
     <div style='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px'>
         <div style='background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);
                     border-radius:12px;padding:20px 16px 16px'>
-            <div style='font-size:18px;font-weight:800;color:#93c5fd;margin-bottom:6px;text-align:center'>Laporan Dinas / Rapat</div>
+            <div style='font-size:18px;font-weight:800;color:#93c5fd;margin-bottom:6px;text-align:center'>Executive Summary</div>
             <div style='font-size:15px;color:#e2e8f0;line-height:1.6;text-align:center'>
-                Draft laporan bulanan siap presentasi ke kepala dinas atau DPRD tanpa tulis manual.
+                Ringkasan otomatis kondisi pariwisata, indikator utama, dan tingkat risiko dalam format yang mudah dipahami.
             </div>
         </div>
         <div style='background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);
                     border-radius:12px;padding:20px 16px 16px'>
-            <div style='font-size:18px;font-weight:800;color:#d90000;margin-bottom:6px;text-align:center'>Peringatan Dini Krisis</div>
+            <div style='font-size:18px;font-weight:800;color:#d90000;margin-bottom:6px;text-align:center'>Risk Assessment</div>
             <div style='font-size:15px;color:#e2e8f0;line-height:1.6;text-align:center'>
-                Saat SIAGA/KRISIS terdeteksi, sistem menyusun teks peringatan + rekomendasi untuk stakeholder.
+                Menjelaskan faktor dominan, perubahan indikator, serta penyebab kenaikan atau penurunan Crisis Score.
             </div>
         </div>
         <div style='background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);
                     border-radius:12px;padding:20px 16px 16px'>
-            <div style='font-size:18px;font-weight:800;color:#fcd34d;margin-bottom:6px;text-align:center'>Press Release / Media</div>
+            <div style='font-size:18px;font-weight:800;color:#fcd34d;margin-bottom:6px;text-align:center'>Decision Support</div>
             <div style='font-size:15px;color:#e2e8f0;line-height:1.6;text-align:center'>
-                Ringkasan berbasis data sebagai bahan siaran pers atau infografis pariwisata Bali.
+                Memberikan insight dan rekomendasi berbasis data sebagai pendukung pengambilan keputusan.
             </div>
         </div>
     </div>
