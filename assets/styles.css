@@ -387,6 +387,10 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
 }
 
 /* ── Box heading (section header di dalam panel) ── */
+/* Ini SATU-SATUNYA skala heading section yang dipakai di seluruh halaman
+   (Overview, Analisis Detail, Sentimen, Prediksi & Proyeksi, Narasi AI).
+   Ukuran, weight, letter-spacing, dan warna dasar HARUS sama di semua
+   panel; variasi warna identitas cukup lewat modifier .sec-* di bawah. */
 .box-heading {
   font-family: 'DM Sans', sans-serif;
   font-size: 12px;
@@ -397,4 +401,27 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
   padding-bottom: 10px;
   border-bottom: 1px solid var(--c-border);
   color: var(--c-muted);
+}
+
+/* Varian rata-tengah, dipakai untuk judul panel penuh-lebar
+   (mis. External Risk Monitor) — skala tipografi identik dengan
+   .box-heading, hanya alignment yang berbeda. */
+.box-heading-center {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--c-muted);
+  margin-bottom: 4px;
+}
+
+/* Varian subtitle kecil di bawah box-heading, dipakai bila panel perlu
+   keterangan tambahan (mis. "estimasi berbasis proyeksi"). */
+.box-subtitle {
+  font-size: 11px;
+  color: var(--c-dimmer);
+  margin-top: -8px;
+  margin-bottom: 12px;
 }

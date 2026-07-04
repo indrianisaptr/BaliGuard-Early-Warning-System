@@ -96,7 +96,7 @@ def _build_overview_fig1(sel_month_str: str, _predictions: pd.DataFrame) -> go.F
             pass
     fig.update_layout(height=340, showlegend=True,
                       title=dict(text='Crisis Score & Level Krisis', x=0.5, xanchor='center',
-                                 font=dict(size=25, color='#ff6c43', family='DM Sans')),
+                                 font=dict(size=13, color='#fb923c', family='DM Sans')),
                       legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1,
                                 bgcolor='rgba(15,15,25,0.6)', bordercolor='rgba(255,255,255,0.08)',
                                 borderwidth=1, font=dict(size=9, color='#e2e8f0'),
@@ -125,7 +125,7 @@ def _build_overview_fig2(sel_month_str: str, _predictions: pd.DataFrame) -> go.F
     fig.add_vline(x=_sel_dt, line_dash='dot', line_color='#60a5fa', line_width=1)
     fig.update_layout(height=240, showlegend=False,
                       title=dict(text='Kunjungan Wisatawan Mancanegara', x=0.5, xanchor='center',
-                                 font=dict(size=25, color='#ff6c43', family='DM Sans')),
+                                 font=dict(size=13, color='#fb923c', family='DM Sans')),
                       **_OVERVIEW_LAYOUT_BASE)
     fig.update_xaxes(**_OVERVIEW_AXIS_STYLE)
     fig.update_yaxes(**_OVERVIEW_AXIS_STYLE)
@@ -149,7 +149,7 @@ def _build_overview_fig3(sel_month_str: str, _predictions: pd.DataFrame) -> go.F
     fig.add_vline(x=_sel_dt, line_dash='dot', line_color='#60a5fa', line_width=1)
     fig.update_layout(height=220, showlegend=False,
                       title=dict(text='Kurs USD/IDR', x=0.5, xanchor='center',
-                                 font=dict(size=25, color='#ff6c43', family='DM Sans')),
+                                 font=dict(size=13, color='#fb923c', family='DM Sans')),
                       **_OVERVIEW_LAYOUT_BASE)
     fig.update_xaxes(**_OVERVIEW_AXIS_STYLE)
     fig.update_yaxes(**_OVERVIEW_AXIS_STYLE)
@@ -480,8 +480,7 @@ def render(ctx: dict) -> None:
 
     st.markdown(f"""
     <div style='margin-top:32px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.07)'>
-      <div style='text-align:center;font-family:"DM Sans";font-size:25px;font-weight:700;
-                  color:#ff6c43;margin-bottom:16px'>
+      <div class='box-heading-center' style='margin-bottom:16px'>
           External Risk Monitor
       </div>
       <div style='display:flex;justify-content:center;gap:0'>

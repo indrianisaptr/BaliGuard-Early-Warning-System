@@ -110,8 +110,7 @@ st.markdown(f"""
                 <div style='font-family:"DM Serif Display";font-size:30px;color:#f1f5f9;
                             letter-spacing:-.02em;line-height:1.1'>BaliGuard</div>
                 <div style='font-size:14px;color:rgba(255,255,255,0.6);margin-top:6px;line-height:1.65;font-family:"DM Sans"'>
-                    AI-Powered Early Warning System for Bali Tourism
-                    Using Multi-Source Data, Machine Learning, Forecasting & Sentiment Analysis
+                    Early Warning System berbasis Multi-Source Data, Machine Learning, Forecasting & AI Narrative
                 </div>
             </div>
         </div>
@@ -136,7 +135,7 @@ _trend_txt     = "↗ MENINGKAT" if _fc_trend > 0.5 else ("↘ MENURUN" if _fc_t
 _trend_col     = "#d90000" if _fc_trend > 0.5 else ("#22c55e" if _fc_trend < -0.5 else "#FFBC37")
 _tren_val_col  = "#f87171" if _fc_trend < 0 else ("#4ade80" if _fc_trend > 0 else "#94a3b8")
 
-COLOR_MAP_H = {'AMAN':'#236A26','WASPADA':'#F9F871','SIAGA':'#ff6c43','KRISIS':'#d90000'}
+COLOR_MAP_H = {'AMAN':'#00c794','WASPADA':'#F9F871','SIAGA':'#ff6c43','KRISIS':'#d90000'}
 
 
 # ── KPI + Alert — ambil dari ctx ──────────────────────
@@ -411,15 +410,31 @@ with st.expander("Tabel Data Prediksi Lengkap", expanded=False):
 # FOOTER
 # ══════════════════════════════════════════════════════
 st.markdown("""
-<div style='text-align:center;padding:20px 0 8px;color:#334155;font-size:11px;
-            line-height:2;border-top:1px solid rgba(255,255,255,0.05);margin-top:12px'>
-    <b style='color:#475569'>BaliGuard</b> — Early Warning System Pariwisata Berbasis
-    Multi-Sumber Data, Machine Learning &amp; Analisis Sentimen<br>
-    <span style='font-size:10px;color:#1e293b'>
-        Data: BPS Bali · Bank Indonesia · Google Hotels &nbsp;|&nbsp;
-        Model: Isolation Forest + Random Forest + XLM-RoBERTa &nbsp;|&nbsp;
-        Narasi: Groq LLM (gpt-oss-120b / llama-3.1-8b / qwen3-32b / llama-4-scout)
-    </span>
+<div style='text-align:center;padding:24px 0 10px;margin-top:16px;
+            border-top:1px solid rgba(255,255,255,0.06)'>
+    <div style='font-size:12px;font-weight:700;color:#64748b;letter-spacing:.02em;margin-bottom:14px'>
+        BaliGuard &nbsp;•&nbsp; AI-Powered Early Warning System for Bali Tourism
+    </div>
+    <div style='display:flex;justify-content:center;gap:36px;flex-wrap:wrap'>
+        <div>
+            <div style='font-size:9px;font-weight:700;color:#475569;text-transform:uppercase;
+                        letter-spacing:.1em;margin-bottom:5px'>Data Sources</div>
+            <div style='font-size:11px;color:#334155'>
+                BPS &nbsp;•&nbsp; Bank Indonesia &nbsp;•&nbsp; BMKG &nbsp;•&nbsp;
+                Google Hotels &nbsp;•&nbsp; GDELT &nbsp;•&nbsp; Google Trends
+            </div>
+        </div>
+        <div>
+            <div style='font-size:9px;font-weight:700;color:#475569;text-transform:uppercase;
+                        letter-spacing:.1em;margin-bottom:5px'>Prediction</div>
+            <div style='font-size:11px;color:#334155'>Random Forest &nbsp;•&nbsp; Isolation Forest</div>
+        </div>
+        <div>
+            <div style='font-size:9px;font-weight:700;color:#475569;text-transform:uppercase;
+                        letter-spacing:.1em;margin-bottom:5px'>AI Narrative</div>
+            <div style='font-size:11px;color:#334155'>Groq LLM</div>
+        </div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 

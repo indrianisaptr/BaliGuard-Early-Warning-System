@@ -320,8 +320,8 @@ def render(ctx: dict) -> None:
     st.markdown("""
     <div style='display:flex;align-items:center;gap:0;width:100%;margin-bottom:14px'>
         <div style='flex:1;height:1px;background:#1119FF'></div>
-        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#1119FF;text-transform:uppercase;
-                    letter-spacing:.12em;white-space:nowrap'>APA GUNANYA NARASI AI?</div>
+        <div style='padding:0 20px;font-size:14px;font-weight:700;color:#1119FF;text-transform:uppercase;
+                    letter-spacing:.10em;white-space:nowrap'>APA GUNANYA NARASI AI?</div>
         <div style='flex:1;height:1px;background:#1119FF'></div>
     </div>
     <div style='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px'>
@@ -358,8 +358,8 @@ def render(ctx: dict) -> None:
     # ─ 1. TIPE LAPORAN — FULL WIDTH 5 CARDS ──────────────
     st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-top:28px;margin-bottom:18px'>
         <div style='flex:1;height:1px;background:#1119FF'></div>
-        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#1119FF;text-transform:uppercase;
-                    letter-spacing:.12em;white-space:nowrap'>PILIH TIPE LAPORAN</div>
+        <div style='padding:0 20px;font-size:14px;font-weight:700;color:#1119FF;text-transform:uppercase;
+                    letter-spacing:.10em;white-space:nowrap'>PILIH TIPE LAPORAN</div>
         <div style='flex:1;height:1px;background:#1119FF'></div>
     </div>""", unsafe_allow_html=True)
 
@@ -512,8 +512,8 @@ def render(ctx: dict) -> None:
     # ─ MODEL (4 kolom horizontal full width) ────────────
     st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-top:28px;margin-bottom:16px'>
         <div style='flex:1;height:1px;background:#1119FF'></div>
-        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#1119FF;text-transform:uppercase;
-                    letter-spacing:.12em;white-space:nowrap'>PILIH MODEL AI</div>
+        <div style='padding:0 20px;font-size:14px;font-weight:700;color:#1119FF;text-transform:uppercase;
+                    letter-spacing:.10em;white-space:nowrap'>PILIH MODEL AI</div>
         <div style='flex:1;height:1px;background:#1119FF'></div>
     </div>""", unsafe_allow_html=True)
 
@@ -667,8 +667,8 @@ def render(ctx: dict) -> None:
     # ─ API & STATUS ──────────────────────────
     st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-top:28px;margin-bottom:18px'>
         <div style='flex:1;height:1px;background:#1119FF'></div>
-        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#1119FF;text-transform:uppercase;
-                    letter-spacing:.12em;white-space:nowrap'>API &amp; STATUS</div>
+        <div style='padding:0 20px;font-size:14px;font-weight:700;color:#1119FF;text-transform:uppercase;
+                    letter-spacing:.10em;white-space:nowrap'>API &amp; STATUS</div>
         <div style='flex:1;height:1px;background:#1119FF'></div>
     </div>""", unsafe_allow_html=True)
 
@@ -697,9 +697,12 @@ def render(ctx: dict) -> None:
         return base
 
         # ── Judul section: full-width, sebelum kolom ──────────────
-    st.markdown("""<div style='font-size:15px;font-weight:700;color:#FF0000;text-transform:uppercase;
-            letter-spacing:.12em;margin-bottom:12px'>BULAN DAN TAHUN YANG DIANALISIS</div>""",
-            unsafe_allow_html=True)
+    st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-bottom:14px'>
+        <div style='flex:1;height:1px;background:#1119FF'></div>
+        <div style='padding:0 20px;font-size:14px;font-weight:700;color:#1119FF;text-transform:uppercase;
+                    letter-spacing:.10em;white-space:nowrap'>BULAN DAN TAHUN YANG DIANALISIS</div>
+        <div style='flex:1;height:1px;background:#1119FF'></div>
+    </div>""", unsafe_allow_html=True)
 
     # 5 kolom sejajar: Tahun | Bulan | Format | Status | Cache
     _c_year, _c_month, _c_format, _c_status, _c_cache = st.columns([0.8, 0.8, 0.9, 1.3, 1.3])
@@ -1200,8 +1203,8 @@ def render(ctx: dict) -> None:
 
     st.markdown("""<div style='display:flex;align-items:center;gap:0;width:100%;margin-bottom:16px'>
         <div style='flex:1;height:1px;background:#7c3aed'></div>
-        <div style='padding:0 20px;font-size:15px;font-weight:700;color:#a78bfa;text-transform:uppercase;
-                    letter-spacing:.12em;white-space:nowrap'>KOMPARASI ANTAR PERIODE</div>
+        <div style='padding:0 20px;font-size:14px;font-weight:700;color:#a78bfa;text-transform:uppercase;
+                    letter-spacing:.10em;white-space:nowrap'>KOMPARASI ANTAR PERIODE</div>
         <div style='flex:1;height:1px;background:#7c3aed'></div>
     </div>""", unsafe_allow_html=True)
 

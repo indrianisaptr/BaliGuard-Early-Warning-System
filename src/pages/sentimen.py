@@ -236,15 +236,8 @@ def render(ctx: dict) -> None:
     with sc1:
         # ── Box: Tren Sentimen Historis ───────────────────
         with st.container(border=True):
-            st.markdown('<div class="accent-green"></div>', unsafe_allow_html=True)
-            st.markdown(
-                "<div style='display:flex;align-items:center;gap:8px;padding:4px 0 10px;"
-                "border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px'>"
-                "<span style='font-family:DM Sans,sans-serif;font-size:15px;font-weight:700;"
-                "letter-spacing:.05em;text-transform:uppercase;color:#4ade80;"
-                "border-left:3px solid #22c55e;padding-left:10px'>Tren Sentimen Historis</span></div>",
-                unsafe_allow_html=True
-            )
+            st.markdown('<div class="box-heading sec-green">Tren Sentimen Historis</div>',
+                        unsafe_allow_html=True)
             if 'avg_sentiment_monthly' in master.columns:
                 m_dt = pd.to_datetime(master['month'].astype(str))
                 fig_s = go.Figure()
@@ -281,16 +274,9 @@ def render(ctx: dict) -> None:
         # ── Box: 6 Bulan Terakhir ──────────────────────────
         
         with st.container(border=True):
-            st.markdown('<div class="accent-blue2" style="background: #1119FF !important; border-color: #1119FF !important;"></div>', unsafe_allow_html=True)
-            st.markdown(
-                "<div style='display:flex;align-items:center;gap:8px;padding:4px 0 10px;"
-                "border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px'>"
-                "<span style='font-family:DM Sans,sans-serif;font-size:15px;font-weight:700;"
-                "letter-spacing:.05em;text-transform:uppercase;color:#1119FF;"
-                "border-left:3px solid #1119FF;padding-left:10px'>6 Bulan Terakhir</span></div>",
-                unsafe_allow_html=True
-            )
-        
+            st.markdown('<div class="box-heading sec-blue">6 Bulan Terakhir</div>',
+                        unsafe_allow_html=True)
+
             if 'avg_sentiment_monthly' in predictions.columns:
                 last6 = predictions.tail(6)[['month','avg_sentiment_monthly']].copy()
                 colors_bar = ['#4ade80' if v>0.1 else ('#f87171' if v<-0.1 else '#fbbf24')
@@ -321,14 +307,8 @@ def render(ctx: dict) -> None:
         bd_neg  = "rgba(239,68,68,0.25)"   if sent < -0.3          else "rgba(255,255,255,0.06)"
 
         with st.container(border=True):
-            st.markdown('<div class="accent-teal"></div>', unsafe_allow_html=True)
-            st.markdown(
-                "<div style='display:flex;align-items:center;gap:8px;padding:4px 0 12px'>"
-                "<span style='font-family:DM Sans,sans-serif;font-size:15px;font-weight:700;"
-                "letter-spacing:.05em;text-transform:uppercase;color:#2dd4bf;"
-                "border-left:3px solid #14b8a6;padding-left:10px'>Gauge Sentimen</span></div>",
-                unsafe_allow_html=True
-            )
+            st.markdown('<div class="box-heading sec-teal">Gauge Sentimen</div>',
+                        unsafe_allow_html=True)
 
             fig_g = go.Figure(go.Indicator(
                 mode="gauge+number+delta", value=round(sent, 3),

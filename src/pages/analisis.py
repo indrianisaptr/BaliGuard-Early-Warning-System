@@ -78,17 +78,6 @@ def render(ctx: dict) -> None:
         padding: 20px 0 !important;
         margin-bottom: 0 !important;
     }
-    .box-heading {
-        font-family: 'DM Sans', sans-serif;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: .10em;
-        text-transform: uppercase;
-        color: #64748b;
-        margin-bottom: 16px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid rgba(255,255,255,0.07);
-    }
     .why-box {
         background: rgba(255,255,255,0.03);
         border: 1px solid rgba(255,255,255,0.07);
@@ -297,7 +286,7 @@ def render(ctx: dict) -> None:
         # ── Panel 4: Feature Importance ───────────────────
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
         # [DIUBAH] Judul lebih manusiawi
-        st.markdown('<div class="box-heading sec-green">Faktor Paling Berpengaruh pada Prediksi Model</div>',
+        st.markdown('<div class="box-heading sec-green">Faktor Paling Berpengaruh</div>',
                     unsafe_allow_html=True)
 
         try:

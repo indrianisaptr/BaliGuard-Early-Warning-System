@@ -131,9 +131,14 @@ def render(ctx: dict) -> None:
     .pred-section-hdr { display:flex; align-items:center; gap:10px; margin:20px 0 14px; }
     .pred-section-hdr-line { flex:1; height:1px; background:rgba(255,255,255,0.10); }
     .pred-section-hdr-text {
-      font-size:12px; font-weight:800; letter-spacing:.14em;
-      text-transform:uppercase; color:#94a3b8; white-space:nowrap;
+      font-size:12px; font-weight:700; letter-spacing:.08em;
+      text-transform:uppercase; color:#64748b; white-space:nowrap;
     }
+    /* Tab-content heading (TREN+PROYEKSI dkk.) — sengaja lebih tebal dari
+       section heading biasa untuk mempertahankan hierarki visual: tab ini
+       adalah judul konten aktif yang sedang dipilih, bukan sekadar label
+       seksi pasif. */
+    .pred-section-hdr-text.pred-tab-hdr { font-weight:800; }
 
     /* ── Forecast grid cards ── */
     .fc-grid-fixed {
@@ -271,7 +276,7 @@ def render(ctx: dict) -> None:
     }
     .sim-delta-txt {
       margin-top:10px; font-family:'JetBrains Mono',monospace;
-      font-size:11px; color:#1e3a5f;
+      font-size:11px; color:#94a3b8;
     }
 
     /* ── Full-width Breakdown+Rekomendasi row ── */
@@ -283,8 +288,8 @@ def render(ctx: dict) -> None:
       border-radius:14px; padding:16px 18px;
     }
     .bd-panel-title {
-      font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.12em;
-      color:#94a3b8; margin-bottom:14px; display:flex; align-items:center; gap:6px;
+      font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+      color:#64748b; margin-bottom:14px; display:flex; align-items:center; gap:6px;
     }
     .bd-row {
       display:flex; justify-content:space-between; align-items:center;
@@ -306,8 +311,8 @@ def render(ctx: dict) -> None:
       border-radius:14px; padding:16px 18px;
     }
     .reko-title {
-      font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.12em;
-      color:#94a3b8; margin-bottom:14px; display:flex; align-items:center; gap:6px;
+      font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+      color:#64748b; margin-bottom:14px; display:flex; align-items:center; gap:6px;
     }
     .reko-item {
       display:flex; align-items:flex-start; gap:10px; padding:10px 0;
@@ -706,7 +711,7 @@ def render(ctx: dict) -> None:
     if _active_chart == 'trend':
         st.markdown(
             "<div class='pred-section-hdr' style='margin-top:0'>"
-            "<div class='pred-section-hdr-text' style='color:#1e3a5f'>↗ TREN + PROYEKSI</div>"
+            "<div class='pred-section-hdr-text pred-tab-hdr'>↗ TREN + PROYEKSI</div>"
             "<div class='pred-section-hdr-line'></div>"
             "</div>", unsafe_allow_html=True)
         last12    = predictions.tail(12)
@@ -746,7 +751,7 @@ def render(ctx: dict) -> None:
     elif _active_chart == 'recovery':
         st.markdown(
             "<div class='pred-section-hdr' style='margin-top:0'>"
-            "<div class='pred-section-hdr-text' style='color:#1e3a5f'>📉 TINGKAT PEMULIHAN VS BASELINE 2017–2019</div>"
+            "<div class='pred-section-hdr-text pred-tab-hdr'>📉 TINGKAT PEMULIHAN VS BASELINE 2017–2019</div>"
             "<div class='pred-section-hdr-line'></div>"
             "</div>", unsafe_allow_html=True)
         _precovid_mean = ctx.get('precovid_mean', 0.0)
@@ -787,7 +792,7 @@ def render(ctx: dict) -> None:
     elif _active_chart == 'scatter':
         st.markdown(
             "<div class='pred-section-hdr' style='margin-top:0'>"
-            "<div class='pred-section-hdr-text' style='color:#1e3a5f'>🗺️ PETA RISIKO HISTORIS</div>"
+            "<div class='pred-section-hdr-text pred-tab-hdr'>🗺️ PETA RISIKO HISTORIS</div>"
             "<div class='pred-section-hdr-line'></div>"
             "</div>", unsafe_allow_html=True)
         _sc_src = master if 'wisman_growth_mom' in master.columns else predictions

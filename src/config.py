@@ -31,9 +31,14 @@ THRESHOLD = {
 # ── Level Metadata ────────────────────────────────────────────────────
 LABEL_ORDER = ['AMAN', 'WASPADA', 'SIAGA', 'KRISIS']   # severity ascending
 
-# Warna level — HARUS SAMA dengan dashboard_indri.py CSS variables
+# Warna level — HARUS SAMA dengan styles.css CSS variables (--c-aman dkk.)
+# [UI POLISH] AMAN sebelumnya '#236A26' (hijau tua) tidak sinkron dengan
+# --c-aman di styles.css ('#00c794') maupun warna AMAN yang sudah dipakai
+# di dashboard.py, overview.py, dan badge hijau lain. Disamakan ke '#00c794'
+# supaya satu warna AMAN konsisten di seluruh dashboard. Tidak ada threshold
+# atau logika yang berubah — murni nilai warna.
 COLOR_MAP = {
-    'AMAN':    '#236A26',   # --c-aman
+    'AMAN':    '#00c794',   # --c-aman
     'WASPADA': '#F9F871',   # --c-waspada
     'SIAGA':   '#ff6c43',   # --c-siaga
     'KRISIS':  '#d90000',   # --c-krisis
@@ -42,7 +47,7 @@ COLOR_MAP = {
 LEVEL_COLORS = COLOR_MAP   # alias untuk kompatibilitas
 
 BG_MAP = {
-    'AMAN':    'rgba(35,106,38,.15)',
+    'AMAN':    'rgba(0,199,148,.15)',
     'WASPADA': 'rgba(249,248,113,.12)',
     'SIAGA':   'rgba(255,108,67,.15)',
     'KRISIS':  'rgba(217,0,0,.15)',
