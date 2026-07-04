@@ -509,7 +509,7 @@ This project was developed collaboratively as part of the **BaliGuard – Early 
 - Repository management and technical documentation (README)
 
 <p align="left">
-  <a href="https://www.linkedin.com/in/https://www.linkedin.com/in/indrianisaputri/">
+  <a href="https://www.linkedin.com/in/indrianisaputri/">
     <img src="https://img.shields.io/badge/LinkedIn-Indri%20Anisa%20Putri-blue?logo=linkedin&logoColor=white" />
   </a>
   <a href="https://github.com/indrianisaptr">
@@ -527,7 +527,7 @@ This project was developed collaboratively as part of the **BaliGuard – Early 
 - Project review and improvements
 
 <p align="left">
-  <a href="https://www.linkedin.com/in/https://www.linkedin.com/in/ayutiksnaapsari/">
+  <a href="https://www.linkedin.com/in/ayutiksnaapsari/">
     <img src="https://img.shields.io/badge/LinkedIn-Tiksna%20Apsari-blue?logo=linkedin&logoColor=white" />
   </a>
 </p>
@@ -538,8 +538,8 @@ This project was developed collaboratively as part of the **BaliGuard – Early 
 - Dashboard visualization improvements
 
 <p align="left">
-  <a href="https://www.linkedin.com/in/https://www.linkedin.com/in/ni-komang-dama-angelina-909811285/">
-    <img src="https://img.shields.io/badge/LinkedIn-Tiksna%20Apsari-blue?logo=linkedin&logoColor=white" />
+  <a href="https://www.linkedin.com/in/ni-komang-dama-angelina-909811285/">
+    <img src="https://img.shields.io/badge/LinkedIn-Dama%20Angelina-blue?logo=linkedin&logoColor=white" />
   </a>
 </p>
 
@@ -549,8 +549,8 @@ This project was developed collaboratively as part of the **BaliGuard – Early 
 - Supporting project resources
 
 <p align="left">
-  <a href="https://www.linkedin.com/in/https://www.linkedin.com/in/made-indira-prawita-utari-a72494380/">
-    <img src="https://img.shields.io/badge/LinkedIn-Tiksna%20Apsari-blue?logo=linkedin&logoColor=white" />
+  <a href="https://www.linkedin.com/in/made-indira-prawita-utari-a72494380/">
+    <img src="https://img.shields.io/badge/LinkedIn-Indira%20Utari-blue?logo=linkedin&logoColor=white" />
   </a>
 </p>
 
