@@ -12,6 +12,7 @@ import numpy as np
 import json, os, time, requests
 from datetime import datetime
 from src.utils import kpi_html, alert_html, status_dot
+from src.services.explanation_service import build_explanation_context
 
 from src.utils import (
     sf,
@@ -194,23 +195,6 @@ def render(ctx: dict) -> None:
     media_risk_score         = ctx.get('media_risk', row_data.get('media_risk_score'))
     tourist_perception_score = ctx.get('tourist_perception', row_data.get('tourist_perception_score'))
     external_risk_score      = ctx.get('external_risk', row_data.get('external_risk_score'))
-    # ── [BARU – Sprint 1A] field tambahan, SUDAH tersedia di ctx (shared.py) ──
-    # Tidak ada perhitungan baru — hanya membaca key yang sudah dibangun build_context().
-    dominant_factor  = ctx.get('dominant_factor', 'N/A')
-    score_delta      = ctx.get('score_delta', 0)
-    score_trend      = ctx.get('score_trend', 'STABIL')
-    # ── [BARU – Refinement] evidence numerik, SUDAH tersedia di ctx/row_data ──
-    # Sama seperti baris di atas: hanya .get(), tidak ada hitung ulang apa pun.
-    crisis_score_100    = ctx.get('crisis_score_100', score)
-    _wisman_delta       = delta_ctx.get('wisman') if isinstance(delta_ctx, dict) else None
-    wisman_growth_mom   = (
-        _wisman_delta.get('delta_pct')
-        if isinstance(_wisman_delta, dict)
-        else row_data.get('wisman_growth_mom')
-    )
-    usd_volatility_3m   = ctx.get('usd_volatility_3m', row_data.get('usd_volatility_3m'))
-    pct_negative_monthly = ctx.get('pct_negative_monthly', row_data.get('pct_negative_monthly'))
-
     _tick("nav_start_overview")
 
     # ── Override container: hapus border tebal, pakai divider tipis ──
@@ -317,123 +301,34 @@ def render(ctx: dict) -> None:
     </style>
     """, unsafe_allow_html=True)
 
-    # ── Bucket Rendah/Sedang/Tinggi: AMBANG SAMA PERSIS dengan _risk_color()
-    # di bagian "External Risk Monitor" di bawah (30 / 60). Ini bukan
-    # threshold baru — hanya dipakai ulang supaya panel & monitor konsisten.
-    def _ev_bucket(pct):
-        if pct is None:
-            return ("N/A", "#64748b")
-        pct = float(pct)
-        pct = pct * 100 if pct <= 1 else pct
-        if pct < 30:
-            return ("rendah", "#00c794")
-        if pct < 60:
-            return ("sedang", "#fbbf24")
-        return ("tinggi", "#d90000")
+    # ── Business logic dipindah ke src/services/explanation_service.py ──
+    # overview.py di sini HANYA memanggil & merender. Tidak ada perhitungan,
+    # threshold, atau kategori baru yang dibuat di file ini.
+    evidence = build_explanation_context(ctx)
 
-    def _ev_pct_fmt(pct):
-        if pct is None:
-            return "N/A"
-        pct = float(pct)
-        pct = pct * 100 if pct <= 1 else pct
-        return f"{pct:.1f}%"
-
-    def _ev_wisman_fmt(val):
-        return f"{val:,.0f}".replace(",", ".") + " wisatawan"
-
-    # ── 1. FAKTOR DOMINAN ──────────────────────────────────────────
-    # dominant_factor & anomaly_exp 100% dari ctx (build_context()).
-    # Tidak ada z-score atau kalkulasi baru — hanya format tampilan.
-    _anomaly_exp = ctx.get('anomaly_exp', '')
-
-    if dominant_factor == 'Kunjungan Wisatawan':
-        _dom_name, _dom_clr = "Kunjungan Wisatawan", "#f87171"
-        _dom_value = _ev_wisman_fmt(wisman)
-    elif dominant_factor == 'Risiko Eksternal':
-        _dom_name, _dom_clr = "External Risk", "#fbbf24"
-        _dom_value = _ev_pct_fmt(external_risk_score)
-    elif dominant_factor == 'Tekanan Kurs':
-        _dom_name, _dom_clr = "Kurs USD/IDR", "#fbbf24"
-        _dom_value = f"Rp {usd_avg:,.0f}"
-    elif dominant_factor == 'Sentimen Negatif':
-        _dom_name, _dom_clr = "Sentimen Wisatawan", "#f87171"
-        _dom_value = f"{sent:.2f}"
-    else:
-        _dom_name, _dom_clr = "Tidak Ada Faktor Dominan", "#4ade80"
-        _dom_value = "Normal"
+    _perubahan_html = "".join(
+        f"<div class='ev-text'>• {item}.</div>" for item in evidence["perubahan"]
+    )
+    _risiko_html = "".join(
+        f"<div class='ev-text'>• {item}.</div>" for item in evidence["risiko"]
+    )
 
     _section1_html = f"""
-        <div class='ev-section' style='border-left-color:{_dom_clr}'>
-            <div class='ev-label'>Faktor Dominan</div>
-            <div class='ev-main-row'>
-                <span class='ev-name'>{_dom_name}</span>
-                <span class='ev-value' style='color:{_dom_clr}'>{_dom_value}</span>
-            </div>
+        <div class='ev-section'>
+            <div class='ev-label'>Perubahan Utama</div>
+            {_perubahan_html}
         </div>
     """
-
-    # ── 2. MENGAPA? ─────────────────────────────────────────────────
-    # Hanya menyebut 1–2 kontributor TERBESAR sebagai kalimat, bukan
-    # tabel/grid lengkap — nilai sub-komponen (Physical/Media/Tourist)
-    # sengaja TIDAK diulang di sini karena sudah tersaji lengkap di
-    # "External Risk Monitor" di bawah. Ini hanya jembatan, bukan duplikat.
-    if dominant_factor == 'Risiko Eksternal':
-        _components = [("Media Risk", media_risk_score), ("Tourist Perception", tourist_perception_score),
-                        ("Physical Risk", physical_risk_score)]
-        _components = [(lab, v) for lab, v in _components if v is not None]
-        _components.sort(key=lambda c: (c[1] if c[1] > 1 else c[1] * 100), reverse=True)
-        if _components:
-            _top_lab, _top_val = _components[0]
-            _why_txt = f"<b>{_top_lab}</b> menjadi komponen terbesar (<b>{_ev_pct_fmt(_top_val)}</b>)."
-            if len(_components) > 1:
-                _lbl2, _ = _ev_bucket(_components[1][1])
-                _why_txt += f" <b>{_components[1][0]}</b> berada pada kategori {_lbl2} (<b>{_ev_pct_fmt(_components[1][1])}</b>)."
-        else:
-            _why_txt = "Rincian komponen risiko eksternal dapat dilihat pada External Risk Monitor di bawah."
-    elif dominant_factor == 'Kunjungan Wisatawan':
-        if wisman_growth_mom is not None:
-            _g = float(wisman_growth_mom)
-            _arah = "naik" if _g > 0 else "turun" if _g < 0 else "stabil"
-            _why_txt = f"Kunjungan wisatawan tercatat <b>{_arah} {abs(_g):.1f}%</b> dibanding bulan sebelumnya."
-        elif _anomaly_exp:
-            _why_txt = f"Kunjungan wisatawan {_anomaly_exp}."
-        else:
-            _why_txt = "Data pertumbuhan wisatawan bulan ini tidak tersedia."
-    elif dominant_factor == 'Tekanan Kurs':
-        _why_txt = f"Kurs USD/IDR naik menjadi <b>Rp {usd_avg:,.0f}</b> dibanding bulan sebelumnya, menambah beban biaya kunjungan wisatawan asing."
-    elif dominant_factor == 'Sentimen Negatif':
-        _why_txt = f"Sentimen ulasan wisatawan melemah menjadi <b>{sent:.2f}</b> dibanding bulan sebelumnya."
-        if pct_negative_monthly is not None:
-            _why_txt += f" Proporsi ulasan negatif tercatat <b>{_ev_pct_fmt(pct_negative_monthly)}</b>."
-    else:
-        _why_txt = "Seluruh indikator utama berada dalam rentang aman, tidak ada faktor yang menonjol signifikan bulan ini."
-
     _section2_html = f"""
         <div class='ev-section'>
-            <div class='ev-label'>Mengapa?</div>
-            <div class='ev-text'>{_why_txt}</div>
+            <div class='ev-label'>Kondisi Risiko Saat Ini</div>
+            {_risiko_html}
         </div>
     """
-
-    # ── 3. DAMPAKNYA ─────────────────────────────────────────────────
-    # crisis_score_100, score_delta, score_trend, level, color 100% dari
-    # ctx — tidak ada logika klasifikasi atau hitungan baru di sini.
-    _trend_verb = {'MENINGKAT': 'Naik', 'MENURUN': 'Turun', 'STABIL': 'Relatif stabil'}[score_trend]
-    _trend_clr  = {'MENINGKAT': '#f87171', 'MENURUN': '#00c794', 'STABIL': '#93c5fd'}[score_trend]
-    if score_trend == 'STABIL':
-        _score_status = f"{_trend_verb} (perubahan {score_delta:+.1f} poin) dibanding bulan sebelumnya"
-    else:
-        _score_status = f"{_trend_verb} {abs(score_delta):.1f} poin dibanding bulan sebelumnya"
-
     _section3_html = f"""
         <div class='ev-section' style='border-left-color:{color}'>
-            <div class='ev-label'>Dampaknya</div>
-            <div class='ev-main-row'>
-                <span class='ev-name'>Crisis Score</span>
-                <span class='ev-value' style='color:#93c5fd'>{crisis_score_100:.1f}</span>
-            </div>
-            <div class='ev-status' style='color:{_trend_clr};margin-bottom:8px'>{_score_status}</div>
-            <div class='ev-value' style='color:{color};font-size:22px'>{level}</div>
+            <div class='ev-label'>Kesimpulan</div>
+            <div class='ev-text'>{evidence["summary"]}</div>
         </div>
     """
 
