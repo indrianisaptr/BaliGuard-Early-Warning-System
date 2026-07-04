@@ -297,9 +297,9 @@ def _alert_html(level, title, body):
             f'<div class="alert-title">{title}</div>'
             f'<div class="alert-body">{body}</div></div>')
 
-_dominant = _delta_ctx.get('dominant', _delta_ctx.get('dominant_factor', 'N/A'))
-_score_delta = _delta_ctx.get('score_delta', 0)
-_score_trend = _delta_ctx.get('score_trend', 'STABIL')
+_dominant = ctx.get('dominant_factor', 'N/A')
+_score_delta = ctx.get('score_delta', 0)
+_score_trend = ctx.get('score_trend', 'STABIL')
 
 st.markdown(_alert_html(
     _level,

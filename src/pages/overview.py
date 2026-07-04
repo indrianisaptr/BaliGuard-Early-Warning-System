@@ -202,7 +202,12 @@ def render(ctx: dict) -> None:
     # ── [BARU – Refinement] evidence numerik, SUDAH tersedia di ctx/row_data ──
     # Sama seperti baris di atas: hanya .get(), tidak ada hitung ulang apa pun.
     crisis_score_100    = ctx.get('crisis_score_100', score)
-    wisman_growth_mom   = ctx.get('wisman_growth_mom', row_data.get('wisman_growth_mom'))
+    _wisman_delta       = delta_ctx.get('wisman') if isinstance(delta_ctx, dict) else None
+    wisman_growth_mom   = (
+        _wisman_delta.get('delta_pct')
+        if isinstance(_wisman_delta, dict)
+        else row_data.get('wisman_growth_mom')
+    )
     usd_volatility_3m   = ctx.get('usd_volatility_3m', row_data.get('usd_volatility_3m'))
     pct_negative_monthly = ctx.get('pct_negative_monthly', row_data.get('pct_negative_monthly'))
 
