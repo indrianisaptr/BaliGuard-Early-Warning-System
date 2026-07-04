@@ -298,10 +298,18 @@ def render(ctx: dict) -> None:
                         padding:14px 20px;border:1px solid rgba(74,222,128,0.15)'>
                 <div style='font-size:10px;color:rgba(74,222,128,0.6);text-transform:uppercase;
                 <div style='font-family:monospace;font-size:13px;color:#4ade80;font-weight:700'>
-                    Narrative Engine
-                    LLM-powered
-                    Data-driven
-                    Context-aware
+                </div>
+                <div style='font-family:monospace;font-size:13px;color:#4ade80;font-weight:700'>
+                    NARRATIVE ENGINE
+                </div>
+                <div style='font-family:monospace;font-size:13px;color:#4ade80;font-weight:700'>
+                    LLM-POWERED
+                </div>
+                <div style='font-family:monospace;font-size:13px;color:#4ade80;font-weight:700'>
+                    DATA-DRIVEN
+                </div>
+                <div style='font-family:monospace;font-size:13px;color:#4ade80;font-weight:700'>
+                    CONTEXT-AWARE
                 </div>
             </div>
         </div>
