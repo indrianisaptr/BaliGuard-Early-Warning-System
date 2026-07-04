@@ -200,24 +200,89 @@ Supabase is the persistence layer shared by the pipeline and the dashboard.
 
 ## Repository Structure
 
-```
-notebooks/            NB01-NB06: EDA, preprocessing, sentiment, feature engineering, modeling, LLM narrative
-automation/            Data ingestion layer: fetch, validate, stage external data
-models/                Trained model artifacts: Random Forest, Isolation Forest, scaler, label encoder
-data/                  Raw, processed, and final datasets
-src/
-  components/          Reusable dashboard UI components
-  services/            Business logic — LLM narrative generation, forecasting, and explanation
-    forecast.py           Dynamic forecast engine: project_future_row(), build_combined_predictions(), forecast_months()
-    explanation_service.py  Builds the "Why This Status?" panel text from delta context and risk indicators
-  pages/               Streamlit page modules (overview, detailed analysis, sentiment, prediction, narrative)
-  repositories/        Data access layer for Supabase (predictions, narratives, metadata, logs)
-  config.py            Application configuration and constants
-  shared.py            Shared context builder: resolves the selected month via the forecast engine, computes delta context, and assembles the ctx dict consumed by all dashboard pages
-dashboard.py           Streamlit dashboard entry point
-update_pipeline.py     Monthly ML update: reads staging, rebuilds features, computes Crisis Score, predicts
-retrain_model.py       Retrains Random Forest and Isolation Forest on the latest processed dataset
-docs/                  Additional project documentation
+```text
+BaliGuard/
+├── notebooks/                       NB01-06: EDA, preprocessing, sentiment, feature engineering, modeling, LLM narrative
+│   ├── 01_LoadDataset_dan_EDA.ipynb
+│   ├── 02_Preprocessing.ipynb
+│   ├── 03_Text_Preprocessing_Sentiment.ipynb
+│   ├── 04_Feature_Engineering_Crisis_Score.ipynb
+│   ├── 05_Modeling_Anomaly_Detection_Classification.ipynb
+│   └── 06_LLM_Narrative_Engine.ipynb
+│
+├── automation/                      Data ingestion layer — fetch, validate, stage external data
+│   ├── config/
+│   ├── data/
+│   │   ├── cache/
+│   │   └── staging/
+│   ├── fetch/
+│   ├── logs/
+│   ├── scheduler/
+│   ├── storage/
+│   └── validation/
+│
+├── data/
+│   ├── raw/                         Unmodified source data as downloaded from external providers
+│   ├── processed/                   Cleaned, per-source datasets ready for feature engineering
+│   └── final/                       Final merged dataset, predictions_final.csv, evaluation figures
+│
+├── models/
+│   ├── feature_importance.csv
+│   ├── label_encoder.pkl
+│   ├── model_isolation_forest.pkl
+│   ├── model_metadata.json
+│   ├── model_random_forest.pkl
+│   └── scaler.pkl
+│
+├── src/
+│   ├── components/                  Reusable dashboard UI components (badges.py, cards.py)
+│   │
+│   ├── pages/                       Streamlit page modules
+│   │   ├── overview.py
+│   │   ├── analisis.py
+│   │   ├── sentimen.py
+│   │   ├── prediksi.py
+│   │   └── narasi.py
+│   │
+│   ├── services/
+│   │   ├── forecast.py              Dynamic in-memory projection engine
+│   │   │   ├── forecast_months()
+│   │   │   ├── project_future_row()
+│   │   │   └── build_combined_predictions()
+│   │   │
+│   │   ├── explanation_service.py   Builds the "Why This Status?" panel text
+│   │   │   ├── build_explanation_context()
+│   │   │   ├── _build_perubahan()
+│   │   │   ├── _build_risiko()
+│   │   │   └── _build_summary()
+│   │   │
+│   │   ├── llm_service.py           AI narrative generation via the Groq API
+│   │   └── simulation.py            Real-time scenario simulation logic
+│   │
+│   ├── repositories/                 Data access layer for Supabase
+│   │   ├── prediction_repository.py
+│   │   ├── narrative_repository.py
+│   │   ├── metadata_repository.py
+│   │   └── pipeline_log_repository.py
+│   │
+│   ├── infra/
+│   │   └── supabase_client.py
+│   │
+│   ├── shared.py                     Runtime orchestration layer — resolves the selected month,
+│   │                                  builds chained projections, computes delta context, and
+│   │                                  prepares the unified context consumed by all dashboard pages
+│   ├── sidebar.py                    Navigation and status panel
+│   ├── utils.py                      Core helpers (sf, level_from_score, compute_delta_context, ...)
+│   └── config.py                     Global configuration and constants
+│
+├── dashboard.py                      Streamlit application entry point
+├── update_pipeline.py                Monthly ML update: reads staging, rebuilds features, computes
+│                                      Crisis Score, predicts, upserts to Supabase
+├── retrain_model.py                  Retrains Random Forest and Isolation Forest on the latest
+│                                      processed dataset
+├── database/migration/               SQL migration scripts for the Supabase schema
+├── docs/                             Pipeline documentation, migration notes, evaluation baseline
+└── README.md
 ```
 
 ### Repository Layout — Folder Purpose
@@ -231,8 +296,8 @@ docs/                  Additional project documentation
 | `data/processed/`     | Cleaned, per-source datasets ready for feature engineering                                                                  |
 | `data/final/`         | Final merged dataset, predictions, and evaluation figures used by the dashboard                                             |
 | `src/pages/`          | Streamlit page modules — Overview, Detailed Analysis, Sentiment, Prediction, Narrative                                     |
-| `src/services/`       | Business logic — dynamic forecasting (`forecast.py`), explanation generation (`explanation_service.py`), scenario simulation, and the LLM narrative service |
-| `src/repositories/`   | Data access layer for Supabase (predictions, narratives, metadata, logs)                                                    |
+| `src/services/`       | Business logic — dynamic forecasting (`forecast.py`), explanation generation (`explanation_service.py`), LLM narrative generation (`llm_service.py`), and scenario simulation (`simulation.py`) |
+| `src/repositories/`   | Data access layer for Supabase (`prediction_repository.py`, `narrative_repository.py`, `metadata_repository.py`, `pipeline_log_repository.py`) |
 | `src/components/`     | Reusable dashboard UI components (badges, cards)                                                                            |
 | `src/infra/`          | Infrastructure clients, such as the Supabase client                                                                         |
 | `database/migration/` | SQL migration scripts for the Supabase schema                                                                               |
