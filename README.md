@@ -492,3 +492,68 @@ BaliGuard relies on data and infrastructure provided by:
 - Groq
 - Supabase
 - Streamlit
+
+---
+
+# 👥 Authors & Contributors
+
+This project was developed collaboratively as part of the **BaliGuard – Early Warning System for Bali Tourism Crisis Detection**.
+
+### 👩‍💻 Indri Anisa Putri *(Project Lead)*
+- Project architecture & system design
+- Machine Learning pipeline development
+- MLOps automation & CI/CD integration
+- Dashboard design (UI/UX) and dashboard development
+- Forecast service & chained projection implementation
+- Delta context & explanation service development
+- Repository management and technical documentation (README)
+
+<p align="left">
+  <a href="https://www.linkedin.com/in/https://www.linkedin.com/in/indrianisaputri/">
+    <img src="https://img.shields.io/badge/LinkedIn-Indri%20Anisa%20Putri-blue?logo=linkedin&logoColor=white" />
+  </a>
+  <a href="https://github.com/indrianisaptr">
+    <img src="https://img.shields.io/badge/GitHub-indrianisaptr-black?logo=github" />
+  </a>
+</p>
+
+### 👩‍💻 Tiksna Apsari
+- Development of **Time Series Preprocessing**
+- Development of **Merge & Feature Engineering**
+- Support for backend development in the **`src/`** modules
+- Technical guidance
+- Architecture discussion
+- Feature development support
+- Project review and improvements
+
+<p align="left">
+  <a href="https://www.linkedin.com/in/https://www.linkedin.com/in/ayutiksnaapsari/">
+    <img src="https://img.shields.io/badge/LinkedIn-Tiksna%20Apsari-blue?logo=linkedin&logoColor=white" />
+  </a>
+</p>
+
+### 👩‍💻 Dama Angelina
+- Dashboard styling (CSS)
+- UI refinement
+- Dashboard visualization improvements
+
+<p align="left">
+  <a href="https://www.linkedin.com/in/https://www.linkedin.com/in/ni-komang-dama-angelina-909811285/">
+    <img src="https://img.shields.io/badge/LinkedIn-Tiksna%20Apsari-blue?logo=linkedin&logoColor=white" />
+  </a>
+</p>
+
+### 👩‍💻 Indira Utari
+- Data collection support
+- Dataset preparation
+- Supporting project resources
+
+<p align="left">
+  <a href="https://www.linkedin.com/in/https://www.linkedin.com/in/made-indira-prawita-utari-a72494380/">
+    <img src="https://img.shields.io/badge/LinkedIn-Tiksna%20Apsari-blue?logo=linkedin&logoColor=white" />
+  </a>
+</p>
+
+---
+
+If you find this project useful, please consider giving this repository a ⭐.
