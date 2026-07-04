@@ -48,6 +48,51 @@ def project_future_row(predictions: pd.DataFrame, target_month: str) -> dict:
     return proj
 
 
+def build_combined_predictions(predictions: pd.DataFrame, target_month: str) -> pd.DataFrame:
+    """
+    Bangun dataframe gabungan (historis + rantai proyeksi) hingga target_month.
+
+    Kenapa perlu "rantai" dan bukan cukup satu kali panggil project_future_row():
+    project_future_row() selalu memakai `.tail(6)` dari dataframe yang DIBERIKAN
+    kepadanya sebagai basis regresi. Kalau target_month adalah proyeksi ke-n
+    (n > 1, mis. September saat data historis terakhir baru Juli), memanggilnya
+    hanya sekali dengan `predictions` historis mentah membuat bulan proyeksi
+    ke-2 dst. TIDAK PERNAH "mengenal" bulan proyeksi sebelumnya (Agustus) —
+    akibatnya previous month untuk September tetap Juli, bukan Agustus.
+
+    Fungsi ini menutup celah itu dengan memproyeksikan month-by-month secara
+    berurutan: bulan proyeksi ke-i dihitung dari dataframe yang SUDAH memuat
+    bulan proyeksi ke-(i-1), lalu langsung digabung sebelum lanjut ke bulan
+    berikutnya. Untuk bulan historis (target_month <= bulan data terakhir),
+    fungsi ini tidak melakukan proyeksi apa pun dan mengembalikan `predictions`
+    apa adanya — perilaku bulan historis tidak berubah.
+
+    Semua hasil digabung HANYA di memori (tidak pernah ditulis balik ke
+    CSV/parquet); pemanggil (build_context di shared.py) yang bertanggung
+    jawab menggunakan hasil dataframe ini untuk pencarian row_data, prev_row,
+    dan compute_delta_context().
+    """
+    hist_months = sorted(predictions['month'].dropna().unique().tolist())
+    last_data_month = hist_months[-1] if hist_months else target_month
+
+    if str(target_month) <= str(last_data_month):
+        return predictions
+
+    start_p  = pd.Period(str(last_data_month)[:7], freq='M')
+    target_p = pd.Period(str(target_month)[:7], freq='M')
+    n_steps  = int((target_p - start_p).n)
+
+    combined = predictions
+    for i in range(1, n_steps + 1):
+        step_month  = str(start_p + i)
+        future_row  = project_future_row(combined, step_month)
+        combined    = pd.concat(
+            [combined, pd.DataFrame([future_row])],
+            ignore_index=True, sort=False,
+        )
+    return combined
+
+
 @st.cache_data(show_spinner=False)
 def forecast_months(pred_df: pd.DataFrame, n: int = 6,
                     from_month: str = None) -> tuple:

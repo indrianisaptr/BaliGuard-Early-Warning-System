@@ -8,7 +8,7 @@ import pandas as pd
 
 from src.utils import (sf, level_from_score, get_current_usd_idr,
                         compute_delta_context)
-from src.services.forecast import forecast_months, project_future_row
+from src.services.forecast import forecast_months, build_combined_predictions
 from src.config import COLOR_MAP as LEVEL_COLORS
 
 
@@ -32,12 +32,24 @@ def build_context(
     ctx['last_data_month']  = sorted_months[-1] if sorted_months else sel
     ctx['is_projection']    = sel > ctx['last_data_month']
 
-    # Row data
-    if ctx['is_projection']:
-        row_data = project_future_row(predictions, sel)
-    else:
-        rows = predictions[predictions['month'] == sel]
-        row_data = rows.iloc[0].to_dict() if len(rows) else {}
+    # ── combined_predictions ──────────────────────────────────────────
+    # Bulan proyeksi tidak ada di `predictions` (data historis dari
+    # predictions_final.csv). build_combined_predictions() membangun rantai
+    # proyeksi bulan-per-bulan (mis. Agustus → September → ... → sel) sebelum
+    # digabung ke historis, supaya setiap bulan proyeksi ke-n mengenal bulan
+    # proyeksi ke-(n-1) sebagai previous month-nya — bukan selalu jatuh balik
+    # ke bulan historis terakhir. Penggabungan HANYA di memori, tidak pernah
+    # ditulis balik ke CSV/parquet. Untuk bulan historis, fungsi ini
+    # mengembalikan `predictions` apa adanya (lihat forecast.py). Tidak ada
+    # percabangan `if is_projection` lagi di titik pemakaian di bawah ini —
+    # baik row_data, prev_row, maupun compute_delta_context memakai
+    # combined_predictions yang sama untuk semua bulan.
+    combined_predictions = build_combined_predictions(predictions, sel)
+    ctx['combined_predictions'] = combined_predictions
+
+    # Row data — satu alur yang sama untuk bulan historis maupun proyeksi
+    rows = combined_predictions[combined_predictions['month'] == sel]
+    row_data = rows.iloc[0].to_dict() if len(rows) else {}
     ctx['row_data'] = row_data
 
     # KPI values
@@ -67,7 +79,7 @@ def build_context(
 
     # Delta MoM
     try:
-        ctx['delta_ctx'] = compute_delta_context(row_data, predictions, sel)
+        ctx['delta_ctx'] = compute_delta_context(row_data, combined_predictions, sel)
     except Exception:
         ctx['delta_ctx'] = {}
 
@@ -85,11 +97,14 @@ def build_context(
     ctx['pct_krisis'] = (predictions['crisis_level'] == 'KRISIS').mean() * 100
     ctx['avg_score']  = predictions['crisis_score_100'].mean()
 
-    # Prev month
+    # Prev month — dicari di combined_predictions (bukan `predictions` /
+    # `sorted_months` historis saja) supaya bulan proyeksi juga menemukan
+    # previous month-nya (baris historis terakhir yang ikut digabung).
     try:
-        idx = sorted_months.index(sel)
+        combined_months = sorted(combined_predictions['month'].dropna().unique().tolist())
+        idx = combined_months.index(sel)
         if idx > 0:
-            prev_rows = predictions[predictions['month'] == sorted_months[idx-1]]
+            prev_rows = combined_predictions[combined_predictions['month'] == combined_months[idx-1]]
             ctx['prev_row'] = prev_rows.iloc[0].to_dict() if len(prev_rows) else {}
         else:
             ctx['prev_row'] = {}
