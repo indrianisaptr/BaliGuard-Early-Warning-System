@@ -110,8 +110,8 @@ st.markdown(f"""
                 <div style='font-family:"DM Serif Display";font-size:30px;color:#f1f5f9;
                             letter-spacing:-.02em;line-height:1.1'>BaliGuard</div>
                 <div style='font-size:14px;color:rgba(255,255,255,0.6);margin-top:6px;line-height:1.65;font-family:"DM Sans"'>
-                    Dashboard Early Warning System &mdash; Multi-Sumber Data,
-                    Machine Learning &amp; Analisis Sentimen Multibahasa
+                    AI-Powered Early Warning System for Bali Tourism
+                    Using Multi-Source Data, Machine Learning, Forecasting & Sentiment Analysis
                 </div>
             </div>
         </div>
