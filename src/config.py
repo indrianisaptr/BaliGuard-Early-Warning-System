@@ -67,7 +67,7 @@ LEVEL_DESC = {
 # jangan hardcode angka n=... di masing-masing file halaman.
 #
 # Histori terakhir (April 2026) + FORECAST_HORIZON_MONTHS bulan → Desember 2028
-FORECAST_HORIZON_MONTHS = 33
+FORECAST_HORIZON_MONTHS = 32
 
 # ── Model Features ────────────────────────────────────────────────────
 FEATURES_CORE = [

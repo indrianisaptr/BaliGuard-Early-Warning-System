@@ -26,7 +26,7 @@ src/sidebar.py — BaliGuard Sidebar
 """
 import streamlit as st
 import pandas as pd
-from src.config import COLOR_MAP
+from src.config import COLOR_MAP, FORECAST_HORIZON_MONTHS
 
 NAV_OPTIONS = [
     "Overview & Timeline",
@@ -68,7 +68,7 @@ def render_sidebar(ctx_init: dict) -> tuple:
     _last_data = predictions['month'].iloc[-1]
     _p = pd.Period(_last_data, freq='M')
     _future = sorted(
-        [str(_p + i) for i in range(1, 25) if str(_p + i) > _last_data],
+        [str(_p + i) for i in range(1, FORECAST_HORIZON_MONTHS + 1) if str(_p + i) > _last_data],
         reverse=True
     )
     avail = _future + avail_hist
