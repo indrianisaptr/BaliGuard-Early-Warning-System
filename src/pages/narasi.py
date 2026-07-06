@@ -23,7 +23,7 @@ from src.repositories.narrative_repository import NarrativeRepository
 from src.utils import (
     sf, _tick, kpi_html, alert_html, status_dot,
 )
-from src.config import COLOR_MAP
+from src.config import COLOR_MAP, FORECAST_HORIZON_MONTHS
 EMOJI_MAP = {
     'AMAN':    '🟢',
     'WASPADA': '🟡',
@@ -676,7 +676,7 @@ def render(ctx: dict) -> None:
     _avail_months_hist = sorted(predictions['month'].unique())
     _last_data_month   = _avail_months_hist[-1]
     _last_p            = pd.Period(_last_data_month, freq='M')
-    _fc_extra, _       = forecast_months(predictions, n=18, from_month=str(_last_p - 1))
+    _fc_extra, _       = forecast_months(predictions, n=FORECAST_HORIZON_MONTHS, from_month=str(_last_p - 1))
     _fc_months_only    = [f['month'] for f in _fc_extra]
     _fc_score_map      = {f['month']: f['score'] for f in _fc_extra}
     _fc_level_map      = {f['month']: f['level'] for f in _fc_extra}

@@ -177,7 +177,8 @@ def _delta_txt(curr, prev_val, fmt=".1f", suffix="", invert=False):
     col  = "#4ade80" if good else ("#f87171" if (d < 0 if not invert else d > 0) else "#94a3b8")
     sign = "▲" if d > 0 else ("▼" if d < 0 else "→")
     if suffix == "%":
-        txt = f"{sign} {abs(d):.1f}pp vs bln lalu"
+        _arah = "Naik" if d > 0 else ("Turun" if d < 0 else "Tetap")
+        txt = f"{sign} {_arah} {abs(d):.1f} poin persentase vs bln lalu"
     elif suffix == "pct_change":
         txt = f"{sign} {abs(pct):.1f}% vs bln lalu"
     else:

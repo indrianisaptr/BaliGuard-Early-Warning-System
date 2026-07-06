@@ -60,6 +60,15 @@ LEVEL_DESC = {
     'KRISIS':  'Krisis aktif, diperlukan intervensi segera',
 }
 
+# ── Forecast Horizon ───────────────────────────────────────────────────
+# Jumlah bulan forecast yang dipakai SEMUA halaman (Overview, Prediksi &
+# Proyeksi, Narasi AI, dsb.) agar horizon-nya selalu konsisten/sinkron.
+# Ubah HANYA di sini kalau target akhir forecast berubah (mis. sampai 2030),
+# jangan hardcode angka n=... di masing-masing file halaman.
+#
+# Histori terakhir (April 2026) + FORECAST_HORIZON_MONTHS bulan → Desember 2028
+FORECAST_HORIZON_MONTHS = 33
+
 # ── Model Features ────────────────────────────────────────────────────
 FEATURES_CORE = [
     'wisman_growth_mom', 'wisman_growth_yoy', 'wisman_zscore',

@@ -289,10 +289,12 @@ def render(ctx: dict) -> None:
                     hovertemplate='<b>%{x}</b><br>Sentimen: %{y:.3f}<extra></extra>'
                 ))
                 fig_6.add_hline(y=0, line_dash='dash', line_color='rgba(255,255,255,0.12)', line_width=1)
+                _y6_min = min(last6['avg_sentiment_monthly'].min(), 0) - 0.05
+                _y6_max = last6['avg_sentiment_monthly'].max() + 0.15
                 fig_6.update_layout(
                     plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                     height=220, margin=dict(l=0,r=0,t=16,b=0),
-                    yaxis=dict(gridcolor='rgba(255,255,255,0.04)', color='#64748b', range=[-0.2, last6['avg_sentiment_monthly'].max()*1.25], tickfont=dict(size=12)),
+                    yaxis=dict(gridcolor='rgba(255,255,255,0.04)', color='#64748b', range=[_y6_min, _y6_max], tickfont=dict(size=12)),
                     xaxis=dict(color='#64748b', tickfont=dict(size=12)),
                     font=dict(family='DM Sans', size=11, color='#94a3b8'))
                 st.plotly_chart(fig_6, use_container_width=True, config={'displayModeBar': False})
