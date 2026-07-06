@@ -767,18 +767,39 @@ def render(ctx: dict) -> None:
     # ──────────────────────────────────────────────────────────
 
     _is_fc_month    = narasi_target not in _avail_months_hist
+
+    # ── TEMP DEBUG LOGGING (audit only, tidak mengubah logika) ──────
+    print("=== DEBUG STATUS BULAN ===")
+    print("repr(sel)          :", repr(sel))
+    print("repr(narasi_target):", repr(narasi_target))
+    print("type(sel)          :", type(sel))
+    print("type(narasi_target):", type(narasi_target))
+    print("narasi_target == sel:", narasi_target == sel)
+    print("_is_fc_month        :", _is_fc_month)
+    # ─────────────────────────────────────────────────────────────
+
     if narasi_target == sel:
+        print("=== DEBUG: cabang IF (narasi_target == sel) DIEKSEKUSI ===")
         # Bulan yang sama dengan sidebar → pakai ctx langsung, tidak perlu
         # menghitung ulang lewat jalur mana pun.
         _narasi_row   = row_data
         _narasi_level = level
         _narasi_score = score
     elif _is_fc_month:
+        print("=== DEBUG: cabang ELIF (_is_fc_month) DIEKSEKUSI ===")
+        print("len(_combined_for_picker):", len(_combined_for_picker))
+        print("narasi_target in _combined_for_picker['month']:",
+              narasi_target in _combined_for_picker['month'].values)
         _narasi_rows  = _combined_for_picker[_combined_for_picker['month'] == narasi_target]
+        print("hasil lookup row (_narasi_rows) kosong?:", _narasi_rows.empty)
+        print("hasil lookup row (_narasi_rows):", _narasi_rows.to_dict('records'))
         _narasi_row   = _narasi_rows.iloc[0].to_dict() if len(_narasi_rows) else {}
         _narasi_level = _fc_level_map.get(narasi_target, 'WASPADA')
         _narasi_score = _fc_score_map.get(narasi_target, 0.0)
+        print("_fc_score_map.get(narasi_target):", _fc_score_map.get(narasi_target))
+        print("_fc_level_map.get(narasi_target):", _fc_level_map.get(narasi_target))
     else:
+        print("=== DEBUG: cabang ELSE DIEKSEKUSI ===")
         _narasi_row   = get_row(narasi_target)
         _narasi_level = str(_narasi_row.get('crisis_level', 'WASPADA'))
         _narasi_score = sf(_narasi_row.get('crisis_score_100', 0))
