@@ -125,26 +125,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Projection Banner ─────────────────────────────────
-from src.services.forecast import forecast_months as _fc_fn
-import pandas as _pd_h
-from datetime import datetime
-_current_real  = _pd_h.Period(datetime.now().strftime('%Y-%m'), freq='M')
-_prev_real     = _current_real - 1
-_fc_list_h, _fc_trend_h = _fc_fn(predictions, n=6, from_month=str(_prev_real))
-_current_fc    = _fc_list_h[0]
-_curr_lv       = _current_fc['level']
-_curr_sc       = _current_fc['score']
-_curr_conf     = _current_fc['confidence']
-_curr_mo       = _current_fc['month']
-_fc_trend      = _fc_trend_h
-_trend_txt     = "↗ MENINGKAT" if _fc_trend > 0.5 else ("↘ MENURUN" if _fc_trend < -0.5 else "→ STABIL")
-_trend_col     = "#d90000" if _fc_trend > 0.5 else ("#22c55e" if _fc_trend < -0.5 else "#FFBC37")
-_tren_val_col  = "#f87171" if _fc_trend < 0 else ("#4ade80" if _fc_trend > 0 else "#94a3b8")
-
-COLOR_MAP_H = {'AMAN':'#00c794','WASPADA':'#F9F871','SIAGA':'#ff6c43','KRISIS':'#d90000'}
-
-
 # ── KPI + Alert — ambil dari ctx ──────────────────────
 _row_data   = ctx['row_data']
 _is_proj    = ctx['is_projection']

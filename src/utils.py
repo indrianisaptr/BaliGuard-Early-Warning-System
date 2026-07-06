@@ -434,13 +434,18 @@ def interpretasi_indikator(kolom: str, nilai: float) -> str:
         return f"{v:.1f}% — hunian hotel {label} sangat rendah, tekanan serius pada industri akomodasi"
 
     if kolom == "usd_idr_avg":
+        # [DIPERBAIKI — Patch 2A] Kurs USD/IDR naik = Rupiah melemah = wisatawan
+        # asing memperoleh lebih banyak Rupiah per Dolar, sehingga Bali relatif
+        # LEBIH MURAH bagi mereka (bukan lebih mahal seperti wording lama).
+        # Yang naik akibat kurs tinggi adalah biaya operasional domestik
+        # (barang impor, BBM, dll.), bukan biaya perjalanan wisatawan asing.
         if v > 16500:
-            return f"Rp {v:,.0f}/USD — kurs sangat tinggi, biaya perjalanan ke Bali meningkat bagi wisatawan asing"
+            return f"Rp {v:,.0f}/USD — kurs sangat tinggi, Bali menjadi relatif lebih kompetitif bagi wisatawan asing, namun berpotensi menekan biaya operasional domestik"
         if v > 15500:
-            return f"Rp {v:,.0f}/USD — kurs tinggi, sedikit memberatkan wisatawan asing"
+            return f"Rp {v:,.0f}/USD — kurs tinggi, daya beli wisatawan asing menguat, sementara biaya operasional domestik sedikit lebih berat"
         if v >= 14500:
             return f"Rp {v:,.0f}/USD — kurs dalam kisaran normal"
-        return f"Rp {v:,.0f}/USD — kurs rendah, menguntungkan bagi wisatawan asing ke Bali"
+        return f"Rp {v:,.0f}/USD — kurs rendah, Bali relatif lebih mahal bagi wisatawan asing"
 
     if kolom == "usd_change_mom":
         if v > 0.03:
@@ -459,24 +464,30 @@ def interpretasi_indikator(kolom: str, nilai: float) -> str:
         return f"{v:.2f}% — deflasi, harga-harga turun"
 
     if kolom == "avg_sentiment_monthly":
-        if v >= 0.5:
-            return f"skor {v:+.3f} — wisatawan sangat puas dengan pengalaman di Bali"
+        # [DIPERBAIKI — Patch 2B] Tier disesuaikan dengan avg_sentiment_monthly
+        # (skala -1..+1), wording tidak lagi absolut ("sangat puas"/"perlu
+        # perhatian serius") melainkan bertingkat sesuai nilai sebenarnya.
+        if v > 0.6:
+            return f"skor {v:+.3f} — sentimen wisatawan sangat positif"
         if v >= 0.3:
-            return f"skor {v:+.3f} — sentimen positif, ulasan wisatawan umumnya baik"
+            return f"skor {v:+.3f} — sentimen wisatawan positif"
+        if v >= 0:
+            return f"skor {v:+.3f} — sentimen wisatawan cenderung positif"
         if v >= -0.3:
-            return f"skor {v:+.3f} — sentimen netral atau campuran"
-        if v >= -0.5:
-            return f"skor {v:+.3f} — sentimen negatif, banyak keluhan dari wisatawan"
-        return f"skor {v:+.3f} — sentimen sangat negatif, perlu perhatian serius"
+            return f"skor {v:+.3f} — sentimen wisatawan cenderung negatif"
+        return f"skor {v:+.3f} — sentimen wisatawan negatif"
 
     if kolom == "gdelt_crisis_score":
+        # [DIPERBAIKI — Patch 2C] GDELT mengukur intensitas pemberitaan, bukan
+        # selalu berita negatif. Wording diubah dari klaim nada berita
+        # ("sangat negatif") menjadi netral soal intensitas pemberitaan.
         if v > 0.7:
-            return f"skor {v:.3f} — pemberitaan internasional sangat negatif tentang Bali"
+            return f"skor {v:.3f} — intensitas pemberitaan internasional mengenai isu pariwisata Bali sangat tinggi"
         if v > 0.5:
-            return f"skor {v:.3f} — pemberitaan internasional cenderung negatif"
+            return f"skor {v:.3f} — intensitas pemberitaan internasional mengenai isu pariwisata meningkat"
         if v > 0.3:
-            return f"skor {v:.3f} — pemberitaan internasional netral hingga sedikit negatif"
-        return f"skor {v:.3f} — pemberitaan internasional relatif positif atau netral"
+            return f"skor {v:.3f} — intensitas pemberitaan internasional dalam taraf moderat"
+        return f"skor {v:.3f} — intensitas pemberitaan internasional relatif rendah"
 
     if kolom == "disaster_risk_score":
         if v > 0.7:
@@ -489,7 +500,7 @@ def interpretasi_indikator(kolom: str, nilai: float) -> str:
 
     if kolom == "economic_risk_score":
         if v > 0.7:
-            return f"skor {v:.3f} — kondisi ekonomi global sangat tidak menguntungkan"
+            return f"skor {v:.3f} — tekanan ekonomi global sangat tinggi"
         if v > 0.5:
             return f"skor {v:.3f} — tekanan ekonomi global cukup tinggi"
         if v > 0.3:

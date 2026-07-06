@@ -17,7 +17,7 @@ from src.services.llm_service import (
     build_prompt_comparison,
     clean_output,
 )
-from src.services.forecast import forecast_months
+from src.services.forecast import build_combined_predictions
 from src.repositories.narrative_repository import NarrativeRepository
 
 from src.utils import (
@@ -673,14 +673,21 @@ def render(ctx: dict) -> None:
     </div>""", unsafe_allow_html=True)
 
     # ─ PILIH BULAN & TAHUN ────────────────────────────────
-    _avail_months_hist = sorted(predictions['month'].unique())
-    _last_data_month   = _avail_months_hist[-1]
-    _last_p            = pd.Period(_last_data_month, freq='M')
-    _fc_extra, _       = forecast_months(predictions, n=FORECAST_HORIZON_MONTHS, from_month=str(_last_p - 1))
-    _fc_months_only    = [f['month'] for f in _fc_extra]
-    _fc_score_map      = {f['month']: f['score'] for f in _fc_extra}
-    _fc_level_map      = {f['month']: f['level'] for f in _fc_extra}
-    _all_months        = _avail_months_hist + [m for m in _fc_months_only if m not in _avail_months_hist]
+    _avail_months_hist  = sorted(predictions['month'].unique())
+    _last_data_month    = _avail_months_hist[-1]
+    _last_p             = pd.Period(_last_data_month, freq='M')
+    # Jalur forecast tunggal: sama seperti shared.py, bukan forecast_months()
+    # lagi. build_combined_predictions() membangun rantai proyeksi
+    # bulan-per-bulan sampai ke _furthest_month, sehingga bulan mana pun
+    # yang dipilih di picker Narasi mendapat skor/level yang identik dengan
+    # yang dipakai sidebar (ctx) untuk bulan yang sama.
+    _furthest_month     = str(_last_p + FORECAST_HORIZON_MONTHS)
+    _combined_for_picker = build_combined_predictions(predictions, _furthest_month)
+    _fc_months_only     = [m for m in sorted(_combined_for_picker['month'].unique())
+                            if m not in _avail_months_hist]
+    _fc_score_map       = dict(zip(_combined_for_picker['month'], _combined_for_picker['crisis_score_100']))
+    _fc_level_map       = dict(zip(_combined_for_picker['month'], _combined_for_picker['crisis_level']))
+    _all_months         = _avail_months_hist + [m for m in _fc_months_only if m not in _avail_months_hist]
     _avail_years       = sorted(set(m[:4] for m in _all_months), reverse=True)
     
     # Groq key
@@ -760,7 +767,15 @@ def render(ctx: dict) -> None:
     # ──────────────────────────────────────────────────────────
 
     _is_fc_month    = narasi_target not in _avail_months_hist
-    if _is_fc_month:
+    if narasi_target == sel:
+        # Bulan yang sama dengan sidebar → pakai ctx langsung, tidak perlu
+        # menghitung ulang lewat jalur mana pun.
+        _narasi_row   = row_data
+        _narasi_level = level
+        _narasi_score = score
+    elif _is_fc_month:
+        _narasi_rows  = _combined_for_picker[_combined_for_picker['month'] == narasi_target]
+        _narasi_row   = _narasi_rows.iloc[0].to_dict() if len(_narasi_rows) else {}
         _narasi_level = _fc_level_map.get(narasi_target, 'WASPADA')
         _narasi_score = _fc_score_map.get(narasi_target, 0.0)
     else:
@@ -999,17 +1014,12 @@ def render(ctx: dict) -> None:
                 )
 
                 # ── Ambil data row ──────────────────────────────
+                # _narasi_row sudah konsisten dengan ctx/build_combined_predictions
+                # (lihat blok status bulan di atas), jadi tidak perlu hitung ulang.
+                _narasi_row_data = _narasi_row
                 if _is_fc_month:
-                    _base_row = dict(predictions.iloc[-1])
-                    _base_row['month']             = narasi_target
-                    _base_row['crisis_score_100']  = _narasi_score
-                    _base_row['crisis_level']      = _narasi_level
-                    _base_row['rf_predicted_level'] = _narasi_level
-                    _base_row['rf_confidence']     = 0.70
-                    _narasi_row_data = _base_row
                     _history = predictions.tail(3).to_dict('records')
                 else:
-                    _narasi_row_data = get_row(narasi_target)
                     _idx     = list(predictions['month']).index(narasi_target) \
                             if narasi_target in list(predictions['month']) else len(predictions) - 1
                     _history = predictions.iloc[max(0, _idx - 3):_idx].to_dict('records')
