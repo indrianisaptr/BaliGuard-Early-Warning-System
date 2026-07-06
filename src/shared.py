@@ -69,12 +69,25 @@ def build_context(
         _rf_raw if isinstance(_rf_raw, str) and _rf_raw.strip()
         else str(row_data.get('crisis_level', 'AMAN'))
     )
+
+    # [PATCH 2 — audit iso_anomaly untuk bulan forecast]
+    # iso_anomaly adalah kolom numerik yang untuk bulan proyeksi ikut
+    # masuk ke loop trend generik di project_future_row() (karena tidak
+    # dikecualikan dari num_cols di sana), sehingga nilainya menjadi
+    # KONTINU (mis. 0.18, 0.72), bukan flag biner 0/1 asli seperti pada
+    # data historis. int(...) melakukan TRUNCATION, bukan threshold —
+    # int(0.72) == 0, padahal 0.72 mestinya lebih dekat ke "anomali" (1).
+    # Diganti dengan threshold eksplisit >= 0.5. Untuk data historis
+    # (nilai selalu 0/1 murni), hasil ini IDENTIK dengan int() sebelumnya
+    # — tidak ada perubahan pada bulan historis.
+    _iso_val = sf(row_data.get('iso_anomaly', 0))
+
     ctx.update({
         'level':    str(row_data.get('crisis_level', 'AMAN')),
         'score':    sf(row_data.get('crisis_score_100', 0)),
         'rf_pred':  _rf_pred,
         'conf':     sf(row_data.get('rf_confidence', 0)),
-        'is_anom':  int(sf(row_data.get('iso_anomaly', 0))),
+        'is_anom':  int(_iso_val >= 0.5),
         'wisman':   sf(row_data.get('wisman', 0)),
         'tpk':      sf(row_data.get('tpk_bintang', 0)),
         'inflasi':  sf(row_data.get('inflasi_processed', 0)),

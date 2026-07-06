@@ -39,12 +39,21 @@ def project_future_row(predictions: pd.DataFrame, target_month: str) -> dict:
             proj[col] = float(vals.mean())
         else:
             proj[col] = 0.0
-    proj['month']        = target_month
-    proj['crisis_level'] = level_from_score(
-    proj.get('crisis_score_100', 30.0)
-    )
-    # Clip ke range yang masuk akal
+    proj['month'] = target_month
+
+    # [PATCH 1 — audit crisis_level setelah clip]
+    # Sebelumnya: level_from_score() dipanggil dengan crisis_score_100
+    # MENTAH (belum diclip), baru setelah itu skor diclip ke [0,100].
+    # Akibatnya level bisa dihitung dari nilai di luar rentang [0,100]
+    # (mis. hasil ekstrapolasi linear <0 atau >100), sementara skor yang
+    # akhirnya ditampilkan ke user sudah diclip — dua angka berbeda
+    # dipakai untuk dua tampilan yang seharusnya konsisten.
+    # Perbaikan HANYA menukar urutan: clip dulu, baru hitung level dari
+    # skor yang sudah diclip. Threshold (THRESHOLD dict) dan formula
+    # skor (weight tourism/economy/sentiment) TIDAK diubah.
     proj['crisis_score_100'] = float(np.clip(proj.get('crisis_score_100', 30.0), 0, 100))
+    proj['crisis_level'] = level_from_score(proj['crisis_score_100'])
+
     return proj
 
 
