@@ -219,7 +219,7 @@ _rf_label = "Prediksi Model"
 _cards = [
     _kpi_card_html("LEVEL KRISIS", _level,
                    (_proj_badge_html + f" {_rf_label}: {_rf_pred}") if _proj_badge_html else f"{_rf_label}: {_rf_pred}",
-                   f"<span style='color:#334155;font-size:10px'>{_prev_month or '—'}</span>",
+                   f"<span style='color:#334155;font-size:10px'>{sel}</span>",
                    _level, use_dot=True),
     _kpi_card_html("CRISIS SCORE", f"{_score:.1f}",
                    f"dari 100 &nbsp;·&nbsp; conf {_conf_kpi:.0f}%", _d_score),

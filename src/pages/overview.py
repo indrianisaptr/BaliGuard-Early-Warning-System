@@ -173,8 +173,6 @@ def render(ctx: dict) -> None:
     row_data         = ctx['row_data']
     level            = ctx['level']
     score            = ctx['score']
-    rf_pred          = ctx['rf_pred']
-    conf             = ctx['conf']
     is_anom          = ctx['is_anom']
     wisman           = ctx['wisman']
     tpk              = ctx['tpk']
@@ -186,9 +184,6 @@ def render(ctx: dict) -> None:
     delta_ctx        = ctx['delta_ctx']
     forecast         = ctx['forecast']
     prev_row         = ctx['prev_row']
-    _pct_aman        = ctx['pct_aman']
-    _pct_krisis      = ctx['pct_krisis']
-    _avg_score       = ctx['avg_score']
     color            = ctx['color']
     #revisi/tambahan — sesuai kunci yang disediakan src/shared.build_context()
     physical_risk_score      = ctx.get('physical_risk', row_data.get('physical_risk_score'))
@@ -577,59 +572,16 @@ def render(ctx: dict) -> None:
         """, unsafe_allow_html=True)
     # ── [AKHIR SISIPAN] ────────────────────────────────────────────────
 
-    # ── Summary Stats Strip ───────────────────────────────
-    _pct_aman   = (predictions['crisis_level']=='AMAN').mean()*100
-    _pct_krisis = (predictions['crisis_level']=='KRISIS').mean()*100
-    _avg_score  = predictions['crisis_score_100'].mean()
-    _peak_wis   = predictions['wisman'].max()
-
-    # AFTER
-    st.markdown(f"""
-    <div style='margin-top:32px;padding-top:20px;padding-bottom:20px;margin-bottom:48px;
-                border-top:1px solid rgba(255,255,255,0.07);
-                display:flex;justify-content:center;gap:0'>
-      <div style='flex:1;text-align:center;padding:12px 16px;
-                  border-right:1px solid rgba(255,255,255,0.06)'>
-        <div style='font-size:10px;font-weight:700;text-transform:uppercase;
-                    letter-spacing:.12em;color:#64748b;margin-bottom:8px;font-family:"DM Sans"'>
-            Bulan Level AMAN
-        </div>
-        <div style='font-family:"DM Serif Display";font-size:26px;font-weight:700;
-                    color:#00c794;line-height:1'>
-            {_pct_aman:.1f}%
-        </div>
-      </div>
-      <div style='flex:1;text-align:center;padding:12px 16px;
-                  border-right:1px solid rgba(255,255,255,0.06)'>
-        <div style='font-size:10px;font-weight:700;text-transform:uppercase;
-                    letter-spacing:.12em;color:#64748b;margin-bottom:8px;font-family:"DM Sans"'>
-            Bulan Level KRISIS
-        </div>
-        <div style='font-family:"DM Serif Display";font-size:26px;font-weight:700;
-                    color:#d90000;line-height:1'>
-            {_pct_krisis:.1f}%
-        </div>
-      </div>
-      <div style='flex:1;text-align:center;padding:12px 16px;
-                  border-right:1px solid rgba(255,255,255,0.06)'>
-        <div style='font-size:10px;font-weight:700;text-transform:uppercase;
-                    letter-spacing:.12em;color:#64748b;margin-bottom:8px;font-family:"DM Sans"'>
-            Avg Crisis Score
-        </div>
-        <div style='font-family:"DM Serif Display";font-size:26px;font-weight:700;
-                    color:#93c5fd;line-height:1'>
-            {_avg_score:.1f}
-        </div>
-      </div>
-      <div style='flex:1;text-align:center;padding:12px 16px'>
-        <div style='font-size:10px;font-weight:700;text-transform:uppercase;
-                    letter-spacing:.12em;color:#64748b;margin-bottom:8px;font-family:"DM Sans"'>
-            Peak Wisman
-        </div>
-        <div style='font-family:"DM Serif Display";font-size:26px;font-weight:700;
-                    color:#93c5fd;line-height:1'>
-            {_peak_wis:,}
-        </div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # ── [DIHAPUS Demo 3] Summary Stats Strip ──────────────────────────
+    # Empat metric (Bulan AMAN%, Bulan KRISIS%, Avg Score, Peak Wisman)
+    # adalah statistik historis agregat seluruh dataset — tidak terikat
+    # bulan yang dipilih (sel), tidak actionable untuk pengambilan
+    # keputusan, dan fungsinya sudah digantikan oleh panel "Mengapa
+    # Status Saat Ini Muncul?" dan "External Risk Monitor" di atas.
+    # Section berikut penutup halaman agar layout tetap rapi tanpa strip
+    # ini (border-top tipis sebagai pemisah akhir konten).
+    st.markdown(
+        "<div style='margin-top:32px;padding-top:20px;"
+        "border-top:1px solid rgba(255,255,255,0.07)'></div>",
+        unsafe_allow_html=True
+    )

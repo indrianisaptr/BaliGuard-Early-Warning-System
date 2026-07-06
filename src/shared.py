@@ -53,10 +53,26 @@ def build_context(
     ctx['row_data'] = row_data
 
     # KPI values
+    # ── rf_pred: fallback ke level yang sama dengan LEVEL KRISIS ─────
+    # row_data.get(key, default) HANYA memakai default kalau key tidak
+    # ada di dict. Untuk bulan proyeksi (hasil project_future_row()),
+    # kolom 'rf_predicted_level' tetap ADA tapi bernilai NaN — karena
+    # RF classifier tidak dijalankan ulang untuk bulan forecast, hanya
+    # crisis score yang di-forecast. Akibatnya .get() mengembalikan NaN
+    # apa adanya, lalu str(nan) -> "nan". Level (crisis_level) tidak
+    # kena masalah ini karena selalu dihitung ulang dari crisis score
+    # yang di-forecast. Guard di bawah memastikan rf_pred tidak pernah
+    # menampilkan "nan" tanpa membuat field dummy — nilainya diselaraskan
+    # dengan crisis_level yang sudah pasti valid.
+    _rf_raw = row_data.get('rf_predicted_level')
+    _rf_pred = (
+        _rf_raw if isinstance(_rf_raw, str) and _rf_raw.strip()
+        else str(row_data.get('crisis_level', 'AMAN'))
+    )
     ctx.update({
         'level':    str(row_data.get('crisis_level', 'AMAN')),
         'score':    sf(row_data.get('crisis_score_100', 0)),
-        'rf_pred':  str(row_data.get('rf_predicted_level', 'AMAN')),
+        'rf_pred':  _rf_pred,
         'conf':     sf(row_data.get('rf_confidence', 0)),
         'is_anom':  int(sf(row_data.get('iso_anomaly', 0))),
         'wisman':   sf(row_data.get('wisman', 0)),
