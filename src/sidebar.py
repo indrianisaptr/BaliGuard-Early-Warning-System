@@ -43,10 +43,22 @@ NAMA_BULAN_ID = {
 }
 
 
-def render_sidebar(ctx: dict) -> tuple:
-    predictions = ctx['predictions']
-    logo_html   = ctx.get('logo_html', '')
-    nav_icons   = ctx.get('nav_icons', {})
+def render_sidebar(ctx_init: dict) -> tuple:
+    """
+    TAHAP 1 — dipanggil SEBELUM build_context().
+    Merender: logo, dropdown periode, navigasi.
+    Mengembalikan (selected_nav, sel) yang dipakai untuk build_context().
+
+    PENTING: Card "STATUS DIPILIH" dan section Data Sumber/Model TIDAK
+    dirender di sini lagi — dipindah ke render_sidebar_status(ctx), yang
+    dipanggil setelah ctx (hasil build_context, sudah termasuk data
+    proyeksi/forecast) tersedia. Ini memperbaiki bug di mana sidebar
+    menampilkan score bulan historis terakhir, bukan bulan yang dipilih
+    user, saat bulan yang dipilih adalah bulan proyeksi.
+    """
+    predictions = ctx_init['predictions']
+    logo_html   = ctx_init.get('logo_html', '')
+    nav_icons   = ctx_init.get('nav_icons', {})
 
     if 'selected_nav' not in st.session_state:
         st.session_state.selected_nav = NAV_OPTIONS[0]
@@ -201,16 +213,43 @@ def render_sidebar(ctx: dict) -> tuple:
                 st.rerun()
 
         selected_nav = st.session_state.selected_nav
-        st.divider()
 
-        # ── Status Dipilih ────────────────────────────────
+    # NOTE: Card "STATUS DIPILIH" dan section Data Sumber/Model/AI
+    # DIPINDAH ke render_sidebar_status(ctx), dipanggil dari dashboard.py
+    # SETELAH build_context() dijalankan. Alasan: bulan proyeksi (mis.
+    # "2026-06") tidak selalu ada sebagai baris di `predictions` mentah —
+    # baris itu baru terbentuk lewat forecast di dalam build_context().
+    # Jika status card dirender di sini (sebelum build_context), dia akan
+    # fallback ke predictions.iloc[-1] (bulan historis terakhir) setiap
+    # kali `sel` adalah bulan proyeksi, sehingga menampilkan score yang
+    # salah (bug: sidebar menunjukkan 30.7 padahal seharusnya 39.8).
+
+    return selected_nav, sel
+
+
+def render_sidebar_status(ctx: dict) -> None:
+    """
+    TAHAP 2 — dipanggil SETELAH build_context(), dari dashboard.py:
+
+        ctx = build_context(..., sel=sel, ...)
+        render_sidebar_status(ctx)
+
+    Merender card "STATUS DIPILIH" + section Data Sumber/Model/AI di
+    bagian bawah sidebar. Berbeda dari versi lama, di sini SEMUA nilai
+    (level, score, anomali) diambil langsung dari `ctx` — yaitu row_data
+    hasil build_context() yang sudah benar untuk bulan proyeksi sekalipun
+    — bukan dari `predictions.iloc[-1]` atau lookup manual ke dataframe
+    mentah.
+    """
+    row_s = ctx.get('row_data')
+    lv_s  = str(ctx.get('level', 'WASPADA'))
+    sc_s  = float(ctx.get('score', 0))
+    an_s  = int(float(row_s.get('iso_anomaly', 0))) if row_s is not None else 0
+    col_s = COLOR_MAP.get(lv_s, '#fff')
+
+    with st.sidebar:
+        st.divider()
         try:
-            rows = predictions[predictions['month'] == sel]
-            row_s = rows.iloc[0] if len(rows) else predictions.iloc[-1]
-            lv_s  = str(row_s.get('crisis_level', 'WASPADA'))
-            sc_s  = float(row_s.get('crisis_score_100', 0))
-            an_s  = int(float(row_s.get('iso_anomaly', 0)))
-            col_s = COLOR_MAP.get(lv_s, '#fff')
             st.markdown(f"""
 <div style='background:rgba(255,255,255,0.04);border-radius:12px;padding:14px 16px;
             border:1px solid rgba(255,255,255,0.07)'>
@@ -248,7 +287,7 @@ def render_sidebar(ctx: dict) -> tuple:
     Kaggle<br>
     Tourist Reviews
 </div>""", unsafe_allow_html=True)
-        
+
         st.markdown("""
 <div style='font-size:11px;color:#64748b;line-height:1.9'>
     <b>MODEL</b><br>
@@ -257,7 +296,7 @@ def render_sidebar(ctx: dict) -> tuple:
     XLM-RoBERTa<br>
     External Risk Engine
 </div>""", unsafe_allow_html=True)
-        
+
         st.markdown("""
 <div style='font-size:11px;color:#64748b;line-height:1.9'>
     <b>AI & ANALYTICS</b><br>
@@ -265,5 +304,3 @@ def render_sidebar(ctx: dict) -> tuple:
     SWOT Generator<br>
     Narrative Engine
 </div>""", unsafe_allow_html=True)
-
-    return selected_nav, sel

@@ -53,7 +53,7 @@ from src.utils   import (
     load_data, load_models, load_nav_icons,
     LABEL_MANUSIAWI, DESKRIPSI_INDIKATOR,
 )
-from src.sidebar import render_sidebar
+from src.sidebar import render_sidebar, render_sidebar_status
 from src.shared  import build_context
 
 try:
@@ -85,6 +85,13 @@ ctx = build_context(
     sel=sel, logo_html=_logo_html, nav_icons=nav_icons,
 )
 ctx['selected_nav'] = selected_nav
+
+# ── Render sisa sidebar (STATUS DIPILIH + Data Sumber/Model) ──────────
+# Dipanggil di SINI (bukan di dalam render_sidebar di atas) karena baru
+# di titik ini ctx['row_data'] / ctx['level'] / ctx['score'] sudah benar
+# untuk bulan proyeksi (hasil forecast di build_context()). Ini yang
+# memperbaiki bug sidebar menampilkan score bulan historis terakhir.
+render_sidebar_status(ctx)
 
 # ══════════════════════════════════════════════════════
 # HEADER, KPI, ALERT — sama persis dengan dashboard.py asli
@@ -178,6 +185,22 @@ def _delta_txt(curr, prev_val, fmt=".1f", suffix="", invert=False):
     return f"<span style='color:{col};font-size:12px;font-weight:700'>{txt}</span>"
 
 _d_score  = _delta_txt(_score,   _p_score,  fmt=".1f", invert=True)
+
+def _level_delta_txt(curr, prev_val):
+    """Ringkasan perubahan skor krisis vs bulan lalu, dipakai di baris paling
+    bawah card LEVEL KRISIS (menggantikan tampilan tanggal 'sel' yang duplikatif
+    dan membingungkan setelah bug bulan diperbaiki)."""
+    if prev_val is None:
+        return "<span style='color:#64748b;font-size:11px'>— vs bulan lalu</span>"
+    d = curr - prev_val
+    if abs(d) < 0.05:
+        return "<span style='color:#94a3b8;font-size:12px;font-weight:700'>→ Tetap (0.0 poin)</span>"
+    good = d < 0  # skor krisis turun = kondisi membaik
+    col  = "#4ade80" if good else "#f87171"
+    sign = "▲" if d > 0 else "▼"
+    return f"<span style='color:{col};font-size:12px;font-weight:700'>{sign} {abs(d):.1f} poin vs bulan lalu</span>"
+
+_d_level = _level_delta_txt(_score, _p_score)
 _d_wisman = _delta_txt(_wisman,  _p_wisman, suffix="pct_change")
 _d_tpk    = _delta_txt(_tpk,     _p_tpk,   suffix="%")
 _d_sent   = _delta_txt(_sent,    _p_sent,   fmt="+.3f")
@@ -219,7 +242,7 @@ _rf_label = "Prediksi Model"
 _cards = [
     _kpi_card_html("LEVEL KRISIS", _level,
                    (_proj_badge_html + f" {_rf_label}: {_rf_pred}") if _proj_badge_html else f"{_rf_label}: {_rf_pred}",
-                   f"<span style='color:#334155;font-size:10px'>{sel}</span>",
+                   _d_level,
                    _level, use_dot=True),
     _kpi_card_html("CRISIS SCORE", f"{_score:.1f}",
                    f"dari 100 &nbsp;·&nbsp; conf {_conf_kpi:.0f}%", _d_score),
