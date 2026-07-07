@@ -309,7 +309,7 @@ st.markdown(_alert_html(
     f"Status Pariwisata Bali — {sel}",
     ALERTS.get(_level, "") +
     f" &nbsp;·&nbsp; Faktor dominan: <b>{_dominant}</b>"
-    f" &nbsp;·&nbsp; Delta score: <b>{_score_delta:+.1f} poin</b> ({_score_trend})"
+    f" &nbsp;·&nbsp; Perubahan Crisis Score (vs bulan sebelumnya): <b>{_score_delta:+.1f} poin</b> ({_score_trend})"
 ), unsafe_allow_html=True)
 
 # ── Page Title ────────────────────────────────────────
