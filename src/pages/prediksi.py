@@ -401,8 +401,8 @@ def render(ctx: dict) -> None:
         # ── Forecast grid cards — fixed 12 slots (4 rows x 3 cols) ──
         # Confidence tiers: 76-100 high (green), 51-75 mid (amber), 26-50 low (orange), ≤25 vlow (muted)
         _MAX_SLOTS = 12
-        _full_grid_html = "<div class='fc-grid-fixed'>"
-        for _gi in range(_MAX_SLOTS):
+
+        def _fc_card_html(_gi):
             if _gi < len(fc_list_tab):
                 _fc  = fc_list_tab[_gi]
                 _lv  = _fc['level']
@@ -423,7 +423,7 @@ def render(ctx: dict) -> None:
                 else:
                     _tier_cls  = "fc-conf-vlow"
                     _pct_color = "#ef4444"   # merah
-                _full_grid_html += (
+                return (
                     "<div class='fc-grid-card {tier}'>"
                     "<div style='position:absolute;top:0;left:0;right:0;height:3px;"
                     "background:{pc};border-radius:14px 14px 0 0'></div>"
@@ -441,13 +441,34 @@ def render(ctx: dict) -> None:
                 ).format(tier=_tier_cls, clr=_clr, mo=_fc['month'],
                          lv=_lv, sc=_fc['score'], cw=_cw, cf=_cf, pc=_pct_color)
             else:
-                _full_grid_html += "<div class='fc-grid-card fc-grid-empty'></div>"
-        _full_grid_html += "</div>"
-        st.markdown(_full_grid_html, unsafe_allow_html=True)
+                return "<div class='fc-grid-card fc-grid-empty'></div>"
+
+        # Catatan disclaimer bersifat interaktif: posisinya mengikuti jumlah
+        # baris kartu yang benar-benar terisi (berdasarkan _proj_n), sehingga
+        # ia naik ke atas saat proyeksi pendek dan turun saat proyeksi panjang
+        # — tidak selalu menempel diam di paling bawah grid 12 slot.
+        _COLS = 3
+        _filled_n   = min(len(fc_list_tab), _MAX_SLOTS)
+        _rows_upto  = -(-_filled_n // _COLS)          # ceil(filled/cols), baris yang berisi data nyata
+        _slot_before_note = min(_rows_upto * _COLS, _MAX_SLOTS)  # lengkapi baris terakhir dg slot kosong bila perlu
+        _slot_after_note  = _MAX_SLOTS - _slot_before_note
+
+        _grid_before_html = "<div class='fc-grid-fixed'>"
+        for _gi in range(_slot_before_note):
+            _grid_before_html += _fc_card_html(_gi)
+        _grid_before_html += "</div>"
+        st.markdown(_grid_before_html, unsafe_allow_html=True)
 
         st.markdown(
             "<div class='fc-note'>⚠️ Proyeksi berdasarkan tren historis. Tingkat keyakinan menurun seiring jarak proyeksi.</div>",
             unsafe_allow_html=True)
+
+        if _slot_after_note > 0:
+            _grid_after_html = "<div class='fc-grid-fixed'>"
+            for _gi in range(_slot_before_note, _MAX_SLOTS):
+                _grid_after_html += _fc_card_html(_gi)
+            _grid_after_html += "</div>"
+            st.markdown(_grid_after_html, unsafe_allow_html=True)
 
         # Track chart tab state here (rendered full-width later)
         if 'pred_chart_tab' not in st.session_state:
@@ -506,99 +527,6 @@ def render(ctx: dict) -> None:
                 base=score, dc=_sdcol, d=_sdelta),
             unsafe_allow_html=True)
         
-    # --- Helper Function untuk Konversi Risiko ---
-        def get_risk_ui(score):
-            val = float(score) if score is not None else 0.0
-            pct = round(val * 100)
-            if val < 0.33:
-                return pct, "RENDAH", "#10b981"
-            elif val < 0.66:
-                return pct, "SEDANG", "#f59e0b"
-            else:
-                return pct, "TINGGI", "#ef4444"
-
-        # Terapkan konversi ke setiap metrik risiko
-        pr_pct, pr_cat, pr_col = get_risk_ui(physical_risk)
-        mr_pct, mr_cat, mr_col = get_risk_ui(media_risk)
-        tp_pct, tp_cat, tp_col = get_risk_ui(tourist_perception)
-        er_pct, er_cat, er_col = get_risk_ui(external_risk)
-
-        # Komponen UI External Risk Outlook Redesign (DIPERBAIKI TANPA SPASI AWAL)
-        html_outlook = (
-            f"<div class='bd-panel' style='margin-top:12px; background:rgba(255,255,255,0.015); border:1px solid rgba(255,255,255,0.05);'>"
-            f"<div class='bd-panel-title' style='margin-bottom:10px; font-size:18px; letter-spacing:.1em;'>"
-            f"<span style='display:inline-block;width:6px;height:6px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #e2e8f0;margin-right:4px;color:#e2e8f0;'></span>"
-            f"{LABEL_MANUSIAWI.get('external_risk_score', 'External Risk Score')}"
-            f"</div>"
-            f"<div style='display:grid; grid-template-columns:1fr 1fr; gap:8px;'>"
-            
-            # Card 1: Physical Risk
-            f"<div style='background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:12px; text-align:left;'>"
-            f"<div style='font-size:11px; color:#e2e8f0; text-transform:uppercase; letter-spacing:.06em; font-weight:700;'>{LABEL_MANUSIAWI.get('physical_risk', 'Physical Risk')}</div>"
-            f"<div style='margin-top:4px; display:flex; align-items:baseline; gap:6px;'>"
-            f"<span style='font-family:\"JetBrains Mono\",monospace; font-size:22px; font-weight:800; color:#e8e4c9;'>{pr_pct}</span>"
-            f"<span style='font-size:12px; color:#64748b; font-weight:600;'>/ 100</span>"
-            f"</div>"
-            f"<div style='height:4px; width:100%; background:rgba(255,255,255,0.05); border-radius:2px; margin:8px 0;'>"
-            f"<div style='height:100%; width:{pr_pct}%; background:{pr_col}; border-radius:2px;'></div>"
-            f"</div>"
-            f"<div style='display:inline-block; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:800; letter-spacing:.05em; background:{pr_col}22; color:{pr_col}; border:1px solid {pr_col}44;'>"
-            f"{pr_cat}"
-            f"</div>"
-            f"</div>"
-
-            # Card 2: Media Risk
-            f"<div style='background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:12px; text-align:left;'>"
-            f"<div style='font-size:11px; color:#e2e8f0; text-transform:uppercase; letter-spacing:.06em; font-weight:700;'>{LABEL_MANUSIAWI.get('media_risk', 'Media Risk')}</div>"
-            f"<div style='margin-top:4px; display:flex; align-items:baseline; gap:6px;'>"
-            f"<span style='font-family:\"JetBrains Mono\",monospace; font-size:22px; font-weight:800; color:#e8e4c9;'>{mr_pct}</span>"
-            f"<span style='font-size:12px; color:#64748b; font-weight:600;'>/ 100</span>"
-            f"</div>"
-            f"<div style='height:4px; width:100%; background:rgba(255,255,255,0.05); border-radius:2px; margin:8px 0;'>"
-            f"<div style='height:100%; width:{mr_pct}%; background:{mr_col}; border-radius:2px;'></div>"
-            f"</div>"
-            f"<div style='display:inline-block; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:800; letter-spacing:.05em; background:{mr_col}22; color:{mr_col}; border:1px solid {mr_col}44;'>"
-            f"{mr_cat}"
-            f"</div>"
-            f"</div>"
-
-            # Card 3: Tourist Perception
-            f"<div style='background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:12px; text-align:left;'>"
-            f"<div style='font-size:11px; color:#e2e8f0; text-transform:uppercase; letter-spacing:.06em; font-weight:700;'>{LABEL_MANUSIAWI.get('tourist_perception', 'Tourist Perception')}</div>"
-            f"<div style='margin-top:4px; display:flex; align-items:baseline; gap:6px;'>"
-            f"<span style='font-family:\"JetBrains Mono\",monospace; font-size:22px; font-weight:800; color:#e8e4c9;'>{tp_pct}</span>"
-            f"<span style='font-size:12px; color:#64748b; font-weight:600;'>/ 100</span>"
-            f"</div>"
-            f"<div style='height:4px; width:100%; background:rgba(255,255,255,0.05); border-radius:2px; margin:8px 0;'>"
-            f"<div style='height:100%; width:{tp_pct}%; background:{tp_col}; border-radius:2px;'></div>"
-            f"</div>"
-            f"<div style='display:inline-block; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:800; letter-spacing:.05em; background:{tp_col}22; color:{tp_col}; border:1px solid {tp_col}44;'>"
-            f"{tp_cat}"
-            f"</div>"
-            f"</div>"
-
-            # Card 4: Composite External Risk Index
-            f"<div style='background:rgba(59,130,246,0.03); border:1px solid rgba(59,130,246,0.15); border-radius:10px; padding:12px; text-align:left;'>"
-            f"<div style='font-size:11px; color:#3b82f6; text-transform:uppercase; letter-spacing:.06em; font-weight:800;'>{LABEL_MANUSIAWI.get('external_risk_score', 'External Risk Index')}</div>"
-            f"<div style='margin-top:4px; display:flex; align-items:baseline; gap:6px;'>"
-            f"<span style='font-family:\"JetBrains Mono\",monospace; font-size:22px; font-weight:800; color:#3b82f6;'>{er_pct}</span>"
-            f"<span style='font-size:12px; color:#3b82f6; font-weight:600; opacity:0.7;'>/ 100</span>"
-            f"</div>"
-            f"<div style='height:4px; width:100%; background:rgba(59,130,246,0.1); border-radius:2px; margin:8px 0;'>"
-            f"<div style='height:100%; width:{er_pct}%; background:{er_col}; border-radius:2px;'></div>"
-            f"</div>"
-            f"<div style='display:inline-block; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:800; letter-spacing:.05em; background:{er_col}22; color:{er_col}; border:1px solid {er_col}44;'>"
-            f"{er_cat}"
-            f"</div>"
-            f"</div>"
-
-            f"</div>"
-            f"</div>"
-        )
-        st.markdown(html_outlook, unsafe_allow_html=True)
-        
-        # ─────────────────────────────────────────────────────────────
-
         # Peta Risiko Historis dipindah ke bawah tab (full-width) — lihat bagian _active_chart == 'scatter'
 
     # ══════════════════════════════════════════════════════════
@@ -822,7 +750,3 @@ def render(ctx: dict) -> None:
             st.plotly_chart(fig_r2, use_container_width=True, config={'displayModeBar': False})
 
     st.markdown("<div style='margin-bottom:32px'></div>", unsafe_allow_html=True)
-
-
-
-    # ─── TAB 5: NARASI AI ─────────────────────────────────
