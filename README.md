@@ -100,7 +100,7 @@ The pipeline builds a monthly time series from raw tourism, economic, sentiment,
 
 - **Preprocessing and feature engineering** — growth rates, rolling statistics, z-scores, volatility, seasonality, and normalized external risk indicators
 - **Crisis Score** — a weighted composite of tourism, economic, sentiment, and external risk components, with a pre-COVID baseline floor rule
-- **External Risk Score** — equal weight of Physical Risk, Media Risk, and Tourist Perception, each normalized to a 0-100 scale
+- **External Risk Score** — a weighted composite of Physical Risk, Media Risk, and Tourist Perception (35 percent, 35 percent, and 30 percent respectively), each normalized to a 0-100 scale
 - **Random Forest Classifier** — predicts the crisis level (AMAN, WASPADA, SIAGA, KRISIS) with per-class probabilities and a confidence score
 - **Isolation Forest** — unsupervised anomaly detection used as a supporting signal alongside the classifier
 - **Sentiment Classification** — multilingual review sentiment (English, Indonesian, Chinese) via an XLM-RoBERTa model, aggregated into a monthly sentiment score
