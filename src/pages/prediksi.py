@@ -179,6 +179,23 @@ def render(ctx: dict) -> None:
       font-family:'JetBrains Mono',monospace; font-size:11px;
       color:#94a3b8; letter-spacing:.08em; margin-bottom:8px; font-weight:600;
     }
+
+    /* ── Data status badge (aktual vs proyeksi) ── */
+    .fc-status-badge {
+      display:inline-flex; align-items:center; gap:4px;
+      font-size:9px; font-weight:800; letter-spacing:.06em;
+      text-transform:uppercase; padding:2px 8px; border-radius:20px;
+      margin-bottom:8px; line-height:1.6;
+    }
+    .fc-status-actual {
+      background:rgba(34,197,94,0.12); color:#22c55e;
+      border:1px solid rgba(34,197,94,0.3);
+    }
+    .fc-status-proj {
+      background:rgba(249,115,22,0.12); color:#f97316;
+      border:1px solid rgba(249,115,22,0.3);
+    }
+
     .fc-card-level { font-size:16px; font-weight:900; margin-bottom:3px; letter-spacing:.04em; }
     .fc-card-score {
       font-family:'JetBrains Mono',monospace; font-size:12px; color:#94a3b8;
@@ -193,14 +210,6 @@ def render(ctx: dict) -> None:
       font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:800;
     }
     .fc-conf-txt { font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:.08em; font-weight:600; }
-
-    /* ── Warning note ── */
-    .fc-note {
-      display:flex; align-items:center; gap:8px; background:rgba(245,158,11,0.07);
-      border:1px solid rgba(245,158,11,0.18); border-left:3px solid rgba(245,158,11,0.55);
-      border-radius:8px; padding:11px 16px; font-size:13px; color:#fbbf24;
-      font-weight:600; margin-bottom:20px; letter-spacing:.01em;
-    }
 
     /* Sembunyikan tick bar bawaan */
     [data-testid="stSliderTickBar"] {
@@ -402,6 +411,10 @@ def render(ctx: dict) -> None:
         # Confidence tiers: 76-100 high (green), 51-75 mid (amber), 26-50 low (orange), ≤25 vlow (muted)
         _MAX_SLOTS = 12
 
+        # Bulan terakhir yang memiliki data aktual, dipakai untuk menentukan
+        # badge status (DATA AKTUAL vs PROYEKSI) pada masing-masing card.
+        _last_actual_period = pd.Period(str(_last_data_month), freq='M')
+
         def _fc_card_html(_gi):
             if _gi < len(fc_list_tab):
                 _fc  = fc_list_tab[_gi]
@@ -409,6 +422,13 @@ def render(ctx: dict) -> None:
                 _clr = COLOR_MAP.get(_lv, '#3b82f6')
                 _cf  = _fc['confidence']
                 _cw  = int(_cf)
+                _card_period = pd.Period(str(_fc['month']), freq='M')
+                if _card_period <= _last_actual_period:
+                    _status_cls  = "fc-status-actual"
+                    _status_text = "● DATA AKTUAL"
+                else:
+                    _status_cls  = "fc-status-proj"
+                    _status_text = "▲ PROYEKSI"
                 # Confidence tier → warna berdasarkan % confidence
                 # 76-100=hijau, 51-75=kuning, 26-50=oranye, 0-25=merah
                 if _cf >= 76:
@@ -428,6 +448,7 @@ def render(ctx: dict) -> None:
                     "<div style='position:absolute;top:0;left:0;right:0;height:3px;"
                     "background:{pc};border-radius:14px 14px 0 0'></div>"
                     "<div class='fc-card-month'>{mo}</div>"
+                    "<div class='fc-status-badge {scls}'>{stxt}</div>"
                     "<div class='fc-card-level' style='color:{pc}'>{lv}</div>"
                     "<div class='fc-card-score'>{sc}/100</div>"
                     "<div class='fc-conf-bar-wrap'>"
@@ -439,6 +460,7 @@ def render(ctx: dict) -> None:
                     "</div>"
                     "</div>"
                 ).format(tier=_tier_cls, clr=_clr, mo=_fc['month'],
+                         scls=_status_cls, stxt=_status_text,
                          lv=_lv, sc=_fc['score'], cw=_cw, cf=_cf, pc=_pct_color)
             else:
                 return "<div class='fc-grid-card fc-grid-empty'></div>"
@@ -458,10 +480,6 @@ def render(ctx: dict) -> None:
             _grid_before_html += _fc_card_html(_gi)
         _grid_before_html += "</div>"
         st.markdown(_grid_before_html, unsafe_allow_html=True)
-
-        st.markdown(
-            "<div class='fc-note'>⚠️ Proyeksi berdasarkan tren historis. Tingkat keyakinan menurun seiring jarak proyeksi.</div>",
-            unsafe_allow_html=True)
 
         if _slot_after_note > 0:
             _grid_after_html = "<div class='fc-grid-fixed'>"
