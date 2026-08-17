@@ -526,3 +526,14 @@
 2026-08-16 22:20:21,734 [INFO] automation.storage.staging_writer: staging_write source=usd_idr key=2026-08 path=/home/runner/work/BaliGuard-Early-Warning-System/BaliGuard-Early-Warning-System/automation/data/staging/usd_idr/2026-08.json
 2026-08-16 22:20:21,734 [INFO] automation.scheduler.run_job: [4/4] Tersimpan di: /home/runner/work/BaliGuard-Early-Warning-System/BaliGuard-Early-Warning-System/automation/data/staging/usd_idr/2026-08.json
 2026-08-16 22:20:21,734 [INFO] automation.scheduler.run_job: Job usd_idr SELESAI sukses untuk month=2026-08
+2026-08-17 22:24:04,739 [INFO] automation.scheduler.run_job: [1/4] Fetch USD/IDR mulai (target_month=current)
+2026-08-17 22:24:05,000 [INFO] automation.fetch.usd_idr: fetch_usd_idr_latest result={'month': '2026-08', 'usd_idr_avg': 17833.79, 'usd_idr_source': 'exchangerate-api', 'fetched_at': '2026-08-17T22:24:04.739769+00:00'}
+2026-08-17 22:24:05,000 [INFO] automation.scheduler.run_job: [1/4] Fetch selesai: {'month': '2026-08', 'usd_idr_avg': 17833.79, 'usd_idr_source': 'exchangerate-api', 'fetched_at': '2026-08-17T22:24:04.739769+00:00'}
+2026-08-17 22:24:05,000 [INFO] automation.scheduler.run_job: [2/4] Validasi mulai
+2026-08-17 22:24:05,000 [INFO] automation.scheduler.run_job: [2/4] Validasi lolos
+2026-08-17 22:24:05,000 [INFO] automation.scheduler.run_job: [3/4] Cleaning ringan mulai
+2026-08-17 22:24:05,001 [INFO] automation.scheduler.run_job: [3/4] Cleaning selesai: {'month': '2026-08', 'usd_idr_avg': 17833.79, 'usd_idr_source': 'exchangerate-api', 'fetched_at': '2026-08-17T22:24:04.739769+00:00'}
+2026-08-17 22:24:05,001 [INFO] automation.scheduler.run_job: [4/4] Simpan ke staging mulai
+2026-08-17 22:24:05,001 [INFO] automation.storage.staging_writer: staging_write source=usd_idr key=2026-08 path=/home/runner/work/BaliGuard-Early-Warning-System/BaliGuard-Early-Warning-System/automation/data/staging/usd_idr/2026-08.json
+2026-08-17 22:24:05,001 [INFO] automation.scheduler.run_job: [4/4] Tersimpan di: /home/runner/work/BaliGuard-Early-Warning-System/BaliGuard-Early-Warning-System/automation/data/staging/usd_idr/2026-08.json
+2026-08-17 22:24:05,001 [INFO] automation.scheduler.run_job: Job usd_idr SELESAI sukses untuk month=2026-08
